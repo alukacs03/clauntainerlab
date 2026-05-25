@@ -36,7 +36,8 @@ containerlab/
 
 ## Working Style for Claude
 
-- When adding a new lab, create the full directory structure (topology + configs/ + README.md) in one go.
+- When adding a new lab, create the full directory structure (topology + configs/ + solutions/ + README.md) in one go.
+- **Always update the top-level `README.md` Lab Index** when adding, renaming, or removing a lab. The index lives in the "Lab Index" section and lists `# | folder-link | one-line topic | status`. Don't leave it stale.
 - For lab READMEs, include a Mermaid topology diagram by default.
 - Don't fetch or commit NOS images. If a lab needs one, document the source in `images/` and reference the image tag in the topology.
 - When proposing topology changes, show the diff against the existing `topology.clab.yml` clearly.
