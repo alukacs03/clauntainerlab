@@ -1,0 +1,47 @@
+name: ibgp-rr
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw-rr:
+      kind: arista_ceos
+      startup-config: configs/sw-rr.cfg
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+    sw3:
+      kind: arista_ceos
+      startup-config: configs/sw3.cfg
+
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.1.0.10/24 dev eth1
+        - ip route add default via 10.1.0.1
+    h2:
+      kind: linux
+      exec:
+        - ip addr add 10.2.0.10/24 dev eth1
+        - ip route add default via 10.2.0.1
+    h3:
+      kind: linux
+      exec:
+        - ip addr add 10.3.0.10/24 dev eth1
+        - ip route add default via 10.3.0.1
+
+  links:
+    - endpoints: ["h1:eth1", "sw1:eth1"]
+    - endpoints: ["h2:eth1", "sw2:eth1"]
+    - endpoints: ["h3:eth1", "sw3:eth1"]
+    # Star: each client to the RR
+    - endpoints: ["sw1:eth2", "sw-rr:eth1"]
+    - endpoints: ["sw2:eth2", "sw-rr:eth2"]
+    - endpoints: ["sw3:eth2", "sw-rr:eth3"]

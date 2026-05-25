@@ -1,0 +1,42 @@
+name: bgp-internet-edge
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # Customer edge — two routers, redundant uplinks
+    edge1:
+      kind: arista_ceos
+      startup-config: configs/edge1.cfg
+    edge2:
+      kind: arista_ceos
+      startup-config: configs/edge2.cfg
+
+    # Two upstream ISPs
+    isp1:
+      kind: arista_ceos
+      startup-config: configs/isp1.cfg
+    isp2:
+      kind: arista_ceos
+      startup-config: configs/isp2.cfg
+
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 203.0.113.10/24 dev eth1
+        - ip route add default via 203.0.113.1
+
+  links:
+    # Customer LAN
+    - endpoints: ["h1:eth1", "edge1:eth1"]
+    # iBGP/IGP backbone between edge1 and edge2
+    - endpoints: ["edge1:eth2", "edge2:eth2"]
+    # edge1 → ISP1, edge2 → ISP2
+    - endpoints: ["edge1:eth3", "isp1:eth1"]
+    - endpoints: ["edge2:eth3", "isp2:eth1"]
+    # Customer LAN cross-link so edge2 also reaches h1's subnet
+    - endpoints: ["edge2:eth1", "edge1:eth4"]

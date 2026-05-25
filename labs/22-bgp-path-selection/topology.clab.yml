@@ -1,0 +1,43 @@
+name: bgp-path-selection
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+    sw3:
+      kind: arista_ceos
+      startup-config: configs/sw3.cfg
+    sw4:
+      kind: arista_ceos
+      startup-config: configs/sw4.cfg
+
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.1.0.10/24 dev eth1
+        - ip route add default via 10.1.0.1
+    h4:
+      kind: linux
+      exec:
+        - ip addr add 10.4.0.10/24 dev eth1
+        - ip route add default via 10.4.0.1
+
+  links:
+    - endpoints: ["h1:eth1", "sw1:eth1"]
+    - endpoints: ["h4:eth1", "sw4:eth1"]
+    # eBGP paths between AS 65001 and AS 65002
+    - endpoints: ["sw1:eth2", "sw3:eth2"]
+    - endpoints: ["sw2:eth2", "sw4:eth2"]
+    # iBGP within AS 65001 (sw1-sw2) and AS 65002 (sw3-sw4)
+    - endpoints: ["sw1:eth3", "sw2:eth3"]
+    - endpoints: ["sw3:eth3", "sw4:eth3"]

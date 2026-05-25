@@ -1,0 +1,32 @@
+name: bgp-business
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # YOU are the transit provider
+    provider:
+      kind: arista_ceos
+      startup-config: configs/provider.cfg
+
+    # Three different neighbor types
+    customer:
+      kind: arista_ceos
+      startup-config: configs/customer.cfg
+
+    peer:
+      kind: arista_ceos
+      startup-config: configs/peer.cfg
+
+    transit:
+      kind: arista_ceos
+      startup-config: configs/transit.cfg
+
+  links:
+    - endpoints: ["provider:eth1", "customer:eth1"]
+    - endpoints: ["provider:eth2", "peer:eth1"]
+    - endpoints: ["provider:eth3", "transit:eth1"]
