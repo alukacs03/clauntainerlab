@@ -233,6 +233,10 @@ The MAC should be `00:00:5e:00:01:0a` (`0a` = VRID 10 in hex). After failover, t
 
 - [`solutions/sw1.cfg`](solutions/sw1.cfg), [`solutions/sw2.cfg`](solutions/sw2.cfg)
 
+## Going deeper
+
+- [First-hop redundancy comparison](../../docs/concepts/first-hop-redundancy-comparison.md) — VRRP vs HSRP vs GLBP vs VARP vs EVPN anycast gateway; lineage, when to pick which, operational gotchas.
+
 ## Concepts cheat-sheet
 
 - **VRRP** — RFC 5798. Master/backup routers share a virtual IP + virtual MAC for gateway redundancy.

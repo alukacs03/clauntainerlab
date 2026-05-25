@@ -154,6 +154,10 @@ BGP gets its own chapter because it's the protocol you'll spend the most operati
 Standalone deep-dives on questions that come up while doing the labs:
 
 - [L3 Switch vs. Router](docs/concepts/l3-switch-vs-router.md) — when does an L3 switch stop being a switch and become a router?
+- [Spanning Tree variants](docs/concepts/stp-variants.md) — STP, RSTP, MSTP, PVST+, RPVST+ — what each adds and when you'll encounter them.
+- [VRF deep-dive](docs/concepts/vrf-deep-dive.md) — what a VRF is, RD/RT, route leaking, VRF-Lite vs MPLS L3VPN vs EVPN VRFs.
+- [First-hop redundancy comparison](docs/concepts/first-hop-redundancy-comparison.md) — VRRP, HSRP, GLBP, VARP, EVPN anycast gateway — when to pick which.
+- [L2 security binding table](docs/concepts/l2-security-binding-table.md) — the single table that DHCP snooping, DAI, and IPSG all share.
 
 ## Repo Conventions
 
