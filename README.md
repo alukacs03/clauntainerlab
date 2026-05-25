@@ -34,6 +34,25 @@ sudo containerlab destroy --cleanup
 
 Each lab's README explains its goal, topology, theory, task, hints, and verification steps.
 
+## Roadmap
+
+Planned labs. Order may shift as topics naturally pull each other in. Strikethrough = done (see Lab Index above).
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| ~~01~~ | ~~VLAN basics~~ | Access ports, trunks, 802.1Q tagging |
+| ~~02~~ | ~~Inter-VLAN routing (SVI)~~ | L3 switch role, virtual VLAN interfaces |
+| 03 | First-hop redundancy (VRRP) | Gateway failover (active/standby) |
+| 04 | Spanning Tree | L2 loop avoidance, root election, port states |
+| 05 | Link Aggregation (LACP) | Multi-cable bundle to one switch |
+| 06 | MLAG | LACP bundle terminated on two switches — active/active, no switch SPOF |
+| 07 | Anycast Gateway (VARP) | Both MLAG peers serve the same gateway IP simultaneously |
+| 08 | DHCP relay | `ip helper-address`, host-side automation |
+| 09 | OSPF basics | Dynamic L3 routing across multiple switches |
+| 10 | ACLs | Filtering traffic between subnets/VLANs |
+| 11 | NAT & edge role | When an L3 switch becomes an actual router |
+| 12+ | BGP / VRF / VXLAN+EVPN | Datacenter fabric: routed underlay, overlay tenants |
+
 ## Concepts
 
 Standalone deep-dives on questions that come up while doing the labs:
