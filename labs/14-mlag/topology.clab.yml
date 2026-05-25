@@ -1,0 +1,39 @@
+name: mlag
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # MLAG peer pair
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+
+    # Downstream access switch — sees the MLAG bundle as one LACP peer
+    sw-leaf:
+      kind: arista_ceos
+      startup-config: configs/sw-leaf.cfg
+
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.1/24 dev eth1
+
+  links:
+    # ─── MLAG peer-link between sw1 and sw2 (2 cables → Po10) ───
+    - endpoints: ["sw1:eth5", "sw2:eth5"]
+    - endpoints: ["sw1:eth6", "sw2:eth6"]
+
+    # ─── MLAG member links — sw1 Et1 and sw2 Et1 to sw-leaf ───
+    - endpoints: ["sw1:eth1", "sw-leaf:eth2"]
+    - endpoints: ["sw2:eth1", "sw-leaf:eth3"]
+
+    # Host on sw-leaf
+    - endpoints: ["h1:eth1", "sw-leaf:eth1"]

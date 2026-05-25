@@ -1,0 +1,44 @@
+name: anycast-gateway
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+    sw-leaf:
+      kind: arista_ceos
+      startup-config: configs/sw-leaf.cfg
+
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.1/24 dev eth1
+        - ip route add default via 10.10.10.254
+
+    h-server:
+      kind: linux
+      exec:
+        - ip addr add 10.20.20.50/24 dev eth1
+        - ip route add default via 10.20.20.254
+
+  links:
+    # MLAG peer-link (Po10)
+    - endpoints: ["sw1:eth5", "sw2:eth5"]
+    - endpoints: ["sw1:eth6", "sw2:eth6"]
+
+    # MLAG-paired Po20 to sw-leaf
+    - endpoints: ["sw1:eth1", "sw-leaf:eth2"]
+    - endpoints: ["sw2:eth1", "sw-leaf:eth3"]
+
+    # Hosts on sw-leaf
+    - endpoints: ["h1:eth1", "sw-leaf:eth1"]
+    - endpoints: ["h-server:eth1", "sw-leaf:eth4"]
