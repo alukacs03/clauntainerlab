@@ -1,0 +1,34 @@
+name: evpn-intro
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    spine1:
+      kind: arista_ceos
+      startup-config: configs/spine1.cfg
+    leaf1:
+      kind: arista_ceos
+      startup-config: configs/leaf1.cfg
+    leaf2:
+      kind: arista_ceos
+      startup-config: configs/leaf2.cfg
+
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.10/24 dev eth1
+    h2:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.20/24 dev eth1
+
+  links:
+    - endpoints: ["leaf1:eth1", "spine1:eth1"]
+    - endpoints: ["leaf2:eth1", "spine1:eth2"]
+    - endpoints: ["h1:eth1", "leaf1:eth3"]
+    - endpoints: ["h2:eth1", "leaf2:eth3"]

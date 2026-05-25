@@ -44,6 +44,13 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 24 | [bgp-internet-edge](labs/24-bgp-internet-edge) | Multi-homing pattern, default-only inbound, floating static | Ready | — |
 | 25 | [bgp-business](labs/25-bgp-business) | Customer/Peer/Transit, Gao-Rexford policy, BGP leak prevention | Ready | — |
 | 26 | [bgp-operations](labs/26-bgp-operations) | Auth, TTL security, BFD fall-over, max-routes, graceful restart | Ready | — |
+| 27 | [spine-leaf](labs/27-spine-leaf) | Clos topology with eBGP underlay, ECMP across spines | Ready | — |
+| 28 | [bgp-unnumbered](labs/28-bgp-unnumbered) | Link-local BGP peering, RFC 5549, no IP plumbing | Ready | — |
+| 29 | [vxlan-data-plane](labs/29-vxlan-data-plane) | Static VXLAN tunnels, VTEP, VNI, head-end replication | Ready | — |
+| 30 | [evpn-intro](labs/30-evpn-intro) | EVPN control plane, Type 2/3 routes, auto-discovery | Ready | — |
+| 31 | [evpn-type5](labs/31-evpn-type5) | EVPN Type 5, tenant VRF, symmetric IRB, L3 overlay | Ready | — |
+| 32 | [evpn-anycast-gateway](labs/32-evpn-anycast-gateway) | Anycast gateway across every leaf in the fabric | Ready | — |
+| 33 | [evpn-multisite](labs/33-evpn-multisite) | Stretched subnet across two DCs via DCI EVPN | Ready | — |
 
 **Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
 
@@ -128,13 +135,13 @@ BGP gets its own chapter because it's the protocol you'll spend the most operati
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 27 | Spine-leaf topology | Routed underlay, ECMP, leaf/spine roles, capacity planning |
-| 28 | BGP unnumbered underlay | Link-local addressing, simpler peering, the modern default |
-| 29 | VXLAN data plane | Frame encapsulation, VTEPs, VNI, MTU implications |
-| 30 | EVPN control plane intro | BGP EVPN address family, Type 2 (MAC/IP) and Type 3 (multicast) routes |
-| 31 | EVPN symmetric IRB | Type 5 routes, L3 overlay, multi-tenant routing |
-| 32 | Anycast gateway in EVPN | Distributed L3 gateway across all leaves |
-| 33 | Multi-site DCI | Stretched subnet across two physical sites via EVPN multi-site or DCI gateway patterns |
+| ~~27~~ | ~~Spine-leaf topology~~ | Routed underlay, ECMP, leaf/spine roles, capacity planning |
+| ~~28~~ | ~~BGP unnumbered underlay~~ | Link-local addressing, simpler peering, the modern default |
+| ~~29~~ | ~~VXLAN data plane~~ | Frame encapsulation, VTEPs, VNI, MTU implications |
+| ~~30~~ | ~~EVPN control plane intro~~ | BGP EVPN address family, Type 2 (MAC/IP) and Type 3 (multicast) routes |
+| ~~31~~ | ~~EVPN symmetric IRB~~ | Type 5 routes, L3 overlay, multi-tenant routing |
+| ~~32~~ | ~~Anycast gateway in EVPN~~ | Distributed L3 gateway across all leaves |
+| ~~33~~ | ~~Multi-site DCI~~ | Stretched subnet across two physical sites via EVPN multi-site or DCI gateway patterns |
 
 ### Chapter 8 — Edge / WAN
 

@@ -1,0 +1,47 @@
+name: evpn-multisite
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # ─── Site A ───
+    spine-a:
+      kind: arista_ceos
+      startup-config: configs/spine-a.cfg
+    leaf-a:
+      kind: arista_ceos
+      startup-config: configs/leaf-a.cfg
+
+    # ─── Site B ───
+    spine-b:
+      kind: arista_ceos
+      startup-config: configs/spine-b.cfg
+    leaf-b:
+      kind: arista_ceos
+      startup-config: configs/leaf-b.cfg
+
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.10/24 dev eth1
+        - ip route add default via 10.10.10.254
+
+    h2:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.20/24 dev eth1
+        - ip route add default via 10.10.10.254
+
+  links:
+    # Site A internal
+    - endpoints: ["leaf-a:eth1", "spine-a:eth1"]
+    - endpoints: ["h1:eth1", "leaf-a:eth3"]
+    # Site B internal
+    - endpoints: ["leaf-b:eth1", "spine-b:eth1"]
+    - endpoints: ["h2:eth1", "leaf-b:eth3"]
+    # ─── DCI link between sites ───
+    - endpoints: ["spine-a:eth5", "spine-b:eth5"]
