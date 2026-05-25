@@ -10,7 +10,8 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 
 | # | Lab | Topic | Status |
 |---|-----|-------|--------|
-| _none yet_ | | | |
+| 01 | [vlan-basics](labs/01-vlan-basics) | Access ports, trunks, 802.1Q | Ready |
+| 02 | [inter-vlan-svi](labs/02-inter-vlan-svi) | Inter-VLAN routing with SVIs | Ready |
 
 Each lab lives under `labs/NN-name/` and has its own README explaining goals, topology, and how to run it.
 
