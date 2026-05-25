@@ -1,0 +1,22 @@
+# Containerlab runtime artifacts
+clab-*/
+.clab-*/
+*.clab.bak
+*-tls/
+
+# NOS images and large binaries
+*.tar
+*.tar.gz
+*.qcow2
+*.vmdk
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local-only env
+.env
+.env.local
