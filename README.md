@@ -36,22 +36,103 @@ Each lab's README explains its goal, topology, theory, task, hints, and verifica
 
 ## Roadmap
 
-Planned labs. Order may shift as topics naturally pull each other in. Strikethrough = done (see Lab Index above).
+Planned labs, organized into chapters. Order may shift as real-world topics pull each other in. Strikethrough = done (see Lab Index above).
+
+Every lab is grounded in a **real production scenario** — not abstract "ping A from B" exercises. The closing chapter is an architecture document that ties the whole curriculum into a sample dual-site DC reference design, so the entire body of work serves as a self-contained onboarding resource for understanding a production DC network.
+
+### Chapter 1 — L2 fundamentals
 
 | # | Lab | What it adds |
 |---|-----|--------------|
 | ~~01~~ | ~~VLAN basics~~ | Access ports, trunks, 802.1Q tagging |
 | ~~02~~ | ~~Inter-VLAN routing (SVI)~~ | L3 switch role, virtual VLAN interfaces |
-| 03 | First-hop redundancy (VRRP) | Gateway failover (active/standby) |
-| 04 | Spanning Tree | L2 loop avoidance, root election, port states |
-| 05 | Link Aggregation (LACP) | Multi-cable bundle to one switch |
-| 06 | MLAG | LACP bundle terminated on two switches — active/active, no switch SPOF |
-| 07 | Anycast Gateway (VARP) | Both MLAG peers serve the same gateway IP simultaneously |
-| 08 | DHCP relay | `ip helper-address`, host-side automation |
-| 09 | OSPF basics | Dynamic L3 routing across multiple switches |
-| 10 | ACLs | Filtering traffic between subnets/VLANs |
-| 11 | NAT & edge role | When an L3 switch becomes an actual router |
-| 12+ | BGP / VRF / VXLAN+EVPN | Datacenter fabric: routed underlay, overlay tenants |
+| 03 | Trunk deep-dive | Native VLAN, allowed VLANs, DTP, VLAN pruning; latent bugs & VLAN hopping risk |
+
+### Chapter 2 — L2 in production
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 04 | STP / RSTP | Loop avoidance, root election, port states |
+| 05 | STP protections | BPDU guard, root guard, loop guard, bridge assurance |
+| 06 | Port security & storm control | MAC limits, sticky MACs, broadcast/multicast/unicast storms, errdisable recovery |
+| 07 | L2 security trifecta | DHCP snooping + Dynamic ARP Inspection + IP Source Guard |
+
+### Chapter 3 — Production hygiene basics
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 08 | Management VRF | Separating control-plane from data-plane reachability; no more "I lost my switch when I changed a route" |
+| 09 | AAA — TACACS+ / RADIUS | Per-user logins, command authorization, local fallback, mgmt-plane ACLs |
+| 10 | Logging, time, baseline hardening | Syslog patterns, NTP, secure-by-default config templates |
+| 11 | Out-of-band management network | Console servers, dedicated mgmt VLAN, isolation from data path |
+
+### Chapter 4 — Redundancy
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 12 | LACP | Multi-cable bundle to one switch |
+| 13 | VRRP | Gateway failover (active/standby) |
+| 14 | MLAG | LACP bundle terminated on two switches; peer-link, peer-keepalive, orphan ports, split-brain |
+| 15 | Anycast gateway / VARP | Both MLAG peers serve the same gateway IP simultaneously — active/active L3 |
+
+### Chapter 5 — Dynamic routing (IGP)
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 16 | Static routing | Static routes, floating statics, route preference, AD |
+| 17 | OSPF basics | Single-area OSPF, neighbor discovery, LSDB |
+| 18 | OSPF design | Multi-area, LSA types, DR/BDR, ABR/ASBR roles |
+| 19 | BFD | Sub-second failure detection for routing protocols |
+
+### Chapter 6 — BGP (the long chapter)
+
+BGP gets its own chapter because it's the protocol you'll spend the most operational time with — both inside the fabric (iBGP for EVPN) and at the edge (eBGP with upstreams). Business and technical sides covered together.
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 20 | BGP fundamentals | eBGP between two ASes; sessions, updates, RIB vs FIB |
+| 21 | iBGP inside an AS | Full mesh problem, route reflectors, confederations |
+| 22 | BGP path selection | The 13-step decision process, attributes (LP, AS path, MED, weight, origin) |
+| 23 | BGP route policy | prefix-lists, route-maps, communities — the operational toolkit |
+| 24 | BGP at the internet edge | Transit vs peering, multi-homing, AS-prepend, MED games, default-route handling |
+| 25 | BGP — the business angle | ASN ownership (LIR, RIPE), IRR/RPKI, prefix announcement hygiene, customer/peer/transit communities, peering economics |
+| 26 | BGP operations | Convergence tuning, dampening, graceful restart, troubleshooting playbook |
+
+### Chapter 7 — Modern DC fabric
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 27 | Spine-leaf topology | Routed underlay, ECMP, leaf/spine roles, capacity planning |
+| 28 | BGP unnumbered underlay | Link-local addressing, simpler peering, the modern default |
+| 29 | VXLAN data plane | Frame encapsulation, VTEPs, VNI, MTU implications |
+| 30 | EVPN control plane intro | BGP EVPN address family, Type 2 (MAC/IP) and Type 3 (multicast) routes |
+| 31 | EVPN symmetric IRB | Type 5 routes, L3 overlay, multi-tenant routing |
+| 32 | Anycast gateway in EVPN | Distributed L3 gateway across all leaves |
+| 33 | Multi-site DCI | Stretched subnet across two physical sites via EVPN multi-site or DCI gateway patterns |
+
+### Chapter 8 — Edge / WAN
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 34 | eBGP upstream peering | Operational eBGP config, prefix filtering, max-prefix protection |
+| 35 | NAT in the DC | 1:1 NAT, PAT, NAT44 vs NAT64, when (and when not) to NAT |
+| 36 | IPv6 deployment | Dual-stack, prefix delegation, NDP/RA, IPv6-only with NAT64/DNS64 |
+| 37 | Control-plane protection & DDoS basics | CoPP, mgmt-plane ACL, RTBH, BGP flowspec intro |
+
+### Chapter 9 — Operations & day-2
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 38 | Streaming telemetry | gNMI/OpenConfig, structured syslog, log shipping patterns |
+| 39 | Configuration as code | Git-driven config workflow, validation, rollback strategies |
+| 40 | Failure scenario playbook | Deliberate breaks + recovery: link, switch, gateway, BGP session, EVPN |
+| 41 | Capacity & MTU planning | Bandwidth headroom, jumbo frames in a VXLAN fabric, oversubscription |
+
+### Closing chapter — Reference design
+
+| # | Item | What it is |
+|---|------|------------|
+| RD | Sample dual-site DC reference design | An architecture document (not a lab) that ties everything together: two physical sites, MLAG'd leaves, BGP-EVPN underlay, VXLAN-stretched subnets, redundant edge, AAA, mgmt VRF, telemetry. Diagrams + design rationale. The artifact someone reads to understand the entire DC. |
 
 ## Concepts
 
