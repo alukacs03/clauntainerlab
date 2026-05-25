@@ -219,6 +219,10 @@ You'll see BPDUs flowing roughly every 2 seconds. Inside each: root bridge ID, s
 - **Convergence**: RSTP < 1s on healthy P2P links. Classic STP ~50s. Always run RSTP or MSTP today.
 - **STP runs per VLAN by default on Arista** (Rapid-PVST style) — meaning each VLAN has its own tree and can have a different root. We use one VLAN here but that's a design lever for load-spreading on Cisco's PVST.
 
+## Going deeper
+
+- [Spanning Tree variants](../../docs/concepts/stp-variants.md) — the full family (STP, RSTP, MSTP, PVST+, RPVST+), what each adds, and how they interact with MLAG/EVPN.
+
 ## What's missing (deliberately)
 
 - **MSTP** (Multiple Spanning Tree) — groups VLANs into instances. Important at scale but conceptually identical at this level.

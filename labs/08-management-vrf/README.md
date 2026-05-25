@@ -224,6 +224,10 @@ This lab doesn't configure those services (no servers in the topology), but the 
 
 - [`solutions/sw1.cfg`](solutions/sw1.cfg)
 
+## Going deeper
+
+- [VRF deep-dive](../../docs/concepts/vrf-deep-dive.md) — RD vs RT, route leaking patterns, VRF-Lite vs MPLS L3VPN vs EVPN VRFs, VRF-aware services checklist.
+
 ## Concepts cheat-sheet
 
 - **VRF** — independent routing context (RIB, FIB, ARP cache, interfaces, protocols). Default VRF is the unnamed one.

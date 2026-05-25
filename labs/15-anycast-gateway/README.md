@@ -205,6 +205,10 @@ Here, both sw1 and sw2 show identical `show ip virtual-router` output. There's n
 
 - [`solutions/sw1.cfg`](solutions/sw1.cfg), [`solutions/sw2.cfg`](solutions/sw2.cfg), [`solutions/sw-leaf.cfg`](solutions/sw-leaf.cfg)
 
+## Going deeper
+
+- [First-hop redundancy comparison](../../docs/concepts/first-hop-redundancy-comparison.md) — where VARP sits in the FHR lineage; what EVPN anycast gateway adds beyond VARP.
+
 ## Concepts cheat-sheet
 
 - **Anycast gateway** — same IP and MAC on multiple devices; nearest one serves the host.

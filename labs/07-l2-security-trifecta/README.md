@@ -230,6 +230,10 @@ You'll see the active filter binding the port to the attacker's *real* IP (10.10
 
 - [`solutions/sw1.cfg`](solutions/sw1.cfg)
 
+## Going deeper
+
+- [L2 security binding table](../../docs/concepts/l2-security-binding-table.md) — the shared binding table mechanism behind all three features; IPv6 equivalents; persistence; static entries; operational gotchas.
+
 ## Concepts cheat-sheet
 
 - **DHCP snooping** — switch filters DHCP server messages by port trust. Trusted ports = where servers live. Builds the binding table.
