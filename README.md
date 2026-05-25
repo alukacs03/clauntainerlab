@@ -179,6 +179,17 @@ Standalone deep-dives on questions that come up while doing the labs:
 - [First-hop redundancy comparison](docs/concepts/first-hop-redundancy-comparison.md) — VRRP, HSRP, GLBP, VARP, EVPN anycast gateway — when to pick which.
 - [L2 security binding table](docs/concepts/l2-security-binding-table.md) — the single table that DHCP snooping, DAI, and IPSG all share.
 
+## Professional Practice
+
+Labs teach the technical moves. The senior+ skill set is everything around the labs — how you plan a change, run an incident, document a decision, write a procedure a junior can follow at 3 AM. Standalone guides + ready-to-use templates:
+
+- [Migration planning (MOPs)](docs/practice/migration-planning.md) — how to write a change plan that saves you at 3 AM. [Template](docs/practice/templates/mop-template.md).
+- [Incident response & blameless postmortems](docs/practice/incident-response.md) — IC role, severities, status update discipline, postmortem template. [Postmortem template](docs/practice/templates/postmortem-template.md).
+- [Architecture Decision Records (ADRs)](docs/practice/adr.md) — capture *why* you chose what you chose, so future-you remembers. [ADR template](docs/practice/templates/adr-template.md).
+- [Runbooks](docs/practice/runbooks.md) — turn known incidents into checklists juniors can execute. [Runbook template](docs/practice/templates/runbook-template.md).
+
+By Phase 4-5 of [`STORY.md`](STORY.md), these stop being optional.
+
 ## Repo Conventions
 
 See [`CLAUDE.md`](CLAUDE.md) for the directory layout, the hands-on lab format, and the rules Claude follows when adding new labs.

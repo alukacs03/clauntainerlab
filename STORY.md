@@ -30,6 +30,8 @@ The previous engineer left a working but undocumented mess. The office is mid-re
 
 **Where you are by end of Phase 1**: you can build a small office L2 network correctly. You understand VLANs, trunks, STP, and basic protections. You're no longer afraid of the access layer.
 
+**Skills earned beyond the labs**: you've learned (the hard way) that *every change in production needs a written plan*. Read [`docs/practice/migration-planning.md`](docs/practice/migration-planning.md) — your next change should follow the MOP template.
+
 ---
 
 ## Phase 2 — Hardening (Labs 06–07)
@@ -44,6 +46,8 @@ The Company hired its first part-time security consultant. They're going through
 | **07 — L2 security trifecta** | Support keeps getting tickets about "weird IPs" and "the gateway suddenly being someone else's machine." You discover rogue DHCP servers and ARP spoofing. You learn the binding-table-based defense: DHCP snooping → DAI → IPSG. |
 
 **Where you are by end of Phase 2**: you're treating the access layer as an attack surface, not just a switching layer. Security signs off on the office. You feel competent for the first time.
+
+**Skills earned beyond the labs**: you start writing things down — what you change, what you investigate, what's currently weird-but-not-broken. Your first attempts at structure. Not yet runbooks; closer to a personal logbook.
 
 ---
 
@@ -61,6 +65,10 @@ The Company grew. 35 people now. The original two founders hired more devs, and 
 | **11 — Out-of-band management network** | Worst outage of the year: a routing bug took out the data plane for 45 minutes. You couldn't SSH in. The on-call engineer drove to the DC. After that, you build a real OOB network with dedicated mgmt ports and a console server. |
 
 **Where you are by end of Phase 3**: The Company's network is professionally operated. You have central logging, central authentication, OOB access, and the muscle memory of someone who's been on-call. You're a mid-level network engineer.
+
+**Skills earned beyond the labs**:
+- After the 03:00 outage where logs had rotated, you wrote your first real **runbook** — read [`docs/practice/runbooks.md`](docs/practice/runbooks.md). Future-you at 3 AM thanks present-you.
+- After the worst-of-year outage in lab 11, you learn what **incident response** discipline looks like — read [`docs/practice/incident-response.md`](docs/practice/incident-response.md). You'll be Incident Commander on your next outage.
 
 ---
 
@@ -83,6 +91,11 @@ The Company won a contract that required a second DC. Suddenly you have two phys
 
 **Where you are by end of Phase 4**: You operate a multi-site, redundant, OSPF-routed network with sub-second convergence. Your job has moved from "configure stuff" to "design the topology". The founders gave you the title **Senior Network Engineer** and a small budget.
 
+**Skills earned beyond the labs**:
+- You've executed several major-change MOPs (site cutovers, OSPF rollout). You now insist on peer-reviewed MOPs for *every* multi-device change.
+- You've been Incident Commander on at least one sev1 outage. The team noticed; the founders noticed.
+- You started writing **Architecture Decision Records** for your design choices — read [`docs/practice/adr.md`](docs/practice/adr.md). Your "OSPF area design" doc is the first ADR in The Company's history.
+
 ---
 
 ## Phase 5 — BGP and the outside world (Labs 20–26)
@@ -103,6 +116,12 @@ The Company decided to stop reselling other people's transit. They got their own
 
 **Where you are by end of Phase 5**: You own the company's internet edge. You can speak intelligently with transit providers and peers. You have a working knowledge of routing policy at the AS-boundary. The founders ask your opinion on infrastructure investments.
 
+**Skills earned beyond the labs**:
+- You've opened (and successfully closed) **TAC cases** with two upstream ISPs. You know how to write a clear case description that doesn't waste an hour going back and forth on basics.
+- You ran the postmortem on the day your bogon-filter typo caused a 12-minute customer outage. **Blameless** — the org learned about the missing automated lint instead of blaming you. The pattern stuck.
+- You're now writing ADRs for every significant policy choice. Future-you (and your replacement) will thank present-you when "why did we community-tag like this?" comes up in two years.
+- You've started **saying no** to stakeholders. Not rudely — but you know what realistic timelines look like, and you know which asks are not what they appear to be.
+
 ---
 
 ## Phase 6 — Modern DC fabric (Labs 27–33)
@@ -122,6 +141,12 @@ The growth keeps coming. The colo-rack-and-a-couple-of-servers era is over — T
 | **33 — EVPN multi-site DCI** | The big one: a customer (and your CTO) want a /24 that works in both DCs simultaneously. You design the multi-site EVPN extension: back-to-back EVPN for now, with a plan to migrate to Border Gateway pattern as you scale. |
 
 **Where you are by end of Phase 6**: You operate (and largely designed) a modern multi-site EVPN fabric. You can have a substantive conversation about VXLAN encapsulation, RD/RT semantics, anycast gateway, and DCI patterns. Your CTO trusts you with the architecture decisions.
+
+**Skills earned beyond the labs**:
+- You ran (or substantially contributed to) the multi-week migration project that moved customers onto the new EVPN fabric. Every migration was a peer-reviewed MOP with rollback plans. Some rolled back. None became outages.
+- You established the team's **ADR repository** as a real practice — there are 15+ ADRs now, and new engineers read them as part of onboarding.
+- You've negotiated peering at an IXP and represented The Company at a peering meet. You can now small-talk about MED games, AS-path tricks, and RPKI deployment status.
+- You're the **default Incident Commander** for sev1s in your area. Other senior engineers handle their own areas; you handle the network.
 
 ---
 
@@ -144,6 +169,12 @@ The Company is no longer scrappy. There's a NOC. You have a team. You're the **T
 | **40 — Failure scenario playbook** | A new junior joined the team. You write failure playbooks they can follow at 3 AM. |
 | **41 — Capacity & MTU planning** | Several near-misses with link saturation and MTU mismatches in the EVPN fabric. You write capacity-planning standards and MTU-validation tooling. |
 
+**Skills earned beyond the labs in Phase 7**:
+- You no longer write configs directly. You **review** configs, **mentor** writers, and **own standards**.
+- You've written the team's incident response standard, the MOP review checklist, the ADR practice document, and the runbook style guide.
+- You onboard new hires by walking them through the ADR repository — the org's institutional memory in document form.
+- You're regularly asked by leadership for honest estimates and risk assessments. You're trusted to say "this will take longer than they want" without it being a career risk.
+
 ---
 
 ## Closing — The Reference Design
@@ -160,6 +191,17 @@ It's everything the previous chapters of your story taught you, distilled into o
 
 - **Sequentially** — labs were ordered to build on each other and on the narrative.
 - **Out of order** — each lab still works as a standalone exercise. The Real-world scenario at the top tells you where in the story you are.
-- **As a reference** — once you've gone through, the labs are reference material for "how do I configure X on Arista" plus the conceptual deep-dives in `docs/concepts/`.
+- **As a reference** — once you've gone through, the labs are reference material for "how do I configure X on Arista" plus the conceptual deep-dives in `docs/concepts/` and the professional-practice guides in `docs/practice/`.
+
+## Beyond the labs — professional practice
+
+Labs teach you the *technical* moves. They don't teach you how to plan a migration, run an incident, write down decisions, or document procedures so a junior can run them at 3 AM. That's the content in [`docs/practice/`](docs/practice/):
+
+- [Migration planning](docs/practice/migration-planning.md) (with [MOP template](docs/practice/templates/mop-template.md))
+- [Incident response & blameless postmortems](docs/practice/incident-response.md) (with [postmortem template](docs/practice/templates/postmortem-template.md))
+- [Architecture Decision Records (ADRs)](docs/practice/adr.md) (with [ADR template](docs/practice/templates/adr-template.md))
+- [Runbooks](docs/practice/runbooks.md) (with [runbook template](docs/practice/templates/runbook-template.md))
+
+These aren't optional reading. By Phase 4-5 of your story, they're the difference between "engineer who knows configs" and "engineer the org can trust with the network".
 
 The protagonist is "you" because this story really is generic — every senior engineer at every cloud/hosting provider has lived some version of it. The technology choices are real; the growth pattern is real; the operational lessons are real. By the end, when someone asks you "how does your DC work?", you'll be able to explain it from first principles.
