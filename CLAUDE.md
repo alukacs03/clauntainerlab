@@ -22,8 +22,9 @@ containerlab/
 
 - **Lab naming**: `NN-short-kebab-name` where `NN` is a zero-padded sequence number reflecting learning order, not topic grouping. Topics belong in the lab's README.
 - **Topology files**: always named `topology.clab.yml` inside the lab directory so `containerlab deploy` works without `-t`.
-- **Configs**: per-node startup configs go under `configs/<node-name>.cfg` (or vendor-appropriate extension). Reference them from `topology.clab.yml` via `startup-config`.
-- **Lab READMEs**: must include — Goal, Topology diagram (Mermaid preferred for simple, PlantUML for complex), How to deploy, Things to try / verify, Cleanup.
+- **Configs**: per-node configs live under `configs/<node-name>.cfg` (starter — minimal, usually just hostname) and `solutions/<node-name>.cfg` (full reference answer). The topology always references `configs/`.
+- **Hands-on, not demo**: labs are exercises. The learner deploys the starter, then configures each device themselves — either live in the NOS CLI or by editing `configs/` and redeploying. The README explains concepts and specifies the *goal state*; the learner figures out the commands.
+- **Lab READMEs**: must include in this order — Goal, Topology diagram (Mermaid preferred for simple, PlantUML for complex), Theory primer, **Your task** (what to achieve, not how), Hints (relevant CLI verbs/commands without giving the answer), Verification steps, Peek at solution (pointer to `solutions/`), Concept reinforcement, Cleanup.
 - **No secrets or images in git**: NOS images (cEOS, SR Linux, etc.) are pulled separately on the VM. The `images/` directory holds notes/links only.
 
 ## Deployment Model
