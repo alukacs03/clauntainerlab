@@ -10,6 +10,9 @@ clab-*/
 *.qcow2
 *.vmdk
 
+# Vendor documentation (kept locally for Claude reference, not redistributed)
+*.pdf
+
 # Editor / OS noise
 .DS_Store
 .idea/
