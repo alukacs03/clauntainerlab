@@ -203,6 +203,10 @@ sudo containerlab deploy
 # then run the docker exec ... ip route add ... commands from solutions/host-routes.md
 ```
 
+## Going deeper
+
+- [L3 Switch vs. Router](../../docs/concepts/l3-switch-vs-router.md) — at this point sw1 is doing routing; is it a "router" now, or still an "L3 switch"? Short answer: depends on role, not silicon.
+
 ## Concepts cheat-sheet
 
 - **SVI (Switched Virtual Interface)** — virtual L3 interface bound to a VLAN. Switch's "presence" on that VLAN at L3. Aka `interface Vlan<id>` on Arista/Cisco.

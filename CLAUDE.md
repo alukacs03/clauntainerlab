@@ -12,8 +12,12 @@ containerlab/
 ├── labs/                # one directory per lab, numbered + named
 │   └── NN-short-name/
 │       ├── topology.clab.yml
-│       ├── configs/     # per-node startup configs
-│       └── README.md    # what this lab teaches, how to run, what to observe
+│       ├── configs/     # starter configs (minimal — learner fills in)
+│       ├── solutions/   # full reference answer
+│       └── README.md    # theory + task spec + hints + verification
+├── docs/
+│   ├── vm-setup.md      # one-time provisioning of the lab VM
+│   └── concepts/        # standalone deep-dives on networking concepts
 ├── images/              # notes on NOS image sourcing (not the images themselves)
 └── scripts/             # shared helpers (deploy, bootstrap, teardown)
 ```
@@ -38,6 +42,7 @@ containerlab/
 
 - When adding a new lab, create the full directory structure (topology + configs/ + solutions/ + README.md) in one go.
 - **Always update the top-level `README.md` Lab Index** when adding, renaming, or removing a lab. The index lives in the "Lab Index" section and lists `# | folder-link | one-line topic | status`. Don't leave it stale.
+- **Concept deep-dives belong in `docs/concepts/`.** When a learner question goes beyond the scope of a single lab README (e.g. "router vs L3 switch", "what's actually in an Ethernet frame", "how does ARP cache aging work"), write a focused standalone Markdown file under `docs/concepts/` instead of bloating a lab README. Link to it from the relevant lab's "Concepts cheat-sheet" or from the top-level README's "Concepts" section. Update both indices.
 - For lab READMEs, include a Mermaid topology diagram by default.
 - Don't fetch or commit NOS images. If a lab needs one, document the source in `images/` and reference the image tag in the topology.
 - When proposing topology changes, show the diff against the existing `topology.clab.yml` clearly.

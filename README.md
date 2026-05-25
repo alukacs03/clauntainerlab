@@ -34,6 +34,12 @@ sudo containerlab destroy --cleanup
 
 Each lab's README explains its goal, topology, theory, task, hints, and verification steps.
 
+## Concepts
+
+Standalone deep-dives on questions that come up while doing the labs:
+
+- [L3 Switch vs. Router](docs/concepts/l3-switch-vs-router.md) — when does an L3 switch stop being a switch and become a router?
+
 ## Repo Conventions
 
 See [`CLAUDE.md`](CLAUDE.md) for the directory layout, the hands-on lab format, and the rules Claude follows when adding new labs.
