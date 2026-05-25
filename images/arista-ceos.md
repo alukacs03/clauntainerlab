@@ -10,18 +10,19 @@ Arista's containerized EOS. Free to use, but the image is gated behind an Arista
 ## Download the cEOS tarball
 
 1. Go to <https://www.arista.com/en/support/software-download>.
-2. Under **EOS** → **cEOS-lab**, pick a recent stable release (e.g. `cEOS-lab-4.32.x.x.tar` — avoid `-INT` and `-F` builds for first labs; pick a regular `.tar`).
-3. Download it to your laptop. Note the exact version string in the filename — you'll use it as the Docker tag.
+2. Under **EOS** → **cEOS Lab**, pick the latest `M` (Maintenance) release of a recent train — e.g. `4.35.4M`. Avoid `F` (Feature) builds for stable labs.
+3. Download the **`cEOS64-lab-<version>.tar.xz`** variant (64-bit x86_64). Also grab the matching `.sha512sum` file for integrity checking.
+   - `cEOS64-...` → x86_64 (this is what you want for a Proxmox VM)
+   - `cEOS-...` (no suffix) → 32-bit x86, legacy, skip
+   - `cEOSarm-...` → ARM (Pi, Apple Silicon native)
 
 ## Copy the tarball to the VM
 
 From your laptop:
 
 ```bash
-scp cEOS-lab-4.32.2F.tar root@<vm-ip>:/root/
+scp cEOS64-lab-4.35.4M.tar.xz cEOS64-lab-4.35.4M.tar.xz.sha512sum root@<vm-ip>:/root/
 ```
-
-(Adjust user and path to your VM. Example below assumes `/root/`.)
 
 ## Import as a Docker image
 
@@ -29,11 +30,12 @@ On the VM:
 
 ```bash
 cd /root
-docker import cEOS-lab-4.32.2F.tar ceos:4.32.2F
+sha512sum -c cEOS64-lab-4.35.4M.tar.xz.sha512sum
+docker import cEOS64-lab-4.35.4M.tar.xz ceos:4.35.4M
 docker images | grep ceos
 ```
 
-The tag (`4.32.2F` here) is what you'll reference in `topology.clab.yml`. Keep the tarball around if you want to re-import after a Docker prune; otherwise you can delete it.
+`docker import` reads `.tar.xz` directly — no need to decompress first. The tag (`4.35.4M` here) is what you reference in `topology.clab.yml`. Keep the tarball if you want to re-import after a Docker prune; otherwise delete it to save the ~500 MB.
 
 ## Use in a containerlab topology
 
@@ -43,10 +45,10 @@ topology:
   nodes:
     sw1:
       kind: arista_ceos
-      image: ceos:4.32.2F
+      image: ceos:4.35.4M
     sw2:
       kind: arista_ceos
-      image: ceos:4.32.2F
+      image: ceos:4.35.4M
   links:
     - endpoints: ["sw1:eth1", "sw2:eth1"]
 ```
