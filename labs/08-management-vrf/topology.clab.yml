@@ -1,0 +1,32 @@
+name: management-vrf
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    # Admin workstation — must always be able to reach sw1 via OOB mgmt port,
+    # even when the data plane is broken.
+    h-admin:
+      kind: linux
+      exec:
+        - ip addr add 192.168.99.10/24 dev eth1
+        - ip route add default via 192.168.99.1
+
+    # Data-plane host — represents production traffic crossing the switch.
+    h-data:
+      kind: linux
+      exec:
+        - ip addr add 10.0.0.10/24 dev eth1
+        - ip route add default via 10.0.0.1
+
+  links:
+    - endpoints: ["h-data:eth1", "sw1:eth1"]      # data plane
+    - endpoints: ["h-admin:eth1", "sw1:eth2"]     # OOB management

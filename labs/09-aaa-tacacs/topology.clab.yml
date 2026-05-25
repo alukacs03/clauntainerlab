@@ -1,0 +1,37 @@
+name: aaa-tacacs
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+
+    # Centralized TACACS+ server
+    tacacs:
+      kind: linux
+      image: lfkeitel/tacacs_plus:latest
+      binds:
+        - tacacs/tac_plus.conf:/etc/tac_plus/tac_plus.conf
+      exec:
+        - ip addr add 10.99.0.10/24 dev eth1
+
+    # Admin workstation
+    h-admin:
+      kind: linux
+      exec:
+        - ip addr add 10.99.0.5/24 dev eth1
+
+  links:
+    - endpoints: ["sw1:eth1", "tacacs:eth1"]
+    - endpoints: ["sw2:eth1", "tacacs:eth2"]
+    - endpoints: ["h-admin:eth1", "tacacs:eth3"]

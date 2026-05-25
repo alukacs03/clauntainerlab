@@ -16,15 +16,21 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 
 ## Lab Index
 
-| # | Lab | Topic | Status |
-|---|-----|-------|--------|
-| 01 | [vlan-basics](labs/01-vlan-basics) | Access ports, trunks, 802.1Q tagging | Ready |
-| 02 | [inter-vlan-svi](labs/02-inter-vlan-svi) | Inter-VLAN routing with SVIs | Ready |
-| 03 | [trunk-deep-dive](labs/03-trunk-deep-dive) | Native VLAN, allowed-list hygiene, VLAN hopping | Ready |
-| 04 | [stp-rstp](labs/04-stp-rstp) | Root election, port roles, RSTP convergence | Ready |
-| 05 | [stp-protections](labs/05-stp-protections) | PortFast, BPDU Guard, Root Guard | Ready |
-| 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, sticky learning, broadcast/multicast storm control | Ready |
-| 07 | [l2-security-trifecta](labs/07-l2-security-trifecta) | DHCP snooping + DAI + IP Source Guard | Ready |
+| # | Lab | Topic | Status | Reviewed |
+|---|-----|-------|--------|----------|
+| 01 | [vlan-basics](labs/01-vlan-basics) | Access ports, trunks, 802.1Q tagging | Ready | ✅ |
+| 02 | [inter-vlan-svi](labs/02-inter-vlan-svi) | Inter-VLAN routing with SVIs | Ready | — |
+| 03 | [trunk-deep-dive](labs/03-trunk-deep-dive) | Native VLAN, allowed-list hygiene, VLAN hopping | Ready | — |
+| 04 | [stp-rstp](labs/04-stp-rstp) | Root election, port roles, RSTP convergence | Ready | — |
+| 05 | [stp-protections](labs/05-stp-protections) | PortFast, BPDU Guard, Root Guard | Ready | — |
+| 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, sticky learning, broadcast/multicast storm control | Ready | — |
+| 07 | [l2-security-trifecta](labs/07-l2-security-trifecta) | DHCP snooping + DAI + IP Source Guard | Ready | — |
+| 08 | [management-vrf](labs/08-management-vrf) | Logical separation of mgmt from data via VRF | Ready | — |
+| 09 | [aaa-tacacs](labs/09-aaa-tacacs) | Per-user login, command authz, accounting via TACACS+ | Ready | — |
+| 10 | [logging-ntp-baseline](labs/10-logging-ntp-baseline) | Remote syslog, NTP, banner, idle timeouts, baseline hardening | Ready | — |
+| 11 | [oob-management](labs/11-oob-management) | Physically separate OOB management network | Ready | — |
+
+**Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
 
 ## Running a Lab
 
@@ -66,10 +72,10 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 08 | Management VRF | Separating control-plane from data-plane reachability; no more "I lost my switch when I changed a route" |
-| 09 | AAA — TACACS+ / RADIUS | Per-user logins, command authorization, local fallback, mgmt-plane ACLs |
-| 10 | Logging, time, baseline hardening | Syslog patterns, NTP, secure-by-default config templates |
-| 11 | Out-of-band management network | Console servers, dedicated mgmt VLAN, isolation from data path |
+| ~~08~~ | ~~Management VRF~~ | Separating control-plane from data-plane reachability; no more "I lost my switch when I changed a route" |
+| ~~09~~ | ~~AAA — TACACS+~~ | Per-user logins, command authorization, local fallback, mgmt-plane ACLs |
+| ~~10~~ | ~~Logging, time, baseline hardening~~ | Syslog patterns, NTP, secure-by-default config templates |
+| ~~11~~ | ~~Out-of-band management network~~ | Console servers, dedicated mgmt VLAN, isolation from data path |
 
 ### Chapter 4 — Redundancy
 
