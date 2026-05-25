@@ -20,6 +20,11 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 |---|-----|-------|--------|
 | 01 | [vlan-basics](labs/01-vlan-basics) | Access ports, trunks, 802.1Q tagging | Ready |
 | 02 | [inter-vlan-svi](labs/02-inter-vlan-svi) | Inter-VLAN routing with SVIs | Ready |
+| 03 | [trunk-deep-dive](labs/03-trunk-deep-dive) | Native VLAN, allowed-list hygiene, VLAN hopping | Ready |
+| 04 | [stp-rstp](labs/04-stp-rstp) | Root election, port roles, RSTP convergence | Ready |
+| 05 | [stp-protections](labs/05-stp-protections) | PortFast, BPDU Guard, Root Guard | Ready |
+| 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, sticky learning, broadcast/multicast storm control | Ready |
+| 07 | [l2-security-trifecta](labs/07-l2-security-trifecta) | DHCP snooping + DAI + IP Source Guard | Ready |
 
 ## Running a Lab
 
@@ -46,16 +51,16 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 |---|-----|--------------|
 | ~~01~~ | ~~VLAN basics~~ | Access ports, trunks, 802.1Q tagging |
 | ~~02~~ | ~~Inter-VLAN routing (SVI)~~ | L3 switch role, virtual VLAN interfaces |
-| 03 | Trunk deep-dive | Native VLAN, allowed VLANs, DTP, VLAN pruning; latent bugs & VLAN hopping risk |
+| ~~03~~ | ~~Trunk deep-dive~~ | Native VLAN, allowed VLANs, DTP, VLAN pruning; latent bugs & VLAN hopping risk |
 
 ### Chapter 2 — L2 in production
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 04 | STP / RSTP | Loop avoidance, root election, port states |
-| 05 | STP protections | BPDU guard, root guard, loop guard, bridge assurance |
-| 06 | Port security & storm control | MAC limits, sticky MACs, broadcast/multicast/unicast storms, errdisable recovery |
-| 07 | L2 security trifecta | DHCP snooping + Dynamic ARP Inspection + IP Source Guard |
+| ~~04~~ | ~~STP / RSTP~~ | Loop avoidance, root election, port states |
+| ~~05~~ | ~~STP protections~~ | BPDU guard, root guard, loop guard, bridge assurance |
+| ~~06~~ | ~~Port security & storm control~~ | MAC limits, sticky MACs, broadcast/multicast/unicast storms, errdisable recovery |
+| ~~07~~ | ~~L2 security trifecta~~ | DHCP snooping + Dynamic ARP Inspection + IP Source Guard |
 
 ### Chapter 3 — Production hygiene basics
 

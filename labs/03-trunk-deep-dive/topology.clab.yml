@@ -1,0 +1,51 @@
+name: trunk-deep-dive
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.1/24 dev eth1
+    h2:
+      kind: linux
+      exec:
+        - ip addr add 10.20.20.2/24 dev eth1
+    h5:
+      kind: linux
+      exec:
+        - ip addr add 10.30.30.5/24 dev eth1
+
+    h3:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.3/24 dev eth1
+    h4:
+      kind: linux
+      exec:
+        - ip addr add 10.20.20.4/24 dev eth1
+    h6:
+      kind: linux
+      exec:
+        - ip addr add 10.30.30.6/24 dev eth1
+
+  links:
+    - endpoints: ["h1:eth1", "sw1:eth1"]
+    - endpoints: ["h2:eth1", "sw1:eth2"]
+    - endpoints: ["h5:eth1", "sw1:eth3"]
+    - endpoints: ["sw1:eth4", "sw2:eth4"]
+    - endpoints: ["h3:eth1", "sw2:eth1"]
+    - endpoints: ["h4:eth1", "sw2:eth2"]
+    - endpoints: ["h6:eth1", "sw2:eth3"]

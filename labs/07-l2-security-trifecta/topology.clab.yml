@@ -1,0 +1,51 @@
+name: l2-security-trifecta
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    # Legitimate DHCP server — should be the only authoritative source
+    h-dhcp:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.250/24 dev eth1
+        - sh -c "dnsmasq --interface=eth1 --bind-interfaces --no-resolv --dhcp-range=10.10.10.100,10.10.10.199,12h --dhcp-authoritative --dhcp-option=3,10.10.10.1 --pid-file=/tmp/dnsmasq.pid"
+
+    # Rogue DHCP — tries to hand out fake leases from a different range
+    h-rogue-dhcp:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.249/24 dev eth1
+        - sh -c "dnsmasq --interface=eth1 --bind-interfaces --no-resolv --dhcp-range=10.10.10.50,10.10.10.59,5m --dhcp-authoritative --dhcp-option=3,10.10.10.99 --dhcp-option=6,9.9.9.9 --pid-file=/tmp/rogue.pid"
+
+    # Legitimate clients — will request leases via DHCP
+    h1:
+      kind: linux
+      exec:
+        - sh -c "ip addr flush dev eth1 && dhclient -v eth1"
+
+    h2:
+      kind: linux
+      exec:
+        - sh -c "ip addr flush dev eth1 && dhclient -v eth1"
+
+    # Attacker — tries ARP poisoning and IP spoofing
+    h-attacker:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.66/24 dev eth1
+
+  links:
+    - endpoints: ["h-dhcp:eth1", "sw1:eth1"]
+    - endpoints: ["h-rogue-dhcp:eth1", "sw1:eth2"]
+    - endpoints: ["h1:eth1", "sw1:eth3"]
+    - endpoints: ["h2:eth1", "sw1:eth4"]
+    - endpoints: ["h-attacker:eth1", "sw1:eth5"]

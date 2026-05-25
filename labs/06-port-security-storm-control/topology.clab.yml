@@ -1,0 +1,43 @@
+name: port-security-storm-control
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    # Legitimate user
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.1/24 dev eth1
+
+    # Will be used to simulate a MAC-spoofing attacker
+    h2:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.2/24 dev eth1
+
+    # Storm source — used to flood broadcasts/multicast
+    h-storm:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.99/24 dev eth1
+
+    # Quiet bystander to observe collateral damage during storms
+    h-victim:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.3/24 dev eth1
+
+  links:
+    - endpoints: ["h1:eth1", "sw1:eth1"]
+    - endpoints: ["h2:eth1", "sw1:eth2"]
+    - endpoints: ["h-storm:eth1", "sw1:eth3"]
+    - endpoints: ["h-victim:eth1", "sw1:eth4"]
