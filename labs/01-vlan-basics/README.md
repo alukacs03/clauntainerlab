@@ -163,11 +163,15 @@ You should see Et1 in VLAN 10, Et2 in VLAN 20, Et3 in trunk mode with VLANs 10,2
 
 ### 4. See the tag on the wire (the satisfying one)
 
+Run tcpdump inside the switch's network namespace from the host. `nsenter` is the reliable way — containerlab doesn't register netns under `/var/run/netns`, so plain `ip netns exec` won't find it.
+
 ```bash
-sudo ip netns exec clab-vlan-basics-sw1 tcpdump -i eth3 -nn -e vlan
+sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' clab-vlan-basics-sw1) -n tcpdump -i eth3 -nn -e vlan
 ```
 
 Then in another terminal: `docker exec -it clab-vlan-basics-h1 ping 10.10.10.3`. You'll see frames with `vlan 10` in the header. Try `h2 → h4` next — same wire, different tag.
+
+(Alternative: `docker exec clab-vlan-basics-sw1 tcpdump -i eth3 -nn -e vlan` works if `tcpdump` is present inside cEOS.)
 
 ### 5. Break it on purpose
 
