@@ -1,6 +1,8 @@
 # Lab 33 — EVPN Multi-Site (Stretched Subnet Across Two DCs)
 
 > **Format:** Hands-on. Two minimal EVPN fabrics in two "sites", joined by a DCI link. Same /24 subnet stretched across both sites with anycast gateway local at each leaf. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 6 · Senior · Year 4. The capstone of the story. A long-standing customer — and your CTO — both have the same ask: "we want a /24 that works in both DCs simultaneously, for active-active disaster recovery." This is exactly the problem stretched-subnet-across-sites is supposed to solve. You design the multi-site EVPN extension, validate it in a small fabric, and present the migration plan to leadership. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

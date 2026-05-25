@@ -1,6 +1,8 @@
 # Lab 17 — OSPF Basics
 
 > **Format:** Hands-on. Three L3 switches in a triangle, all in single OSPF area 0. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 4 · Mid-level · Year 1.5. The static-route spreadsheet from lab 16 finally broke you. You scheduled a maintenance window, replaced it with OSPF across every L3 device in the network, and slept properly for the first time in months. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

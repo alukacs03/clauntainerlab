@@ -1,0 +1,165 @@
+# Your Story: From First-Day Junior to DC Architect
+
+> **What this is.** Every lab in this repository is a chapter in one continuous story. You are a fresh IT graduate joining **The Company** on day one. They're a small web-hosting shop with ~15 people, one office, one internet uplink. By the end of the curriculum, The Company is a regional cloud provider operating a multi-site EVPN fabric — and you grew with it from network-cabling-the-conference-room to designing the reference architecture.
+>
+> Read this once for the big picture. Each lab's **Real-world scenario** picks up the story at the relevant beat. Labs are not isolated exercises — they're moments in a career.
+
+---
+
+## The Company — and you
+
+**The Company**: small hosting shop when you join. Sells shared web hosting and a handful of dedicated servers. Founded by two ex-sysadmins. ~15 employees, one office, one rack at a colo. The kind of place where "the network" means a switch in a closet and a broadband router.
+
+**You**: just graduated. Linux is comfortable, you can ping things, you've read about VLANs but never configured one. The senior engineer who hired you is the only person who knew the network — and they just left for a competitor. Your first task: don't break anything.
+
+---
+
+## Phase 1 — Onboarding (Labs 01–05)
+
+> Month 1–2. Junior. You are alone with the network for the first time.
+
+The previous engineer left a working but undocumented mess. The office is mid-renovation; new desks are arriving and need network drops. There's a new dev team starting next week, and management wants them isolated from finance.
+
+| Lab | Story beat |
+|---|---|
+| **01 — VLAN basics** | Your first real task: split the new office floor into two VLANs (office team / dev team) so they can't see each other's traffic. You learn what "L2 separation" means. |
+| **02 — Inter-VLAN routing (SVI)** | A week later: "Marketing can't reach the dev portal — fix it." You discover that VLAN isolation is *too good* — you need controlled L3 between them. You turn the access switch into an L3 switch. |
+| **03 — Trunk deep-dive** | The auditor visits. They flag your inter-switch trunk for "allowing all VLANs" and "using VLAN 1 native." You learn that defaults are dangerous in production and harden the trunks. |
+| **04 — STP / RSTP** | The office added a second uplink for redundancy. The network died for 4 minutes — broadcast storm. STP saved it (and you), but you didn't even know it was running. Time to actually understand the spanning tree. |
+| **05 — STP protections** | An intern plugged a $20 SOHO switch into a wall jack. It tried to become root bridge. Half the office lost network for 30 seconds. You install PortFast + BPDU Guard on every access port. |
+
+**Where you are by end of Phase 1**: you can build a small office L2 network correctly. You understand VLANs, trunks, STP, and basic protections. You're no longer afraid of the access layer.
+
+---
+
+## Phase 2 — Hardening (Labs 06–07)
+
+> Month 3–6. Junior+. Security has noticed you exist.
+
+The Company hired its first part-time security consultant. They're going through the network looking for issues. Two of them land on your desk.
+
+| Lab | Story beat |
+|---|---|
+| **06 — Port security & storm control** | Security found that an unauthorized laptop got LAN access from a conference room jack by spoofing a registered MAC. Also: a malfunctioning NIC on a tenant VM took down a segment with a broadcast storm. You implement MAC limits and storm thresholds. |
+| **07 — L2 security trifecta** | Support keeps getting tickets about "weird IPs" and "the gateway suddenly being someone else's machine." You discover rogue DHCP servers and ARP spoofing. You learn the binding-table-based defense: DHCP snooping → DAI → IPSG. |
+
+**Where you are by end of Phase 2**: you're treating the access layer as an attack surface, not just a switching layer. Security signs off on the office. You feel competent for the first time.
+
+---
+
+## Phase 3 — Operational maturity (Labs 08–11)
+
+> Month 6–12. Mid-level. The Company outgrows "we'll just SSH in and look at it."
+
+The Company grew. 35 people now. The original two founders hired more devs, and you got a teammate (an experienced contractor who comes in two days a week). Customers started complaining about outages, and the founders want "professional operations."
+
+| Lab | Story beat |
+|---|---|
+| **08 — Management VRF** | You changed a route at 17:45 on a Friday and lost SSH to the core switch. You drove to the DC and consoled in. Never again. You build out a management VRF so data-plane mistakes can't kill the mgmt session. |
+| **09 — AAA / TACACS+** | Onboarding is a mess: every switch has a shared `admin` password, you have no idea who ran `clear bgp *` last Tuesday at 02:14, and offboarding the contractor means changing passwords on dozens of devices. You roll out TACACS+ with per-user logins, per-command authorization, and accounting. |
+| **10 — Logging, NTP, baseline hardening** | A 03:00 outage. By 07:00, when you got in, the switch's local log buffer had rotated and you couldn't see what happened. Different switches' timestamps disagreed by minutes. You ship logs centrally and sync time. While you're at it, you apply a baseline hardening profile: banners, timeouts, disable HTTP. |
+| **11 — Out-of-band management network** | Worst outage of the year: a routing bug took out the data plane for 45 minutes. You couldn't SSH in. The on-call engineer drove to the DC. After that, you build a real OOB network with dedicated mgmt ports and a console server. |
+
+**Where you are by end of Phase 3**: The Company's network is professionally operated. You have central logging, central authentication, OOB access, and the muscle memory of someone who's been on-call. You're a mid-level network engineer.
+
+---
+
+## Phase 4 — Redundancy and routing (Labs 12–19)
+
+> Year 1–2. Mid-level → Senior IC. The Company adds a second office and a real DC presence.
+
+The Company won a contract that required a second DC. Suddenly you have two physical sites, redundant uplinks everywhere, and the founders are talking about "high availability" in customer pitches. Single switches are no longer acceptable as single points of failure.
+
+| Lab | Story beat |
+|---|---|
+| **12 — LACP** | Your inter-switch uplink hit 80% utilization. Buying 10G is expensive; you have a spare 1G cable lying unused because STP blocked it. You bundle both with LACP — doubled bandwidth, no STP block. |
+| **13 — VRRP** | When sw1 reloaded for maintenance, every host lost its gateway for 8 minutes. The founders want a status page that doesn't show outages during planned work. You deploy VRRP. |
+| **14 — MLAG** | VRRP got rid of the gateway SPOF. But the switch itself is still a SPOF — if it dies catastrophically, both halves of the bundle die with it. You learn MLAG: two switches pretending to be one to downstream LACP. |
+| **15 — Anycast gateway** | MLAG works, but only one MLAG peer is the L3 gateway at a time (VRRP-style). Half your routing capacity is idle. You move to active/active via VARP — both MLAG peers serve the same gateway IP simultaneously. |
+| **16 — Static routing** | The Company added a third site. Static routes were fine when there were two boxes; now there are 47 entries in a spreadsheet and it took 2 hours and an outage to add the last route. You start thinking about dynamic routing. |
+| **17 — OSPF basics** | You roll out OSPF across all internal L3 switches. New links auto-discover. Failures reroute in under a second. You feel a quiet relief every time you `show ip ospf neighbor`. |
+| **18 — OSPF design** | Your OSPF area got bigger than ~50 routers. SPF recalculations take longer; LSDB is huge. You split into a backbone area plus branch areas (stub) for the smaller sites. |
+| **19 — BFD** | A transport switch between two of your core routers had a partial hardware failure. OSPF didn't notice for 40 seconds (default dead timer). You roll out BFD everywhere. Convergence is now sub-second. |
+
+**Where you are by end of Phase 4**: You operate a multi-site, redundant, OSPF-routed network with sub-second convergence. Your job has moved from "configure stuff" to "design the topology". The founders gave you the title **Senior Network Engineer** and a small budget.
+
+---
+
+## Phase 5 — BGP and the outside world (Labs 20–26)
+
+> Year 2–3. Senior IC. The Company becomes a regional cloud provider.
+
+The Company decided to stop reselling other people's transit. They got their own AS number from RIPE, leased a /22 of public IPv4 space, and contracted with two upstream ISPs for redundancy. Customers now get public IPs from your space; you announce to the internet. Welcome to BGP.
+
+| Lab | Story beat |
+|---|---|
+| **20 — BGP fundamentals** | Your first eBGP session — to your new transit provider. You read the session-state machine carefully because if you screw this up, your company is offline. |
+| **21 — iBGP with route reflectors** | Your network has 5 BGP-speaking routers internally. Full-mesh iBGP works but adding the 6th would be painful. You introduce route reflectors. |
+| **22 — BGP path selection** | The Company has two upstream ISPs. ISP1 is faster but expensive; ISP2 is cheaper but higher-latency. You learn local-pref, AS-path prepend, and MED to deliberately steer traffic. |
+| **23 — BGP route policy** | Both ISPs send you everything they have — including bogons, your own /22, and routes you don't want. You build a route-policy framework: prefix-lists, route-maps, community tagging. |
+| **24 — BGP at the internet edge** | You design the proper customer-facing edge: two edge routers, iBGP between them, default-only inbound from ISPs (you don't need full table), AS-prepend for inbound TE, floating static last-resort. |
+| **25 — BGP business angle** | The Company became big enough that the founders pitched starting a small transit business — sell connectivity to other companies. You implement the customer/peer/transit policy model (Gao-Rexford) so you don't accidentally become free transit between your peers and your upstreams (the famous "BGP leak"). You learn about RIPE membership, IRR, RPKI. |
+| **26 — BGP operations** | Three operational issues from an audit: no BGP session passwords, no max-prefix limits, slow convergence. You apply the hardening profile (MD5, TTL security, BFD-driven fall-over, max-routes, graceful restart) on every session. |
+
+**Where you are by end of Phase 5**: You own the company's internet edge. You can speak intelligently with transit providers and peers. You have a working knowledge of routing policy at the AS-boundary. The founders ask your opinion on infrastructure investments.
+
+---
+
+## Phase 6 — Modern DC fabric (Labs 27–33)
+
+> Year 3–4. Senior, leading DC architecture. The Company builds a real cloud.
+
+The growth keeps coming. The colo-rack-and-a-couple-of-servers era is over — The Company is building proper datacenter infrastructure. Two physical sites are coming online, multi-tenant workloads need true isolation, and customers are asking for "stretched subnets" between sites. You're the architect.
+
+| Lab | Story beat |
+|---|---|
+| **27 — Spine-leaf** | You design the new DC fabric from scratch. Three-tier is dead; everyone with scale uses Clos. You build a 2-spine 2-leaf reference, validate ECMP and east-west performance. |
+| **28 — BGP unnumbered** | The /31 IPAM for transit links is becoming unmanageable. You discover BGP unnumbered. The new fabric runs entirely on IPv6 link-local for underlay peering. |
+| **29 — VXLAN data plane** | First customer asks for a stretched VLAN across racks. You implement static VXLAN. It works for the first customer; you immediately see why "flood-list maintenance" is a problem at scale. |
+| **30 — EVPN control plane** | Twenty customers in, the static VXLAN flood-lists are impossible to maintain. You roll out EVPN. Now adding a new leaf "just works" — every other leaf discovers it via BGP. |
+| **31 — EVPN Type 5** | Customers want multiple subnets per tenant with controlled inter-subnet routing. You implement L3 overlay via Type 5 routes and tenant VRFs. Symmetric IRB. |
+| **32 — EVPN anycast gateway** | VM mobility started mattering. A customer's load balancer moves between leaves and you don't want the gateway to change. You deploy distributed anycast gateway — every leaf is the local gateway for hosted subnets. |
+| **33 — EVPN multi-site DCI** | The big one: a customer (and your CTO) want a /24 that works in both DCs simultaneously. You design the multi-site EVPN extension: back-to-back EVPN for now, with a plan to migrate to Border Gateway pattern as you scale. |
+
+**Where you are by end of Phase 6**: You operate (and largely designed) a modern multi-site EVPN fabric. You can have a substantive conversation about VXLAN encapsulation, RD/RT semantics, anycast gateway, and DCI patterns. Your CTO trusts you with the architecture decisions.
+
+---
+
+## Phase 7 — Edge & Operations (Labs 34–41)
+
+> Year 4+. Tech lead. The Company has 5+ DCs, hundreds of customers, and you're hiring.
+
+> *(Labs 34-41 are planned, not yet written. This phase covers operational scale: peering at IXPs, NAT and dual-stack IPv6, control-plane hardening, streaming telemetry, configuration-as-code, formal failure playbooks, and capacity planning.)*
+
+The Company is no longer scrappy. There's a NOC. You have a team. You're the **Tech Lead**. Your job is now mostly design, review, and onboarding — your team operates day-to-day. You write standards, not configs. But you still get pulled into the gnarliest incidents.
+
+| Phase | Theme |
+|---|---|
+| **34 — eBGP upstream peering at scale** | Peering at multiple IXPs. RPKI ROV deployment. Real peering economics. |
+| **35 — NAT in the DC** | Carrier-grade NAT for shared-IP customers. NAT44/NAT64. When NOT to NAT. |
+| **36 — IPv6 dual-stack** | The Company's `/22` of IPv4 is running out and ARIN/RIPE have nothing left to sell. Time to deploy IPv6 for real. |
+| **37 — Control-plane protection** | DDoS started hitting the edge. You implement CoPP, mgmt-plane ACLs, RTBH, intro to BGP flowspec. |
+| **38 — Streaming telemetry** | The legacy `show interface counter` polling can't keep up. You move to gNMI/OpenConfig for high-resolution monitoring. |
+| **39 — Configuration as code** | Click-ops doesn't scale. You roll out a git-driven config workflow with validation and rollback. |
+| **40 — Failure scenario playbook** | A new junior joined the team. You write failure playbooks they can follow at 3 AM. |
+| **41 — Capacity & MTU planning** | Several near-misses with link saturation and MTU mismatches in the EVPN fabric. You write capacity-planning standards and MTU-validation tooling. |
+
+---
+
+## Closing — The Reference Design
+
+> The capstone, not a lab.
+
+It's your fifth anniversary at The Company. The CTO asks you to write the **reference architecture document** that every new engineer will read on day one. You write a clean, comprehensive design of a dual-site DC with redundant edge, EVPN-multi-site fabric, anycast gateways, secured management plane, and documented failure modes.
+
+It's everything the previous chapters of your story taught you, distilled into one document. New engineers will read it before their first shift. And someone fresh out of school — like you were, five years ago — will read it and start their own journey.
+
+---
+
+## How to read this story
+
+- **Sequentially** — labs were ordered to build on each other and on the narrative.
+- **Out of order** — each lab still works as a standalone exercise. The Real-world scenario at the top tells you where in the story you are.
+- **As a reference** — once you've gone through, the labs are reference material for "how do I configure X on Arista" plus the conceptual deep-dives in `docs/concepts/`.
+
+The protagonist is "you" because this story really is generic — every senior engineer at every cloud/hosting provider has lived some version of it. The technology choices are real; the growth pattern is real; the operational lessons are real. By the end, when someone asks you "how does your DC work?", you'll be able to explain it from first principles.

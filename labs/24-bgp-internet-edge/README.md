@@ -1,6 +1,8 @@
 # Lab 24 — BGP at the Internet Edge
 
 > **Format:** Hands-on. Customer with two edge routers, each peering with a different ISP. Apply the canonical "default-only inbound, own-prefixes outbound, AS-prepend for inbound TE" pattern. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 5 · Senior IC · Year 2.5. Putting the pieces together: The Company's proper customer-facing edge. Two edge routers (one per ISP for hardware redundancy), iBGP between them, default-only inbound from each ISP (no need for a full table on these boxes), AS-prepend for inbound TE, floating static for the doomsday "both BGP sessions are down somehow" scenario. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

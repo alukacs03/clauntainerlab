@@ -1,6 +1,8 @@
 # Lab 31 — EVPN Type 5 (Symmetric IRB / L3 Overlay)
 
 > **Format:** Hands-on. Same fabric, but now two different host subnets on two leaves. EVPN Type 5 routes carry L3 prefixes across the fabric. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 6 · Senior · Year 3.5. Customer feedback: "We don't just want VLAN 100 stretched — we want application-tier (VLAN 100) and database-tier (VLAN 200) on different racks, with controlled inter-subnet routing inside our tenant, isolated from other tenants." You're delivering proper multi-tenant L3 overlay via EVPN Type 5 + tenant VRFs. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

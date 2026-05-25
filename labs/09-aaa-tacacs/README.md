@@ -1,6 +1,8 @@
 # Lab 09 — AAA with TACACS+
 
 > **Format:** Hands-on. Two switches and a TACACS+ server. Two pre-defined users — alice (admin) and bob (read-only) — exist on the server. Your job is to wire up authentication, authorization, and accounting on the switches and verify the access controls. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 3 · Mid-level · Month 9. The Company grew to 35 people. The on-call rotation jumped from "just you" to 12 people. Every switch still has a shared `admin` password. Someone ran `clear bgp *` at 02:14 last Tuesday and nobody can prove who. Offboarding the part-time contractor means changing passwords on dozens of devices. Time for real AAA. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

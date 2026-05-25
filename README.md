@@ -8,6 +8,8 @@ The goal is to learn networking concepts — VLANs, routing, redundancy, switchi
 
 Each lab is built as a **hands-on exercise**, not a demo: the starter configs only get the devices booting, and the learner builds the actual configuration themselves, guided by a theory primer and a task spec in the lab README. A reference solution is provided in `solutions/` for after you've tried — peek when stuck, compare when done.
 
+The whole curriculum is a single **continuous story**: you're a fresh-grad junior engineer at a small hosting company on day one, and by the end of the labs you've grown into a senior DC architect at a regional cloud provider. Each lab is a chapter in that arc. See **[`STORY.md`](STORY.md)** for the full narrative — read it once for context, then dive into the labs.
+
 Claude (Claude Code, specifically) is used throughout to design the labs, explain concepts in the READMEs, and help debug when something doesn't behave as expected.
 
 ## Setup

@@ -1,6 +1,8 @@
 # Lab 05 — STP Protections
 
 > **Format:** Hands-on. Same triangle topology as lab 04, with a rogue switch deliberately wired into an access port to test your defenses. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 1 · Junior · Month 2. An intern plugged a $20 SOHO switch into a wall jack so they could daisy-chain a printer. That switch's STP tried to become root bridge and half the office lost network for 30 seconds. PortFast + BPDU Guard + Root Guard on every access port from now on. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

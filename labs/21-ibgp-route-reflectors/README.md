@@ -1,6 +1,8 @@
 # Lab 21 — iBGP with Route Reflectors
 
 > **Format:** Hands-on. Three "client" L3 switches each peering only with a central route reflector, all in AS 65001. OSPF underneath for next-hop reachability. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 5 · Senior IC · Year 2. The Company's internal BGP grew to 5 routers, and you're adding a 6th. Full-mesh iBGP needs 15 sessions for 6 routers, 21 for 7, 28 for 8 — and you have to remember to add the new neighbor on every existing box every time. You're tired of it. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

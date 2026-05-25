@@ -1,6 +1,8 @@
 # Lab 30 — EVPN Control Plane (Type 2 + Type 3)
 
 > **Format:** Hands-on. Same VXLAN topology as lab 29, but the flood-list is replaced by **EVPN BGP signaling**. No more manual VTEP lists; auto-discovered via BGP. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 6 · Senior · Year 3.5. Twenty customers later. Each tenant VLAN has a manually-maintained flood-list of VTEP IPs. Adding a new leaf means updating every other leaf in every customer's VXLAN config. Last week someone forgot one entry and a customer's stretched VLAN went dark for a quadrant of the rack. You're moving the fabric to EVPN. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

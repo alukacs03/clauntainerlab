@@ -1,6 +1,8 @@
 # Lab 22 — BGP Path Selection
 
 > **Format:** Hands-on. Two ASes with two parallel eBGP paths between them. You'll deliberately steer traffic using local-preference, AS-path prepend, and MED. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 5 · Senior IC · Year 2.5. The Company contracted with a second upstream ISP for redundancy. ISP1 is faster but expensive (premium routes); ISP2 is cheaper but higher-latency. You want most outbound via ISP1, but inbound traffic should come back via ISP2 to save money. The finance team wants the bill optimized. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

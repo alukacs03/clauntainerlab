@@ -1,6 +1,8 @@
 # Lab 28 — BGP Unnumbered Underlay
 
 > **Format:** Hands-on. Same spine-leaf as lab 27, but transit interfaces have **no IPv4 addresses** — peering uses IPv6 link-local and BGP discovers neighbors automatically. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 6 · Senior, leading DC architecture · Year 3. You started filling out the IPAM spreadsheet for the new fabric: /31 per leaf-spine link, separate per pod, per site... 512 transit /31s and counting. You stopped, read about BGP unnumbered, and realized you can skip the entire IPAM-for-transits exercise. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

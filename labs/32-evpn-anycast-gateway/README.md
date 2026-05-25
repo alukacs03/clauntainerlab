@@ -1,6 +1,8 @@
 # Lab 32 — EVPN Anycast Gateway
 
 > **Format:** Hands-on. Same fabric, single subnet stretched across leaves (lab 30 style), but every leaf is the gateway via anycast SVI. The modern DC default for first-hop redundancy. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 6 · Senior · Year 4. VM mobility started mattering for real. Customers migrate VMs between racks during DRS / maintenance. With per-VLAN gateway on a single leaf pair, every VM that moves to a different leaf either keeps hairpinning to the original gateway leaf, or has to ARP a new gateway. Some applications (databases, load balancers) drop sessions either way. You deploy distributed anycast gateway. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

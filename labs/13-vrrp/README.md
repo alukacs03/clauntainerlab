@@ -1,6 +1,8 @@
 # Lab 13 — VRRP (Gateway Redundancy)
 
 > **Format:** Hands-on. Two L3 switches sharing a virtual gateway IP via VRRP. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 4 · Mid-level · Year 1. The Company is now in two physical sites and selling "high availability" to customers. When sw1 reloaded for a planned maintenance window last month, every host lost its gateway for 8 minutes. The founders want a status page that doesn't show outages during routine work. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

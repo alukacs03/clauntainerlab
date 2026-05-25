@@ -1,6 +1,8 @@
 # Lab 08 — Management VRF
 
 > **Format:** Hands-on. One switch with two interfaces — data plane and management. Starter has them sharing one VRF (the common mistake). Your job is to separate them. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 3 · Mid-level · Month 8. You changed a static route at 17:45 on a Friday and immediately lost your SSH session. You drove 40 minutes to the DC, consoled in, fixed the typo. You got home at 22:30. Never. Again. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

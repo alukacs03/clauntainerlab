@@ -1,6 +1,8 @@
 # Lab 06 — Port Security & Storm Control
 
 > **Format:** Hands-on. Single switch, four hosts. Starter has the lab 05 STP protections baked in; your job is to add MAC-level and bandwidth-level access-port protections. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 2 · Junior+ · Month 4. The Company hired its first part-time security consultant. They flagged two incidents: an unauthorized laptop got LAN access from a conference room jack via MAC spoofing, and a misbehaving NIC on a customer VM caused a broadcast storm that took down a segment. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

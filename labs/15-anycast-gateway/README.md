@@ -1,6 +1,8 @@
 # Lab 15 — Anycast Gateway (VARP on MLAG)
 
 > **Format:** Hands-on. Same MLAG topology as lab 14, now with L3 services and Arista's VARP (Virtual ARP) to make both peers active gateways for the same virtual IP. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 4 · Mid-level · Year 1.5. You finally noticed: under MLAG, both peers are active at L2 but only one is active for L3 (VRRP-style). Half your routing hardware sits idle. Your CTO did the math and asked "we paid for these two L3 switches — why are we only using one of them?" See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

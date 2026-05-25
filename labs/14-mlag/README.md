@@ -1,6 +1,8 @@
 # Lab 14 — MLAG (Multi-chassis LAG)
 
 > **Format:** Hands-on. Three switches: an MLAG peer pair (sw1, sw2) and a downstream access switch (sw-leaf). The two peers cooperate to look like one LACP partner to sw-leaf. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 4 · Mid-level · Year 1. VRRP solved the gateway-IP-SPOF (lab 13), but the switch *itself* is still a SPOF. If sw1 dies catastrophically (PSU failure, software bug), the LACP bundle on the downstream side dies with it. The Company's biggest customer just asked: "what happens if a whole switch fails?" You need MLAG. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

@@ -1,6 +1,8 @@
 # Lab 25 — BGP: the Business Angle (Customer / Peer / Transit)
 
 > **Format:** Hands-on + concept-heavy. One "provider" router with three neighbor types (customer, peer, transit). Apply the canonical **customer-peer-transit** policy that real ISPs use to make money and not lose money. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 5 · Senior IC · Year 3. The Company pitched a small transit business — sell connectivity to other small companies in the region. The founders are excited; you're nervous because turning into a transit provider is exactly when BGP leaks become real outages that take down other people's businesses. You need to implement the customer/peer/transit policy framework that every legitimate ISP runs. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

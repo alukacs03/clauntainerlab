@@ -1,6 +1,8 @@
 # Lab 12 — LACP Port-Channel
 
 > **Format:** Hands-on. Two switches with two parallel uplinks. Starter has both links as independent trunks (and STP blocks one). Your job: bundle them into a Port-Channel via LACP so both forward. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 4 · Mid-level · Year 1. The Company won a contract that requires a second DC. Suddenly you have inter-switch uplinks hitting 80% utilization, and the "spare cable for redundancy" is sitting idle because STP blocked it. Buying 10G is expensive; bundling the two 1G links is free. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

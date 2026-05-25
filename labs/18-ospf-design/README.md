@@ -1,6 +1,8 @@
 # Lab 18 — OSPF Design (Multi-Area + LSA Types)
 
 > **Format:** Hands-on. Three switches across two OSPF areas, with an ABR in the middle and an external prefix injected as Type 5. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 4 · Mid-level → Senior · Year 2. Single-area OSPF (lab 17) carried The Company through the early multi-site phase. Now the network has 60+ L3 devices and the LSDB on every router is getting hefty. A flap in one branch site causes SPF recalculations across the entire backbone. Time to split into areas. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

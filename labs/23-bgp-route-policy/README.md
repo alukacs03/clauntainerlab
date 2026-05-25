@@ -1,6 +1,8 @@
 # Lab 23 — BGP Route Policy
 
 > **Format:** Hands-on. One customer router multi-homed to two ISP routers. Apply prefix-lists, route-maps, and community-based policy to filter inbound junk, tag by source, and prevent accidentally becoming a transit provider. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 5 · Senior IC · Year 2.5. Both ISPs are blasting their full table at you, including bogons (`10.0.0.0/8`, `192.168.0.0/16`) and your own /22 mirrored back. Worse: by default, BGP would happily re-advertise ISP1's routes to ISP2, turning you into free transit. You need real inbound + outbound policy on every peering. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

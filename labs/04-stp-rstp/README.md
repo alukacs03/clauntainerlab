@@ -1,6 +1,8 @@
 # Lab 04 — Spanning Tree (RSTP)
 
 > **Format:** Hands-on. The starter already has a working RSTP-protected loop. Your job is to *understand* the current state, then take deterministic control of the design. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 1 · Junior · Month 2. You added a redundant uplink between switches "for resilience" and accidentally caused a 4-minute broadcast storm. STP saved you — but you didn't know it was running, didn't know which switch was the root, and didn't know which link was blocked. Time to actually understand the spanning tree. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

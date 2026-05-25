@@ -1,6 +1,8 @@
 # Lab 10 — Logging, NTP, and Baseline Hardening
 
 > **Format:** Hands-on. Two switches + a combined NTP/syslog server. Your job is to make every switch ship logs centrally, sync time, and apply a baseline hardening profile that ought to be on every device from day one. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 3 · Mid-level · Month 10. A 03:00 outage. By 07:00, when you arrived, the switch's local log buffer had already rotated and the relevant lines were gone. The audit log lookup across three switches was meaningless because timestamps disagreed by up to four minutes. Also: the same auditor from lab 03 came back and flagged "no login banner, no idle timeout, HTTP enabled." See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

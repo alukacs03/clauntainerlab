@@ -1,6 +1,8 @@
 # Lab 29 — VXLAN Data Plane
 
 > **Format:** Hands-on. Two leaves with a static VXLAN tunnel between them over the routed underlay. Hosts in the same /24 on different leaves communicate at L2 over an L3 fabric. No EVPN yet (lab 30). Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 6 · Senior · Year 3.5. The new spine-leaf fabric is up. Your first customer onboards: their application requires "VLAN 100 to span racks A and C." You don't want to give up the all-routed underlay; you also want to deliver what they're asking for. VXLAN encapsulation is how. You build it manually for the first customer to understand exactly what the protocol does. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

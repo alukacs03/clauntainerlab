@@ -1,6 +1,8 @@
 # Lab 02 — Inter-VLAN Routing with SVIs
 
 > **Format:** Hands-on. Builds on lab 01 — the starter configs are the *final state* of lab 01 (VLANs and trunk already configured). Your job is to add the L3 piece. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 1 · Junior · Week 2. Marketing complains they can't reach the dev portal. You isolated the teams in lab 01 — that was the easy part. Now they need controlled crossing. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

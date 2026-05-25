@@ -1,6 +1,8 @@
 # Lab 26 — BGP Operations
 
 > **Format:** Hands-on. Two routers, one eBGP session. Layer on the operational hardening every production session should have: authentication, TTL security, BFD-driven fast convergence, maximum-routes, graceful restart. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 5 · Senior IC · Year 3. An external auditor (different one this time — your security firm) ran a BGP audit. Findings: no session passwords, no max-prefix limits, slow convergence on real-world failures, no graceful restart for software upgrades. You apply the modern hardening profile across every BGP session in the network. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

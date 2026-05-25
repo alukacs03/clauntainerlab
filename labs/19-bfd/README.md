@@ -1,6 +1,8 @@
 # Lab 19 — BFD (Sub-Second Failure Detection)
 
 > **Format:** Hands-on. Same OSPF triangle as lab 17, with BFD added to all transit links so routing protocols detect failure in milliseconds instead of tens of seconds. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 4 · Senior IC · Year 2. A transport switch between two of your core routers had a partial hardware failure. The link looked up at L1; OSPF kept sending Hellos into a black hole for 40 seconds before declaring the neighbor dead. A customer's voice call dropped. The post-mortem listed BFD as the missing piece. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

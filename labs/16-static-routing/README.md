@@ -1,6 +1,8 @@
 # Lab 16 — Static Routing & Floating Statics
 
 > **Format:** Hands-on. Two L3 switches with primary and backup paths. Your job: configure static routes plus a floating static to drive failover. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 4 · Mid-level · Year 1.5. The Company has three sites now. Each pair of sites has two physical paths between them (primary fiber, backup over a different route). You've been managing inter-site routing with static routes — and the spreadsheet that tracks them has 47 entries. Last week it took two hours to add the new site, and you broke a working customer's traffic for 8 minutes. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

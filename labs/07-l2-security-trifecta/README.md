@@ -1,6 +1,8 @@
 # Lab 07 — L2 Security Trifecta: DHCP Snooping + DAI + IP Source Guard
 
 > **Format:** Hands-on. The topology has a legitimate DHCP server, a rogue DHCP server, two clients, and an attacker. Your job is to lock down the access layer so the rogue can't lease IPs, the attacker can't ARP-poison, and stolen IPs don't pass traffic. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 2 · Junior+ · Month 5. Customer support keeps getting tickets about "weird IPs" and "the gateway suddenly being someone else's machine." You discover a rogue DHCP server (someone plugged a home router in DHCP-server mode into a wall jack) and successful ARP spoofing attacks on the access VLAN. Time for the binding-table-based L2 defense. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

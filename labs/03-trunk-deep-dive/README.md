@@ -1,6 +1,8 @@
 # Lab 03 — Trunk Deep-Dive
 
 > **Format:** Hands-on. Starter is a "lazy admin" trunk config that *works* but has three production-relevant problems. Your job is to harden it. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 1 · Junior · Month 2. An external auditor visits The Company. They flag your inter-switch trunks for allowing all VLANs and using VLAN 1 as native. You learn that vendor defaults are not production defaults. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

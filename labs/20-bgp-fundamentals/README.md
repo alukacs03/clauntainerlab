@@ -1,6 +1,8 @@
 # Lab 20 — BGP Fundamentals
 
 > **Format:** Hands-on. Two routers, two ASes, one eBGP session. The "hello world" of BGP. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 5 · Senior IC · Year 2. The Company stopped reselling someone else's transit. You got your own AS from RIPE, leased a /22 of IPv4, and just signed a contract with the first upstream ISP. Your first eBGP session is in an hour. Your stomach is in knots — if you screw this up, the company is offline. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

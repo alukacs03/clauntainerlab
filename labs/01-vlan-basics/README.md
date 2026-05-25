@@ -1,6 +1,8 @@
 # Lab 01 — VLAN Basics
 
 > **Format:** Hands-on. The starter switches boot with only a hostname; you'll configure VLANs and ports yourself. A complete reference answer lives in [`solutions/`](solutions/) — peek only after you've tried.
+>
+> **Story chapter:** Phase 1 · Junior · Week 1. Day one at The Company. The previous network engineer just quit; the office is mid-renovation and a new floor is opening; a dev team starts next week and management wants them isolated from finance. Your very first real task. See [`STORY.md`](../../STORY.md) for the full arc.
 
 ## Real-world scenario
 

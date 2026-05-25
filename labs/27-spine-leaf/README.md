@@ -1,6 +1,8 @@
 # Lab 27 — Spine-Leaf with BGP Underlay
 
 > **Format:** Hands-on. Two spines, two leaves, eBGP between every leaf-spine pair. Pure L3 fabric — no L2 anywhere. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 6 · Senior, leading DC architecture · Year 3. The Company is building proper datacenter infrastructure. The CTO greenlit a new DC build — greenfield, no legacy. Multi-tenant from day one. You're the architect. You looked at the three-tier diagrams in the operator's handbook, decided they were 15 years old, and chose to design a Clos spine-leaf fabric instead. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 

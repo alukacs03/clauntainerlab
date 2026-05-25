@@ -1,6 +1,8 @@
 # Lab 11 — Out-of-Band Management Network
 
 > **Format:** Hands-on. Three switches (two production, one OOB) plus admin and data-plane hosts. Combines lab 08's mgmt VRF with a *physically separate* mgmt network. Reference answer in [`solutions/`](solutions/).
+>
+> **Story chapter:** Phase 3 · Mid-level · Month 12. Worst outage of the year. A routing-protocol bug took out the data plane for 45 minutes. Your management VRF (lab 08) didn't help — the management traffic still rode the same physical fabric as data, and the failure killed both. The on-call engineer drove to the DC. Time for real out-of-band. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 
