@@ -33,6 +33,10 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 13 | [vrrp](labs/13-vrrp) | Active/standby gateway redundancy | Ready | — |
 | 14 | [mlag](labs/14-mlag) | Active/active L2 across two switches, no SPOF | Ready | — |
 | 15 | [anycast-gateway](labs/15-anycast-gateway) | Active/active L3 with VARP on top of MLAG | Ready | — |
+| 16 | [static-routing](labs/16-static-routing) | Static routes, AD, floating statics, ECMP | Ready | — |
+| 17 | [ospf-basics](labs/17-ospf-basics) | Single-area OSPF, neighbor formation, LSDB | Ready | — |
+| 18 | [ospf-design](labs/18-ospf-design) | Multi-area OSPF, ABR/ASBR, LSA types, stub areas | Ready | — |
+| 19 | [bfd](labs/19-bfd) | Sub-second failure detection for routing protocols | Ready | — |
 
 **Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
 
@@ -94,10 +98,10 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 16 | Static routing | Static routes, floating statics, route preference, AD |
-| 17 | OSPF basics | Single-area OSPF, neighbor discovery, LSDB |
-| 18 | OSPF design | Multi-area, LSA types, DR/BDR, ABR/ASBR roles |
-| 19 | BFD | Sub-second failure detection for routing protocols |
+| ~~16~~ | ~~Static routing~~ | Static routes, floating statics, route preference, AD |
+| ~~17~~ | ~~OSPF basics~~ | Single-area OSPF, neighbor discovery, LSDB |
+| ~~18~~ | ~~OSPF design~~ | Multi-area, LSA types, DR/BDR, ABR/ASBR roles |
+| ~~19~~ | ~~BFD~~ | Sub-second failure detection for routing protocols |
 
 ### Chapter 6 — BGP (the long chapter)
 
