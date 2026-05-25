@@ -2,6 +2,14 @@
 
 > **Format:** Hands-on. Builds on lab 01 — the starter configs are the *final state* of lab 01 (VLANs and trunk already configured). Your job is to add the L3 piece. Reference answer in [`solutions/`](solutions/).
 
+## Real-world scenario
+
+Lab 01 isolated the office and dev teams into separate VLANs — and *deliberately*, they can't reach each other at all. That's fine for the security model, but it's not enough for a useful network: the office team's laptops still need to reach the dev team's internal portal, the printer in VLAN 20 still needs to be reachable from VLAN 10, and so on. You need **controlled** communication between VLANs, not flat L2 mixing.
+
+The traditional answer was "buy a router, hang it off the switch" (router-on-a-stick). The modern answer — and the one every L3-capable switch supports — is to make **the switch itself** the gateway for each VLAN, using **SVIs (Switched Virtual Interfaces)**. The same box that does L2 switching also routes between VLANs at line rate. No extra hardware, no extra hops.
+
+In this lab you'll promote sw1 to a true L3 switch: add an IP per VLAN as the host gateway, enable `ip routing`, and watch packets cross the VLAN boundary.
+
 ## Goal
 
 In lab 01 you discovered that h1 (VLAN 10) cannot reach h2 (VLAN 20) — different broadcast domains, no router. Now you'll fix that *without* adding a separate router box, by turning sw1 into an L3 switch with **SVIs** (Switched Virtual Interfaces).

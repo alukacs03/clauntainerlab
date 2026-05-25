@@ -2,6 +2,14 @@
 
 > **Format:** Hands-on. The starter switches boot with only a hostname; you'll configure VLANs and ports yourself. A complete reference answer lives in [`solutions/`](solutions/) — peek only after you've tried.
 
+## Real-world scenario
+
+You're standing up a new access layer for a small office. The same two switches need to carry traffic for two completely separate groups of users — say, the office team and the dev team — and those groups should not be able to see each other's broadcasts or reach each other directly. Each group also needs to reach their counterparts on the *other* switch, so a single trunk between the two switches has to carry both groups' traffic without mixing them.
+
+A flat L2 network (everyone in one big broadcast domain) is the cheapest possible answer and also the worst: noise scales with host count, no isolation, no security boundary, and any misbehaving NIC can take down the whole segment. **VLANs** are the standard way to logically partition one physical switch into many smaller broadcast domains, and **802.1Q trunking** is how you carry many VLANs over a single inter-switch link.
+
+This first lab gets you the muscle memory: VLANs on the switches, access ports for hosts, a trunk between switches, and ping tests that prove the boundaries exist.
+
 ## Goal
 
 Understand what a VLAN actually *does*. By the end you should be able to answer:
