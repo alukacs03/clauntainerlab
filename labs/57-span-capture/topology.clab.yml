@@ -1,0 +1,38 @@
+name: span-capture
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    # Production hosts
+    client:
+      kind: linux
+      exec:
+        - ip addr add 10.0.0.10/24 dev eth1
+        - ip route add default via 10.0.0.1
+
+    server:
+      kind: linux
+      exec:
+        - ip addr add 10.0.0.20/24 dev eth1
+        - ip route add default via 10.0.0.1
+
+    # Capture box — receives mirrored traffic, runs tcpdump/wireshark
+    capture:
+      kind: linux
+      exec:
+        - ip link set eth1 promisc on
+        - ip addr add 10.99.0.10/24 dev eth1
+
+  links:
+    - endpoints: ["client:eth1", "sw1:eth1"]
+    - endpoints: ["server:eth1", "sw1:eth2"]
+    - endpoints: ["capture:eth1", "sw1:eth3"]

@@ -1,0 +1,71 @@
+# Example pipeline for a network config repo.
+# Adapt to GitHub Actions, Jenkins, Drone, etc. — the stages are the same.
+
+stages:
+  - lint
+  - validate
+  - stage-deploy
+  - stage-test
+  - prod-deploy
+  - prod-verify
+
+variables:
+  ANSIBLE_FORCE_COLOR: "true"
+
+# ─── Stage 1: lint configs and playbooks ───
+lint-yaml:
+  stage: lint
+  image: python:3.11
+  script:
+    - pip install yamllint ansible-lint
+    - yamllint inventory/ playbooks/
+    - ansible-lint playbooks/
+
+lint-batfish:
+  stage: lint
+  image: batfish/batfish:latest
+  script:
+    # Batfish parses configs offline and flags syntax/semantic issues
+    # without touching real devices.
+    - python tests/batfish-validate.py snapshots/proposed/
+
+# ─── Stage 2: validate intent ───
+diff-against-running:
+  stage: validate
+  script:
+    - ansible-playbook -i inventory/staging.yml playbooks/render-and-diff.yml
+    # Posts the diff as a PR comment for human review
+
+# ─── Stage 3: deploy to staging ───
+deploy-staging:
+  stage: stage-deploy
+  script:
+    - ansible-playbook -i inventory/staging.yml playbooks/apply.yml
+  only:
+    - main
+
+# ─── Stage 4: integration tests on staging ───
+test-staging:
+  stage: stage-test
+  script:
+    # Connectivity, BGP-up, prefix-counts, etc.
+    - pytest tests/integration/ --target=staging
+
+# ─── Stage 5: deploy to prod (manual gate) ───
+deploy-prod:
+  stage: prod-deploy
+  script:
+    - ansible-playbook -i inventory/prod.yml playbooks/apply.yml
+  when: manual
+  only:
+    - main
+  environment:
+    name: production
+
+# ─── Stage 6: post-deploy verification ───
+verify-prod:
+  stage: prod-verify
+  script:
+    - pytest tests/smoke/ --target=prod
+  needs:
+    - deploy-prod

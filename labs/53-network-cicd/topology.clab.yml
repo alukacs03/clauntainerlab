@@ -1,0 +1,28 @@
+name: network-cicd
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    staging-sw:
+      kind: arista_ceos
+      startup-config: configs/staging-sw.cfg
+
+    prod-sw:
+      kind: arista_ceos
+      startup-config: configs/prod-sw.cfg
+
+    ci-runner:
+      kind: linux
+      binds:
+        - solutions:/lab/solutions:ro
+      exec:
+        - ip addr add 10.0.0.100/24 dev eth1
+
+  links:
+    - endpoints: ["ci-runner:eth1", "staging-sw:eth1"]
+    - endpoints: ["ci-runner:eth2", "prod-sw:eth1"]

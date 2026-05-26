@@ -1,0 +1,23 @@
+# Ansible inventory plugin sourcing from NetBox
+plugin: netbox.netbox.nb_inventory
+api_endpoint: http://netbox.lan:8000
+token: "{{ lookup('env', 'NETBOX_TOKEN') }}"
+validate_certs: false
+
+# Filter: only fetch devices in role "leaf"
+device_query_filters:
+  - role: leaf
+
+# Group by site and role
+group_by:
+  - sites
+  - device_roles
+  - manufacturers
+
+# Pull custom field "asn" onto each host as a var
+device_vars:
+  ansible_host: primary_ip4.address
+  asn: custom_fields.asn
+
+compose:
+  ansible_host: primary_ip4.address | regex_replace('/.*', '')

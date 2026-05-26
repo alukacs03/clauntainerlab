@@ -1,0 +1,26 @@
+name: netbox-ipam
+
+# NetBox runs as a multi-container app (web + postgres + redis).
+# Easiest deploy: use docker-compose alongside containerlab.
+# This topology stands up a single switch to drive from a NetBox-backed
+# Ansible inventory; NetBox itself is run separately (see README).
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    leaf1:
+      kind: arista_ceos
+      startup-config: configs/leaf1.cfg
+
+    automation:
+      kind: linux
+      exec:
+        - ip addr add 10.0.0.100/24 dev eth1
+
+  links:
+    - endpoints: ["automation:eth1", "leaf1:eth1"]
