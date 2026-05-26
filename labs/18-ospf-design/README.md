@@ -31,8 +31,8 @@ By the end you should be able to answer:
 ```mermaid
 graph LR
     h1[h1<br/>10.10.10.10] --> sw1
-    sw1[sw1<br/>1.1.1.1<br/>ASBR<br/>redistributes static] ==area 0== sw2[sw2<br/>2.2.2.2<br/>ABR]
-    sw2 ==area 1== sw3[sw3<br/>3.3.3.3]
+    sw1[sw1<br/>1.1.1.1<br/>ASBR<br/>redistributes static] ---|area 0| sw2[sw2<br/>2.2.2.2<br/>ABR]
+    sw2 ---|area 1| sw3[sw3<br/>3.3.3.3]
     sw3 --> h3[h3<br/>10.30.30.10]
     ext[external<br/>198.51.100.0/24] -.injected by sw1.- sw1
 ```

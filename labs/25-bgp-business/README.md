@@ -34,9 +34,9 @@ graph TB
     peer[peer<br/>AS 64512<br/>203.0.113.0/24<br/>10.50.0.0/16]
     transit[transit<br/>AS 64513<br/>0.0.0.0/0 + 1.1.1.0/24 + ...]
     prov[provider<br/>AS 65000<br/>YOU]
-    cust ==eBGP== prov
-    peer ==eBGP== prov
-    transit ==eBGP== prov
+    cust ---|eBGP| prov
+    peer ---|eBGP| prov
+    transit ---|eBGP| prov
 ```
 
 You sit in the middle. Three sessions, three completely different policies.

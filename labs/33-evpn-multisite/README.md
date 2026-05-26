@@ -33,7 +33,7 @@ By the end you should be able to answer:
 graph LR
     h1[h1<br/>10.10.10.10] --> leaf-a
     leaf-a[leaf-a<br/>Site A<br/>AS65001] --- spine-a[spine-a<br/>AS65100]
-    spine-a ==DCI eBGP== spine-b[spine-b<br/>AS65200]
+    spine-a ---|DCI eBGP| spine-b[spine-b<br/>AS65200]
     spine-b --- leaf-b[leaf-b<br/>Site B<br/>AS65002]
     leaf-b --> h2[h2<br/>10.10.10.20]
 ```

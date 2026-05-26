@@ -28,12 +28,12 @@ By the end you should be able to answer:
 
 ```mermaid
 graph TB
-    h1[h1<br/>10.10.10.1] --> sw1
-    h2[h2<br/>10.10.10.2] --> sw2
-    h3[h3<br/>10.10.10.3] --> sw3
-    sw1 ==trunk== sw2
-    sw2 ==trunk== sw3
-    sw1 ==trunk== sw3
+    h1[h1<br/>10.10.10.1] --- sw1
+    h2[h2<br/>10.10.10.2] --- sw2
+    h3[h3<br/>10.10.10.3] --- sw3
+    sw1 ---|trunk| sw2
+    sw2 ---|trunk| sw3
+    sw1 ---|trunk| sw3
 ```
 
 Three switches in a triangle, one host per switch, all in VLAN 10 (subnet `10.10.10.0/24`). Three trunks — one of them will always be blocked by RSTP, because a triangle is a Layer 2 loop and only a loop-free spanning tree can survive.

@@ -26,9 +26,9 @@ By the end you should be able to answer:
 graph TB
     h1[h1<br/>10.10.10.1<br/>gw .254] --> sw1
     h2[h2<br/>10.10.10.2<br/>gw .254] --> sw2
-    sw1[sw1<br/>Vlan10: 10.10.10.251<br/>VRRP master @ 10.10.10.254] ==trunk== sw2[sw2<br/>Vlan10: 10.10.10.252<br/>VRRP backup @ 10.10.10.254]
+    sw1[sw1<br/>Vlan10: 10.10.10.251<br/>VRRP master @ 10.10.10.254] ---|\1| sw2[sw2<br/>Vlan10: 10.10.10.252<br/>VRRP backup @ 10.10.10.254]
     server[h-server<br/>10.20.20.50] --> sw1
-    sw1 ==VLAN 20 trunk== sw2
+    sw1 ---|\1| sw2
 ```
 
 Two L3 switches with VRRP between them on VLAN 10. h-server represents a backend the users need to reach via the gateway — failover is "boring" if hosts can only ping the gateway itself; demonstrating reachability *through* the gateway is the real test.

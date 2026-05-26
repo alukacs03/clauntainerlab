@@ -29,7 +29,7 @@ By the end you should be able to answer:
 ```mermaid
 graph LR
     h1[h1<br/>10.10.0.10] --> sw1
-    sw1[sw1<br/>AS 65001<br/>1.1.1.1] ==eBGP== sw2[sw2<br/>AS 65002<br/>2.2.2.2]
+    sw1[sw1<br/>AS 65001<br/>1.1.1.1] ---|\1| sw2[sw2<br/>AS 65002<br/>2.2.2.2]
     sw2 --> h2[h2<br/>10.20.0.10]
 ```
 

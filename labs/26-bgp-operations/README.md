@@ -31,7 +31,7 @@ By the end you should be able to answer:
 
 ```mermaid
 graph LR
-    h1[h1] --> sw1[sw1<br/>AS 65001] ==eBGP== sw2[sw2<br/>AS 65002] --> h2[h2]
+    h1[h1] --> sw1[sw1<br/>AS 65001] ---|eBGP| sw2[sw2<br/>AS 65002] --> h2[h2]
 ```
 
 Two routers, eBGP, two host LANs. The same hardening principles apply on iBGP too — practice here, deploy everywhere.

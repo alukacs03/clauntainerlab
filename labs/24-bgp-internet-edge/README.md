@@ -30,9 +30,9 @@ By the end you should be able to answer:
 ```mermaid
 graph LR
     h1[h1<br/>203.0.113.10] --> edge1
-    edge1[edge1<br/>AS65001] ==eBGP== isp1[ISP1<br/>AS64512]
+    edge1[edge1<br/>AS65001] ---|eBGP| isp1[ISP1<br/>AS64512]
     edge1 -.iBGP+OSPF.- edge2
-    edge2[edge2<br/>AS65001] ==eBGP== isp2[ISP2<br/>AS64513]
+    edge2[edge2<br/>AS65001] ---|eBGP| isp2[ISP2<br/>AS64513]
 ```
 
 Two customer-side routers (edge1, edge2) form a small internal fabric. Each peers with one ISP. iBGP + OSPF carry state between them.

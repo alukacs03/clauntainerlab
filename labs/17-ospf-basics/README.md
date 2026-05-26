@@ -32,9 +32,9 @@ graph TB
     h1[h1<br/>10.10.10.10] --> sw1
     h2[h2<br/>10.20.20.10] --> sw2
     h3[h3<br/>10.30.30.10] --> sw3
-    sw1[sw1<br/>1.1.1.1] ==.12.0/30== sw2[sw2<br/>2.2.2.2]
-    sw2 ==.23.0/30== sw3[sw3<br/>3.3.3.3]
-    sw1 ==.13.0/30== sw3
+    sw1[sw1<br/>1.1.1.1] ---|.12.0/30| sw2[sw2<br/>2.2.2.2]
+    sw2 ---|.23.0/30| sw3[sw3<br/>3.3.3.3]
+    sw1 ---|.13.0/30| sw3
 ```
 
 Three L3 switches with loopbacks (`1.1.1.1`, `2.2.2.2`, `3.3.3.3`), three `/30` transit links, one host LAN per switch.

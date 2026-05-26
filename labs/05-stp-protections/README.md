@@ -36,9 +36,9 @@ graph TB
     h1[h1] --> sw1
     h2[h2] --> sw2
     h3[h3] --> sw3
-    sw1 ==trunk== sw2
-    sw2 ==trunk== sw3
-    sw1 ==trunk== sw3
+    sw1 ---|\1| sw2
+    sw2 ---|\1| sw3
+    sw1 ---|\1| sw3
     rogue[sw-rogue<br/>priority 0<br/>plugged into wall jack] -.Et4 access port.- sw1
 ```
 

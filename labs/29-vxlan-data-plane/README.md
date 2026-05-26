@@ -28,8 +28,8 @@ By the end you should be able to answer:
 graph TB
     h1[h1<br/>10.10.10.10/24<br/>VLAN 100] --> leaf1
     h2[h2<br/>10.10.10.20/24<br/>VLAN 100] --> leaf2
-    leaf1[leaf1<br/>VTEP 11.11.11.11<br/>AS65001] ==L3 underlay== spine1[spine1<br/>AS65100]
-    leaf2[leaf2<br/>VTEP 22.22.22.22<br/>AS65002] ==L3 underlay== spine1
+    leaf1[leaf1<br/>VTEP 11.11.11.11<br/>AS65001] ---|L3 underlay| spine1[spine1<br/>AS65100]
+    leaf2[leaf2<br/>VTEP 22.22.22.22<br/>AS65002] ---|L3 underlay| spine1
     leaf1 -.VXLAN tunnel VNI 10100.-> leaf2
 ```
 

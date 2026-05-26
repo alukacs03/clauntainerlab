@@ -25,7 +25,7 @@ By the end you should be able to answer:
 ```mermaid
 graph LR
     h1[h1<br/>10.10.10.1] --> sw1
-    sw1 ==Et2 + Et3 bundled== sw2
+    sw1 ---|Et2 + Et3 bundled| sw2
     sw2 --> h2[h2<br/>10.10.10.2]
 ```
 
