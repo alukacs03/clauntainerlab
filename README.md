@@ -226,6 +226,9 @@ Labs teach the technical moves. The senior+ skill set is everything around the l
 - [The physical layer — optics, cables, MTU](docs/practice/physical-layer.md) — SR vs LR, DAC vs AOC, fiber cleaning, MTU planning, the L1 debug workflow that saves you hours.
 - [AI-assisted network engineering](docs/practice/ai-assisted-engineering.md) — using Claude/Copilot/Cursor responsibly. What AI is good at, where it gets you bitten, sanitization rules, team policy.
 - [Career growth — what "senior" actually means](docs/practice/career-growth.md) — the level-to-level transitions, IC vs management, compound-interest skills, what's measured vs what matters.
+- [Ticket hygiene as an IC](docs/practice/ticket-hygiene-as-an-ic.md) — how to actually work tickets well: lifecycle, comment hygiene, closing properly, and how tickets relate to MOPs/runbooks/ADRs/postmortems.
+- [Pushing back constructively](docs/practice/pushing-back-constructively.md) — when to disagree with a senior or lead, how to structure the push-back (acknowledge → concern → evidence → alternative → update criteria), and "disagree and commit" when it doesn't go your way.
+- [Change communication](docs/practice/change-communication.md) — stakeholder identification, tier-based comms, channel selection, timing cadence; pairs with the MOP doc. The discipline that prevents "we did the change but nobody told the dev team and Monday morning was chaos."
 
 **Planned additions** (not yet written, listed for visibility):
 - **TWAMP / SLA measurement** — how to measure latency/jitter/loss against customer SLAs; one-way (OWAMP) vs two-way (TWAMP) protocols; running it operationally.
