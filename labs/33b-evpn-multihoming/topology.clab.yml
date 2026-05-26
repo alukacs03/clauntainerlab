@@ -1,0 +1,50 @@
+name: evpn-multihoming
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    spine1:
+      kind: arista_ceos
+      startup-config: configs/spine1.cfg
+
+    # EVPN-MH peer leaves (no MLAG peer-link between them — that's the point)
+    leaf1:
+      kind: arista_ceos
+      startup-config: configs/leaf1.cfg
+    leaf2:
+      kind: arista_ceos
+      startup-config: configs/leaf2.cfg
+
+    # Downstream "customer edge" — runs regular LACP, doesn't know about EVPN
+    ce1:
+      kind: arista_ceos
+      startup-config: configs/ce1.cfg
+
+    # Multi-homed customer host (on ce1, which LACP-bonds to both leaves)
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.10/24 dev eth1
+
+    # Single-homed host (directly on leaf1) to verify cross-VTEP forwarding still works
+    h2:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.20/24 dev eth1
+
+  links:
+    # Underlay
+    - endpoints: ["leaf1:eth1", "spine1:eth1"]
+    - endpoints: ["leaf2:eth1", "spine1:eth2"]
+    # The Ethernet Segment — both leaves into ce1 as one logical LACP partner
+    - endpoints: ["leaf1:eth2", "ce1:eth1"]
+    - endpoints: ["leaf2:eth2", "ce1:eth2"]
+    # Single-homed host on leaf1
+    - endpoints: ["h2:eth1", "leaf1:eth3"]
+    # Multi-homed host on ce1
+    - endpoints: ["h1:eth1", "ce1:eth3"]

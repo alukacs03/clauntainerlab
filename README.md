@@ -23,6 +23,7 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 01 | [vlan-basics](labs/01-vlan-basics) | Access ports, trunks, 802.1Q tagging | Ready | ✅ |
 | 02 | [inter-vlan-svi](labs/02-inter-vlan-svi) | Inter-VLAN routing with SVIs | Ready | — |
 | 03 | [trunk-deep-dive](labs/03-trunk-deep-dive) | Native VLAN, allowed-list hygiene, VLAN hopping | Ready | — |
+| 03b | [lldp-and-discovery](labs/03b-lldp-and-discovery) | LLDP — "what's on the other end of this cable?" daily reflex | Ready | — |
 | 04 | [stp-rstp](labs/04-stp-rstp) | Root election, port roles, RSTP convergence | Ready | — |
 | 05 | [stp-protections](labs/05-stp-protections) | PortFast, BPDU Guard, Root Guard | Ready | — |
 | 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, sticky learning, broadcast/multicast storm control | Ready | — |
@@ -53,6 +54,7 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 31 | [evpn-type5](labs/31-evpn-type5) | EVPN Type 5, tenant VRF, symmetric IRB, L3 overlay | Ready | — |
 | 32 | [evpn-anycast-gateway](labs/32-evpn-anycast-gateway) | Anycast gateway across every leaf in the fabric | Ready | — |
 | 33 | [evpn-multisite](labs/33-evpn-multisite) | Stretched subnet across two DCs via DCI EVPN | Ready | — |
+| 33b | [evpn-multihoming](labs/33b-evpn-multihoming) | EVPN-MH via Ethernet Segment (ESI) — the modern MLAG replacement | Ready | — |
 
 **Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
 
@@ -82,9 +84,7 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 | ~~01~~ | ~~VLAN basics~~ | Access ports, trunks, 802.1Q tagging |
 | ~~02~~ | ~~Inter-VLAN routing (SVI)~~ | L3 switch role, virtual VLAN interfaces |
 | ~~03~~ | ~~Trunk deep-dive~~ | Native VLAN, allowed VLANs, DTP, VLAN pruning; latent bugs & VLAN hopping risk |
-
-**Planned additions to this chapter:**
-- **LLDP & operational link discovery** — daily-driver operational tool ("who is on the other end of this cable?"). LLDP frame anatomy, `show lldp neighbors` reflexes, integration with monitoring tools that auto-build topology from LLDP.
+| ~~03b~~ | ~~LLDP & operational link discovery~~ | Daily-driver operational tool. LLDP frame anatomy, `show lldp neighbors` reflexes, simulated mis-cabling discovery. |
 
 ### Chapter 2 — L2 in production
 
@@ -147,9 +147,7 @@ BGP gets its own chapter because it's the protocol you'll spend the most operati
 | ~~31~~ | ~~EVPN symmetric IRB~~ | Type 5 routes, L3 overlay, multi-tenant routing |
 | ~~32~~ | ~~Anycast gateway in EVPN~~ | Distributed L3 gateway across all leaves |
 | ~~33~~ | ~~Multi-site DCI~~ | Stretched subnet across two physical sites via EVPN multi-site or DCI gateway patterns |
-
-**Planned additions to this chapter:**
-- **EVPN Multi-Homing (ESI)** — the EVPN-native replacement for MLAG. Modern greenfield EVPN fabrics use ESI multi-homing instead of MLAG. Type 1 (Ethernet A-D) and Type 4 (ES) routes, all-active vs single-active, designated forwarder election.
+| ~~33b~~ | ~~EVPN Multi-Homing (ESI)~~ | EVPN-native replacement for MLAG. Shared ESI + LACP system-id, Type 1/4 routes, DF election, no peer-link. |
 
 ### Chapter 8 — Internet Edge & Public-facing
 

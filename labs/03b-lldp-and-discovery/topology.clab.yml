@@ -1,0 +1,34 @@
+name: lldp-discovery
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+    sw3:
+      kind: arista_ceos
+      startup-config: configs/sw3.cfg
+
+    # Linux host running lldpd — represents a server that participates in LLDP
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.10/24 dev eth1
+        - sh -c "command -v lldpd >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq lldpd) ; service lldpd start || lldpd"
+
+  links:
+    # Triangle of inter-switch links
+    - endpoints: ["sw1:eth1", "sw2:eth1"]
+    - endpoints: ["sw2:eth2", "sw3:eth1"]
+    - endpoints: ["sw1:eth2", "sw3:eth2"]
+    # Host on sw1
+    - endpoints: ["h1:eth1", "sw1:eth3"]
