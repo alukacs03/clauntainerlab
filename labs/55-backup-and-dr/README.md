@@ -22,7 +22,7 @@ With preparation:
 4. Validation tests run before traffic flows
 5. 25 minutes from "switch installed" to "service restored"
 
-This lab builds the backup half. Lab 54 (NetBox) is the source-of-truth half. Together they make recovery boring.
+This lab builds the backup half. A source-of-truth system (NetBox or equivalent — deferred to a future dedicated chapter; see `TODO.md`) is the inventory half. Together they make recovery boring.
 
 ## Goal
 

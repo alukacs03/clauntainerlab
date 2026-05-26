@@ -14,7 +14,7 @@ The pattern that prevents this:
 3. Apply mechanically, idempotently, with diffs
 4. Track which devices are in-sync vs drifted
 
-Ansible (or Nornir) gives you the apply mechanism. NetBox (lab 54) gives you the inventory. CI/CD (lab 53) wires them together.
+Ansible (or Nornir) gives you the apply mechanism. A source-of-truth system (NetBox, an IPAM/CMDB — deferred to a dedicated chapter; see `TODO.md`) gives you the inventory. CI/CD (lab 53) wires them together.
 
 ## Goal
 
@@ -65,7 +65,7 @@ all:
         spine01: { ansible_host: 10.0.0.10 }
 ```
 
-In production, this comes from NetBox (lab 54) via `nb_inventory` plugin, not from YAML files.
+In production, this comes from a source-of-truth system (e.g., NetBox via `nb_inventory` plugin), not from hand-edited YAML files.
 
 ### Connection plugins for network devices
 
@@ -113,7 +113,7 @@ sw1> show running-config | include ntp|logging
 
 - **Roles** — modular playbook organization
 - **Vault** for secrets
-- **Dynamic inventory from NetBox** — covered conceptually in lab 54
+- **Dynamic inventory from a source-of-truth (NetBox/IPAM/CMDB)** — deferred; see `TODO.md`
 - **Diff mode** (`--check --diff`) for dry-run
 - **Templates** (Jinja2) for generated configs
 - **CI integration** — lab 53

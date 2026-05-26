@@ -42,6 +42,29 @@ Still planned, not yet written. Story callouts in `STORY.md` and full roadmap in
 
 ---
 
+## NetBox / Source of Truth — deserves its own deeper treatment
+
+**Context**: lab 54 was originally written as a quick "here's NetBox, here's an Ansible inventory plugin pointing at it" reference. On review it's too shallow for what NetBox actually is — and what the learner needs to understand about source-of-truth-driven networking. Removed from the curriculum until it gets a proper treatment.
+
+**Why a single lab isn't enough**:
+- NetBox isn't a containerlab-shaped piece — it's a multi-container web app with its own data model, API, and operational concerns. Standing it up "next to" the lab is awkward.
+- The interesting parts (data modeling decisions, custom fields, dynamic inventory, intent-vs-state diff, drift detection automation, webhook-driven CI) each warrant their own walkthrough.
+- The right framing is probably an entire chapter ("Source of Truth & Automation Plumbing") or a multi-lab block within Chapter 10, not one lab.
+
+**What a proper treatment would cover**:
+- Standing up NetBox with sane defaults (docker-compose alongside containerlab, or a managed instance)
+- Modeling a real fabric in NetBox (sites, racks, devices, interfaces, IPs, VLANs, VRFs, cables, circuits)
+- Bulk-importing from existing configs (ntc-templates, netbox-importer)
+- Dynamic Ansible inventory from NetBox (and equivalent for Nornir)
+- Jinja templates rendering configs from NetBox data
+- Drift detection: scheduled diff of rendered intent vs. live state
+- Webhook-driven automation (NetBox change → CI trigger)
+- Operational realities: token management, RBAC, custom fields done right vs. abused
+
+**Pick this up when**: existing labs validated and there's appetite for a dedicated source-of-truth chapter. Until then NetBox is mentioned conceptually in `docs/reference-design/dual-site-dc.md` and in lab 52/55 commentary as "this is where it would slot in."
+
+---
+
 ## Out of scope for this repo: a separate "Network team leadership" track
 
 This curriculum is technical networking. Distinct (and explicitly *not* part of it) is the management/leadership track that becomes relevant when someone transitions from senior IC to team lead. Parked here so the brainstorm isn't lost in case a separate venue (personal blog, internal company wiki, separate repo) ever wants it.

@@ -59,7 +59,7 @@ Non-goals (deliberately):
 - **Leaf ↔ Host**: 10G or 25G. Each host uses 2 NICs to 2 separate leaves (EVPN-MH ESI, lab 33b).
 - **DCI (Site-A ↔ Site-B)**: dark fiber if available, otherwise dedicated wavelength (DWDM) from a transit provider. 100G+ depending on east-west demand.
 - **OOB management network**: physically separate switches and cabling, dedicated VLAN, console servers (lab 11).
-- **Cable database**: NetBox tracks every cable (lab 54). Cleaning, MTU, optic types: see [`docs/practice/physical-layer.md`](../practice/physical-layer.md).
+- **Cable database**: source-of-truth system (NetBox or equivalent) tracks every cable. Dedicated curriculum chapter on this is deferred — see `TODO.md`. Cleaning, MTU, optic types: see [`docs/practice/physical-layer.md`](../practice/physical-layer.md).
 
 ### Layer 1 — IGP & Underlay
 
@@ -118,8 +118,8 @@ Non-goals (deliberately):
 
 ### Layer 7 — Operations
 
-- **Source of truth**: NetBox (lab 54). Sites, racks, devices, interfaces, IPs, VLANs, VRFs, cables, circuits.
-- **Config management**: Ansible drives configs from NetBox (lab 52).
+- **Source of truth**: NetBox (or equivalent IPAM/CMDB). Sites, racks, devices, interfaces, IPs, VLANs, VRFs, cables, circuits. _A dedicated curriculum chapter on this is deferred — see [`TODO.md`](../../TODO.md)._
+- **Config management**: Ansible drives configs from the source-of-truth (lab 52).
 - **CI/CD**: every change goes through a pipeline (lab 53). Lint → validate → stage-deploy → stage-test → prod-deploy (manual gate) → smoke-test.
 - **Backup & DR**: daily backup to git (lab 55); ZTP-driven replacement procedure.
 - **Hitless upgrades**: rolling per-pair upgrade procedure (lab 56).

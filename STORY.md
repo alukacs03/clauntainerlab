@@ -198,8 +198,7 @@ The Company now has 100+ devices, 4 sites, real on-call. The tools you choose no
 | **51 — NETCONF / RESTCONF foundations** | Programmable-device protocols. YANG models. The foundation for everything that automates EOS. |
 | **52 — Ansible & Nornir for network automation** | 100+ devices. Click-ops doesn't scale. You build idempotent, inventory-driven config workflows. |
 | **53 — Network CI/CD pipeline** | Configs in git, linting in CI, staged validation, automated rollback. Junior engineers can ship changes safely. |
-| **54 — Source of truth & IPAM (NetBox)** | The canonical "what every device should be configured as" database. Drives automation in lab 52. |
-| **55 — Network device backup & disaster recovery** | "A switch died overnight" — walk-through of config backup, ZTP for the replacement, restoring state from NetBox, validating before traffic flows. |
+| **55 — Network device backup & disaster recovery** | "A switch died overnight" — walk-through of config backup, ZTP for the replacement, restoring state from a source-of-truth, validating before traffic flows. |
 | **56 — Hitless upgrade / rolling EOS upgrade** | Upgrade the fabric without taking customers down. Drain/undrain dance, MLAG and EVPN-MH pair upgrades, validation between steps. |
 | **57 — Production packet capture: SPAN + traffic generation** | How to capture from production without melting the switch CPU (port mirroring). Pairs with traffic generation (iperf3, scapy) for validation. |
 | **58 — Failure scenario playbook** | A new junior joined the team. You write failure playbooks (link, switch, gateway, BGP session, EVPN VTEP) they can follow at 3 AM. |
