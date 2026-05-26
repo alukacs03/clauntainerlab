@@ -16,7 +16,7 @@ Three things you should be able to explain by the end:
 
 1. Why is "trunk allows all VLANs" the wrong default for production?
 2. What's the **native VLAN** and why is leaving it as VLAN 1 a problem?
-3. What does `vlan dot1q tag native` actually do, and why does turning it on close a known attack vector?
+3. What does forcing native-VLAN traffic to be tagged (Arista's `switchport trunk native vlan tag`) actually do, and why does turning it on close a known attack vector?
 
 ## Topology
 
@@ -73,21 +73,31 @@ The classic attack:
 
 Defenses:
 - **Don't use VLAN 1 as native.** Move it to an unused, unrouted VLAN ("parking" VLAN).
-- **`vlan dot1q tag native`** — force every frame on every trunk to be tagged, including native VLAN traffic. The "untagged frame" ambiguity disappears entirely, and the double-tag trick fails.
+- **Force native VLAN to be tagged on the wire** — on Arista, `switchport trunk native vlan tag` per interface causes the port to drop all untagged frames; native traffic must arrive tagged with its VLAN ID. The "untagged frame on a trunk" ambiguity disappears, and the double-tag trick fails. (On Cisco IOS the equivalent is the global `vlan dot1q tag native`.)
 - Don't put any access port in the native VLAN. Native VLAN should be an empty hole.
 
 ## Your task
 
 Reconfigure both sw1 and sw2 trunks (Ethernet4) so that:
 
-1. **Allowed VLANs are explicitly listed** — only VLAN 10, 20, 30 (plus whatever native VLAN you choose in step 2).
-2. **Native VLAN is moved off VLAN 1** to an unused VLAN (suggest VLAN 999, name it `NATIVE-PARKING`). Create the VLAN on both switches.
-3. **All native traffic is tagged on the wire** by enabling `vlan dot1q tag native` globally.
+1. **Allowed VLANs are explicitly listed** — only VLAN 10, 20, 30. No "allow all".
+2. **No untagged frames cross the trunk.** Force all frames to be tagged; native-VLAN ambiguity goes away.
 
 Do *not* break the existing inter-tenant connectivity. After your changes:
 - h1 ↔ h3 should still work
 - h2 ↔ h4 should still work
 - h5 ↔ h6 should still work
+
+### Two valid hardening models (and why we pick one)
+
+There are two production patterns for native-VLAN hygiene; on Arista they can't be combined:
+
+| Pattern | Command | Behavior |
+|---|---|---|
+| **Parking-native** (Cisco-tradition) | `switchport trunk native vlan 999` (where 999 has no access ports) | Untagged frames mapped to VLAN 999. Safe only as long as no access port ever lands in VLAN 999. |
+| **Drop-untagged** (Arista-modern) | `switchport trunk native vlan tag` | Untagged frames are dropped at the trunk. There is no native VLAN. |
+
+The same `switchport trunk native vlan ...` command takes mutually-exclusive arguments (`<id>` or `tag`) — setting one overwrites the other. **Drop-untagged** is stronger (no "what's in VLAN 999?" question), so the solution uses that. The Cisco-style parking-VLAN pattern is shown here for cross-vendor awareness; on a pure-Arista network you don't need a parking VLAN.
 
 ## Hints
 
@@ -95,19 +105,15 @@ EOS commands you'll need:
 
 ```
 configure terminal
-  vlan <id>
-    name <name>
-  exit
-  vlan dot1q tag native
   interface Ethernet4
-    switchport trunk native vlan <id>
+    switchport trunk native vlan tag
     switchport trunk allowed vlan <comma-separated-list>
   exit
 end
 write memory
 ```
 
-Apply identically on both switches. **Native VLAN must match on both ends** — otherwise you've created the very mismatch we're trying to avoid (see verification step 4).
+Apply identically on both switches. **The "drop untagged" setting must match on both ends** — otherwise one side will forward untagged frames the other side rejects.
 
 ## Deploy
 
@@ -139,9 +145,9 @@ show interfaces Ethernet4 switchport
 show interfaces trunk
 ```
 
-You should see allowed VLANs explicitly listed (10,20,30,999), not "1-4094". `show interfaces trunk` is the operationally useful command — gives you a one-line summary of every trunk and what it carries.
+You should see allowed VLANs explicitly listed (10,20,30), not "1-4094". `show interfaces trunk` is the operationally useful command — gives you a one-line summary of every trunk and what it carries.
 
-### 3. Verify native VLAN moved
+### 3. Verify native-VLAN tagging is on
 
 In the same Cli:
 
@@ -149,31 +155,31 @@ In the same Cli:
 show interfaces Ethernet4 switchport | include Native
 ```
 
-Native VLAN: 999.
+You should see `Administrative Native VLAN tagging: enabled`. With this on, untagged frames arriving on the trunk are dropped.
 
-### 4. Native VLAN mismatch demo (break it on purpose)
+### 4. Asymmetric tagging demo (break it on purpose)
 
-On sw1 only:
+On sw1 only, turn tagging back off:
 
 ```
 interface Ethernet4
-   switchport trunk native vlan 998
+   no switchport trunk native vlan tag
 ```
 
-Wait ~30 seconds, then check:
+Now sw1 will forward untagged frames (mapped to its default native VLAN 1) while sw2 still drops them.
 
 ```
-show lldp neighbors detail | include Native
+show interfaces Ethernet4 switchport | include Native
 show logging | tail
 ```
 
-LLDP detects the mismatch and logs a warning. The trunk **stays up** — this is the dangerous part: connectivity continues, but frames can leak between native VLANs (998 on sw1, 999 on sw2). This is *exactly* the kind of bug that hides for months in production until someone notices weird traffic in the wrong place.
+The asymmetry is exactly the kind of bug that hides for months: from sw1's side everything looks normal; sw2 silently drops some traffic. This is why **both sides of the trunk must agree** on the tagging mode.
 
-Restore: `switchport trunk native vlan 999` on sw1.
+Restore: `switchport trunk native vlan tag` on sw1.
 
-### 5. See `dot1q tag native` on the wire
+### 5. See native-tagging on the wire
 
-With `vlan dot1q tag native` enabled, capture on the trunk and watch — even VLAN 999 (native) frames carry a tag:
+With `switchport trunk native vlan tag` enabled, capture on the trunk — every frame carries an 802.1Q tag:
 
 ```bash
 sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' clab-trunk-deep-dive-sw1) -n tcpdump -i eth4 -nn -e vlan
@@ -182,10 +188,10 @@ sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' clab-trunk-deep-dive-sw1) -
 Now disable it temporarily:
 
 ```
-no vlan dot1q tag native
+no switchport trunk native vlan tag
 ```
 
-Re-capture. Native VLAN traffic (mainly LLDP) now goes untagged. Notice the difference. Re-enable: `vlan dot1q tag native`.
+Re-capture. Some control-plane frames (LLDP, etc.) may go untagged or end up in VLAN 1. Notice the difference. Re-enable: `switchport trunk native vlan tag`.
 
 ### 6. Operational reflex — `show interfaces trunk`
 
@@ -205,8 +211,8 @@ Output tells you in one screen: which ports are trunks, what VLANs they're allow
 ## Concepts cheat-sheet
 
 - **Allowed VLAN list** — explicit comma-separated list of VLANs that may traverse a trunk. Default is all; production should be explicit.
-- **Native VLAN** — the one VLAN on a trunk whose frames are *not* tagged on the wire (unless `dot1q tag native` is on). Default VLAN 1. Move it to an unused VLAN.
-- **`vlan dot1q tag native`** — global command that forces every trunk frame to carry an 802.1Q tag, native VLAN included. Closes the double-tag VLAN hopping attack and removes the "untagged frame on a trunk" ambiguity.
+- **Native VLAN** — the one VLAN on a trunk whose frames are *not* tagged on the wire. Default VLAN 1. Two options: move it to an unused parking VLAN (`switchport trunk native vlan <id>`), or eliminate the concept entirely by dropping all untagged frames (`switchport trunk native vlan tag`, Arista-modern).
+- **`switchport trunk native vlan tag`** (Arista) — drops every untagged frame at the trunk. Closes the double-tag VLAN hopping attack and removes the "untagged frame on a trunk" ambiguity. On Cisco IOS the analogous global command is `vlan dot1q tag native`.
 - **VLAN hopping** — attacker on an access port crafts a double-tagged frame; first switch strips outer (native) tag, second switch honors inner tag, frame ends up in a VLAN the attacker shouldn't reach. Defense: don't use VLAN 1 as native + tag everything.
 - **`show interfaces trunk`** — your operational best friend for L2 sanity.
 
