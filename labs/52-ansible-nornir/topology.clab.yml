@@ -1,0 +1,33 @@
+name: ansible-nornir
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+
+    sw3:
+      kind: arista_ceos
+      startup-config: configs/sw3.cfg
+
+    automation:
+      kind: linux
+      binds:
+        - solutions:/lab/solutions:ro
+      exec:
+        - ip addr add 10.0.0.100/24 dev eth1
+
+  links:
+    - endpoints: ["automation:eth1", "sw1:eth1"]
+    - endpoints: ["automation:eth2", "sw2:eth1"]
+    - endpoints: ["automation:eth3", "sw3:eth1"]

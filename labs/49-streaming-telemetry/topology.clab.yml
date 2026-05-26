@@ -1,0 +1,24 @@
+name: streaming-telemetry
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+      ports:
+        - 6030:6030      # gNMI
+
+    collector:
+      kind: linux
+      exec:
+        - ip addr add 10.0.0.10/24 dev eth1
+        - ip route add default via 10.0.0.1
+
+  links:
+    - endpoints: ["collector:eth1", "sw1:eth1"]

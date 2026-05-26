@@ -1,0 +1,33 @@
+# gnmic collector config — subscribes to both leaves, exposes Prom-scrapeable endpoint
+
+username: admin
+password: admin
+insecure: true
+
+targets:
+  10.0.0.1:6030:
+    name: leaf1
+  10.0.0.2:6030:
+    name: leaf2
+
+subscriptions:
+  interface-counters:
+    paths:
+      - /interfaces/interface/state/counters
+    stream-mode: sample
+    sample-interval: 5s
+  bgp-state:
+    paths:
+      - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state
+    stream-mode: on-change
+
+outputs:
+  prom-out:
+    type: prometheus
+    listen: ":9804"
+    path: /metrics
+    metric-prefix: gnmic_
+
+api-server:
+  address: ":7890"
+  enable-metrics: true

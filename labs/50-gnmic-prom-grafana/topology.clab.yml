@@ -1,0 +1,58 @@
+name: gnmic-prom-grafana
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    leaf1:
+      kind: arista_ceos
+      startup-config: configs/leaf1.cfg
+      ports:
+        - 6030:6030
+
+    leaf2:
+      kind: arista_ceos
+      startup-config: configs/leaf2.cfg
+      ports:
+        - 6031:6030
+
+    gnmic:
+      kind: linux
+      image: ghcr.io/openconfig/gnmic:latest
+      binds:
+        - solutions/gnmic.yaml:/app/gnmic.yaml:ro
+      cmd: "--config /app/gnmic.yaml subscribe"
+      exec:
+        - ip addr add 10.0.0.10/24 dev eth1
+
+    prometheus:
+      kind: linux
+      image: prom/prometheus:latest
+      binds:
+        - solutions/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      ports:
+        - 9090:9090
+      exec:
+        - ip addr add 10.0.0.20/24 dev eth1
+
+    grafana:
+      kind: linux
+      image: grafana/grafana:latest
+      binds:
+        - solutions/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/prom.yaml:ro
+      ports:
+        - 3000:3000
+      env:
+        GF_SECURITY_ADMIN_PASSWORD: admin
+      exec:
+        - ip addr add 10.0.0.30/24 dev eth1
+
+  links:
+    - endpoints: ["leaf1:eth1", "gnmic:eth1"]
+    - endpoints: ["leaf2:eth1", "gnmic:eth2"]
+    - endpoints: ["gnmic:eth3", "prometheus:eth1"]
+    - endpoints: ["prometheus:eth2", "grafana:eth1"]

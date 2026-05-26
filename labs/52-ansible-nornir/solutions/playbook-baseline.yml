@@ -1,0 +1,34 @@
+---
+# Apply baseline hardening to every switch:
+# - banner
+# - syslog
+# - NTP
+# - SNMP RO community (read-only, ACL-restricted)
+- name: Baseline hardening
+  hosts: leaf
+  gather_facts: no
+  tasks:
+    - name: Set login banner
+      arista.eos.eos_banner:
+        banner: login
+        text: |
+          Authorized access only. All activity logged.
+        state: present
+
+    - name: Configure remote syslog
+      arista.eos.eos_logging:
+        dest: host
+        name: 10.0.0.100
+        level: informational
+        state: present
+
+    - name: Configure NTP
+      arista.eos.eos_ntp:
+        server: 10.0.0.100
+        state: present
+
+    - name: Configure idle exec timeout
+      arista.eos.eos_config:
+        lines:
+          - exec-timeout 10
+        parents: line vty
