@@ -229,6 +229,8 @@ Labs teach the technical moves. The senior+ skill set is everything around the l
 - [Ticket hygiene as an IC](docs/practice/ticket-hygiene-as-an-ic.md) — how to actually work tickets well: lifecycle, comment hygiene, closing properly, and how tickets relate to MOPs/runbooks/ADRs/postmortems.
 - [Pushing back constructively](docs/practice/pushing-back-constructively.md) — when to disagree with a senior or lead, how to structure the push-back (acknowledge → concern → evidence → alternative → update criteria), and "disagree and commit" when it doesn't go your way.
 - [Change communication](docs/practice/change-communication.md) — stakeholder identification, tier-based comms, channel selection, timing cadence; pairs with the MOP doc. The discipline that prevents "we did the change but nobody told the dev team and Monday morning was chaos."
+- [TLS & certificates for network engineers](docs/practice/tls-and-certificates.md) — modern protocols (NETCONF, gNMI, RadSec, syslog-TLS) all require certs. Cert chain anatomy, internal CA setup, renewal automation, common gotchas, the 8-9 openssl commands you'll use forever.
+- [The network from an attacker's perspective](docs/practice/attacker-perspective.md) — defender's mental model of the attack lifecycle. Recon, initial access, L2/L3 attacks, mgmt-plane attacks, exfil, impact — and which labs/docs in this curriculum defend against each phase.
 
 **Planned additions** (not yet written, listed for visibility):
 - **TWAMP / SLA measurement** — how to measure latency/jitter/loss against customer SLAs; one-way (OWAMP) vs two-way (TWAMP) protocols; running it operationally.
