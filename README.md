@@ -57,6 +57,14 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 32 | [evpn-anycast-gateway](labs/32-evpn-anycast-gateway) | Anycast gateway across every leaf in the fabric | Ready | — |
 | 33 | [evpn-multisite](labs/33-evpn-multisite) | Stretched subnet across two DCs via DCI EVPN | Ready | — |
 | 33b | [evpn-multihoming](labs/33b-evpn-multihoming) | EVPN-MH via Ethernet Segment (ESI) — the modern MLAG replacement | Ready | — |
+| 34 | [ebgp-upstream-at-scale](labs/34-ebgp-upstream-at-scale) | IXP route server peering, bogon + max-prefix protection, community tagging | Ready | — |
+| 35 | [nat-in-dc](labs/35-nat-in-dc) | PAT (overload) + 1:1 static NAT at the edge | Ready | — |
+| 36 | [cgnat](labs/36-cgnat) | Carrier-grade NAT (NAT444) over RFC 6598 shared space | Ready | — |
+| 37 | [ipv6-dual-stack](labs/37-ipv6-dual-stack) | Dual-stack with OSPFv3 + SLAAC | Ready | — |
+| 38 | [ipv6-only-nat64](labs/38-ipv6-only-nat64) | IPv6-only customer access with NAT64/DNS64 (conceptual) | Ready | — |
+| 39 | [service-anycast](labs/39-service-anycast) | Multi-site service via BGP anycast — the 1.1.1.1 / 8.8.8.8 pattern | Ready | — |
+| 40 | [ddos-mitigation](labs/40-ddos-mitigation) | RTBH via BGP community signaling to upstream | Ready | — |
+| 41 | [control-plane-protection](labs/41-control-plane-protection) | Mgmt-plane ACLs + CoPP to harden the device itself | Ready | — |
 
 **Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
 
@@ -157,14 +165,14 @@ BGP gets its own chapter because it's the protocol you'll spend the most operati
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 34 | eBGP upstream peering | Operational eBGP config, prefix filtering, max-prefix protection at scale |
-| 35 | NAT in the DC | 1:1 NAT, PAT/source NAT, NAT44 patterns, when (and when not) to NAT |
-| 36 | **CGNAT (Carrier-Grade NAT)** | NAT444, port allocation strategies, logging for compliance, RFC 6598 (100.64.0.0/10) shared space |
-| 37 | IPv6 fundamentals + dual-stack | NDP/RA, SLAAC vs DHCPv6, dual-stack rollout patterns, BGP for IPv6 |
-| 38 | **IPv6-only deployment** | NAT64/DNS64 for IPv4-only services, prefix delegation, IPv6-only customer access |
-| 39 | **Service Anycast** | Same IP at multiple sites via BGP — the pattern behind 1.1.1.1, 8.8.8.8, anycast DNS. Multi-site service deployment via BGP advertisement |
-| 40 | **DDoS mitigation** | RTBH (Remote-Triggered Black Hole), BGP Flowspec (RFC 5575), upstream scrubbing integration, the operator playbook for "we're under attack" |
-| 41 | Control-plane protection | CoPP, mgmt-plane ACLs, hardware vs software-punt protections |
+| ~~34~~ | ~~eBGP upstream peering at scale~~ | IXP route server pattern, bogon + OWN-PREFIX filtering, max-prefix, community tagging |
+| ~~35~~ | ~~NAT in the DC~~ | PAT (overload) + 1:1 static NAT, ACL-driven source NAT, NAT44 patterns |
+| ~~36~~ | ~~CGNAT (Carrier-Grade NAT)~~ | NAT444, RFC 6598 (100.64.0.0/10), port allocation, logging for compliance |
+| ~~37~~ | ~~IPv6 fundamentals + dual-stack~~ | NDP/RA, SLAAC, OSPFv3 alongside OSPFv2, dual-stack rollout |
+| ~~38~~ | ~~IPv6-only deployment~~ | NAT64/DNS64 conceptual (cEOS lacks native NAT64; Jool pointer) |
+| ~~39~~ | ~~Service Anycast~~ | Same IP at multiple sites via BGP — the pattern behind 1.1.1.1, 8.8.8.8 |
+| ~~40~~ | ~~DDoS mitigation~~ | RTBH via BGP community to upstream; next-hop rewrite to Null0 |
+| ~~41~~ | ~~Control-plane protection~~ | Mgmt-plane ACLs + CoPP ACL on control-plane |
 
 ### Chapter 9 — Application & Traffic Management
 

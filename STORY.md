@@ -156,18 +156,18 @@ The growth keeps coming. The colo-rack-and-a-couple-of-servers era is over — T
 
 > Year 4. Senior+. The Company is no longer just running its own DCs — it's a real internet operator, with public IP space, RIPE membership, peering relationships, and customers who get DDoS'd.
 
-> *(Labs 34-52 are planned, not yet written. Phase 7-9 span the work of turning a DC operator into a real internet operator, traffic-manager, and day-2 ops shop.)*
+The Company joined an IXP, has its own /22 of IPv4 (and it's filling up), and started getting the calls every operator dreads: "we're being DDoS'd." Your job description quietly shifts from "DC network engineer" to "internet operator."
 
-| # | Lab | Theme |
-|---|---|---|
-| **34 — eBGP upstream peering at scale** | Peering at multiple IXPs. RPKI ROV deployment. Real peering economics. |
-| **35 — NAT in the DC** | 1:1 NAT, PAT/source NAT, common patterns and anti-patterns. |
-| **36 — CGNAT** | Carrier-grade NAT44 with port allocation strategies. The IPv4-exhaustion answer for customer-facing operators. |
-| **37 — IPv6 fundamentals + dual-stack** | The Company's `/22` of IPv4 is running out and RIPE has nothing left to sell. Time to deploy IPv6 for real. |
-| **38 — IPv6-only deployment** | NAT64/DNS64 for the long tail of IPv4-only services. Customer-facing IPv6-only access with backwards compatibility. |
-| **39 — Service Anycast** | A customer wants their service to "just work globally". You learn the same pattern that runs 1.1.1.1, 8.8.8.8, and every modern CDN. |
-| **40 — DDoS mitigation** | A customer gets DDoS'd at 3 AM. You implement RTBH, BGP Flowspec, and integrate with upstream scrubbing. The new operational playbook for "we're under attack". |
-| **41 — Control-plane protection** | CoPP + mgmt-plane ACLs to harden every device from the inside. |
+| Lab | Story beat |
+|---|---|
+| **34 — eBGP upstream peering at scale** | The Company joined a regional IXP last quarter. Instead of two transit sessions, you now peer with 60 networks via a route server. You need real filtering — bogons, your own prefix being announced back, max-prefix protection. One missing filter = international incident. |
+| **35 — NAT in the DC** | Customers want public IPs on services but mostly run private internal subnets. You implement PAT for outbound and 1:1 NAT for the customer-facing services that need stable public addresses. |
+| **36 — CGNAT** | RIPE has no more /22s to give and you onboarded a residential broadband product line. You deploy CGNAT (NAT444) using RFC 6598 shared address space and learn why CGN deployments come with subpoena-response logging requirements. |
+| **37 — IPv6 fundamentals + dual-stack** | The IPv4 /22 is at 92% utilization. You roll out dual-stack: OSPFv3 alongside OSPFv2, NDP RAs for SLAAC, dual-stack BGP. Customers slowly start getting IPv6. |
+| **38 — IPv6-only deployment** | A new IoT customer asks "can we just be IPv6-only?" — yes, but the IPv4-only internet still exists. You design the NAT64/DNS64 architecture (delegated to a Jool box; cEOS doesn't do NAT64 natively). |
+| **39 — Service Anycast** | A customer asks for their service to "just work globally with no DNS magic". You announce the same /32 from both sites via BGP, with AS-path prepending on the standby site. The pattern behind every public DNS resolver. |
+| **40 — DDoS mitigation** | 3 AM: customer at `198.51.100.10` is under a 50 Gbps DDoS. Your 10 Gbps transit is saturated. You announce a /32 to the upstream tagged with their RTBH community `65000:666`. The upstream blackholes the victim at their edge; your pipe is free; the rest of your /24 stays online. Tactical sacrifice. |
+| **41 — Control-plane protection** | Last week an attacker brute-forced SSH from the internet against an edge router. Passwords held, but 100k attempts/sec cooked the CPU and BGP started flapping. You apply mgmt-plane ACLs (no SSH from anywhere but the mgmt network) and CoPP to rate-limit anything CPU-bound. |
 
 ## Phase 8 — Application & Traffic Management (Labs 42–45)
 
