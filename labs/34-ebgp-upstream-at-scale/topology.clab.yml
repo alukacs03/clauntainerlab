@@ -1,0 +1,39 @@
+name: ebgp-upstream-scale
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # Simulates the IXP shared-LAN switching fabric
+    ixp-fabric:
+      kind: arista_ceos
+      startup-config: configs/ixp-fabric.cfg
+
+    # Your edge router at the IXP
+    customer:
+      kind: arista_ceos
+      startup-config: configs/customer.cfg
+
+    # IXP-operated route server (in reality BIRD or OpenBGPD; we model with cEOS)
+    rs:
+      kind: arista_ceos
+      startup-config: configs/rs.cfg
+
+    # Two other participants at the IXP
+    peer1:
+      kind: arista_ceos
+      startup-config: configs/peer1.cfg
+    peer2:
+      kind: arista_ceos
+      startup-config: configs/peer2.cfg
+
+  links:
+    # All participants share one LAN segment (the IXP fabric)
+    - endpoints: ["customer:eth1", "ixp-fabric:eth1"]
+    - endpoints: ["rs:eth1", "ixp-fabric:eth2"]
+    - endpoints: ["peer1:eth1", "ixp-fabric:eth3"]
+    - endpoints: ["peer2:eth1", "ixp-fabric:eth4"]

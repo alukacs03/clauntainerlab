@@ -1,0 +1,34 @@
+name: service-anycast
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # Anycast servers in two "sites" — both announce the same /32 service IP
+    site-a:
+      kind: arista_ceos
+      startup-config: configs/site-a.cfg
+    site-b:
+      kind: arista_ceos
+      startup-config: configs/site-b.cfg
+
+    # Transit router that connects to both sites and to a customer
+    transit:
+      kind: arista_ceos
+      startup-config: configs/transit.cfg
+
+    # Customer/client that resolves to one of the sites by closest path
+    customer:
+      kind: linux
+      exec:
+        - ip addr add 10.50.50.10/24 dev eth1
+        - ip route add default via 10.50.50.1
+
+  links:
+    - endpoints: ["site-a:eth1", "transit:eth1"]
+    - endpoints: ["site-b:eth1", "transit:eth2"]
+    - endpoints: ["customer:eth1", "transit:eth3"]

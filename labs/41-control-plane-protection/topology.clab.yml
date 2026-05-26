@@ -1,0 +1,31 @@
+name: control-plane-protection
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    edge:
+      kind: arista_ceos
+      startup-config: configs/edge.cfg
+
+    # Legitimate management station (trusted source)
+    mgmt:
+      kind: linux
+      exec:
+        - ip addr add 10.99.0.10/24 dev eth1
+        - ip route add default via 10.99.0.1
+
+    # Malicious / untrusted source
+    attacker:
+      kind: linux
+      exec:
+        - ip addr add 203.0.113.50/24 dev eth1
+        - ip route add default via 203.0.113.1
+
+  links:
+    - endpoints: ["mgmt:eth1", "edge:eth1"]
+    - endpoints: ["attacker:eth1", "edge:eth2"]

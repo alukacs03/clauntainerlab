@@ -1,0 +1,44 @@
+name: cgnat
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # The CGNAT box — translates a 100.64.0.0/10 (RFC 6598) shared-CGN range
+    # to a small pool of public IPs
+    cgn:
+      kind: arista_ceos
+      startup-config: configs/cgn.cfg
+
+    # Three subscribers behind the CGN, all in the shared 100.64.0.0/10 range
+    sub1:
+      kind: linux
+      exec:
+        - ip addr add 100.64.0.10/22 dev eth1
+        - ip route add default via 100.64.0.1
+    sub2:
+      kind: linux
+      exec:
+        - ip addr add 100.64.0.20/22 dev eth1
+        - ip route add default via 100.64.0.1
+    sub3:
+      kind: linux
+      exec:
+        - ip addr add 100.64.0.30/22 dev eth1
+        - ip route add default via 100.64.0.1
+
+    internet:
+      kind: linux
+      exec:
+        - ip addr add 203.0.113.1/30 dev eth1
+        - ip route add default via 203.0.113.2
+
+  links:
+    - endpoints: ["cgn:eth1", "internet:eth1"]
+    - endpoints: ["cgn:eth2", "sub1:eth1"]
+    - endpoints: ["cgn:eth3", "sub2:eth1"]
+    - endpoints: ["cgn:eth4", "sub3:eth1"]

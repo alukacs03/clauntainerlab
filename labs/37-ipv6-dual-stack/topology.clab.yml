@@ -1,0 +1,35 @@
+name: ipv6-dual-stack
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+
+    h1:
+      kind: linux
+      # IPv4 from DHCP-like exec; IPv6 from SLAAC (kernel-auto via RA)
+      exec:
+        - ip -4 addr add 10.10.10.10/24 dev eth1
+        - ip -4 route add default via 10.10.10.1
+        - sysctl -w net.ipv6.conf.eth1.accept_ra=2
+    h2:
+      kind: linux
+      exec:
+        - ip -4 addr add 10.20.20.20/24 dev eth1
+        - ip -4 route add default via 10.20.20.1
+        - sysctl -w net.ipv6.conf.eth1.accept_ra=2
+
+  links:
+    - endpoints: ["sw1:eth1", "sw2:eth1"]
+    - endpoints: ["h1:eth1", "sw1:eth2"]
+    - endpoints: ["h2:eth1", "sw2:eth2"]

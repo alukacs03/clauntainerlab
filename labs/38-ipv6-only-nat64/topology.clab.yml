@@ -1,0 +1,31 @@
+name: ipv6-only-nat64
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # The NAT64 gateway translates IPv6 traffic to IPv4 toward legacy services
+    nat64gw:
+      kind: arista_ceos
+      startup-config: configs/nat64gw.cfg
+
+    # IPv6-only customer host
+    h-v6:
+      kind: linux
+      exec:
+        - sysctl -w net.ipv6.conf.eth1.accept_ra=2
+
+    # Legacy IPv4-only service (a "website" reachable only at v4)
+    legacy-v4:
+      kind: linux
+      exec:
+        - ip addr add 192.0.2.10/24 dev eth1
+        - ip route add default via 192.0.2.1
+
+  links:
+    - endpoints: ["h-v6:eth1", "nat64gw:eth1"]
+    - endpoints: ["nat64gw:eth2", "legacy-v4:eth1"]

@@ -1,0 +1,38 @@
+name: nat-in-dc
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # NAT-performing edge router
+    edge:
+      kind: arista_ceos
+      startup-config: configs/edge.cfg
+
+    # The internet (just a Linux box advertising 0.0.0.0/0 to edge)
+    internet:
+      kind: linux
+      exec:
+        - ip addr add 203.0.113.1/30 dev eth1
+        - ip route add default via 203.0.113.2
+
+    # Inside hosts (RFC 1918)
+    h-inside1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.10/24 dev eth1
+        - ip route add default via 10.10.10.1
+    h-inside2:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.20/24 dev eth1
+        - ip route add default via 10.10.10.1
+
+  links:
+    - endpoints: ["edge:eth1", "internet:eth1"]
+    - endpoints: ["edge:eth2", "h-inside1:eth1"]
+    - endpoints: ["edge:eth3", "h-inside2:eth1"]

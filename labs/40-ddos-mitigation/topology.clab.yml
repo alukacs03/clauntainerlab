@@ -1,0 +1,38 @@
+name: ddos-mitigation
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # Edge router that receives BGP-signaled blackhole / flowspec from upstream
+    edge:
+      kind: arista_ceos
+      startup-config: configs/edge.cfg
+
+    # Upstream router that injects the blackhole route
+    upstream:
+      kind: arista_ceos
+      startup-config: configs/upstream.cfg
+
+    # The victim — customer service under attack
+    victim:
+      kind: linux
+      exec:
+        - ip addr add 198.51.100.10/24 dev eth1
+        - ip route add default via 198.51.100.1
+
+    # The attacker
+    attacker:
+      kind: linux
+      exec:
+        - ip addr add 203.0.113.50/24 dev eth1
+        - ip route add default via 203.0.113.1
+
+  links:
+    - endpoints: ["edge:eth1", "upstream:eth1"]
+    - endpoints: ["victim:eth1", "edge:eth2"]
+    - endpoints: ["attacker:eth1", "upstream:eth2"]
