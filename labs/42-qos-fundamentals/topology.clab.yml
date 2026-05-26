@@ -1,0 +1,44 @@
+name: qos-fundamentals
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    sw2:
+      kind: arista_ceos
+      startup-config: configs/sw2.cfg
+
+    # Voice / latency-sensitive client
+    voice:
+      kind: linux
+      exec:
+        - ip addr add 10.0.0.10/24 dev eth1
+        - ip route add default via 10.0.0.1
+
+    # Bulk / "elephant flow" sender (backups, large transfers)
+    bulk:
+      kind: linux
+      exec:
+        - ip addr add 10.0.0.20/24 dev eth1
+        - ip route add default via 10.0.0.1
+
+    # Receiver
+    receiver:
+      kind: linux
+      exec:
+        - ip addr add 10.0.1.10/24 dev eth1
+        - ip route add default via 10.0.1.1
+
+  links:
+    - endpoints: ["voice:eth1", "sw1:eth1"]
+    - endpoints: ["bulk:eth1", "sw1:eth2"]
+    - endpoints: ["sw1:eth3", "sw2:eth3"]
+    - endpoints: ["receiver:eth1", "sw2:eth1"]

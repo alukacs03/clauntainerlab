@@ -1,0 +1,68 @@
+name: load-balancing-patterns
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # Router that handles ECMP across 3 backend "servers"
+    router:
+      kind: arista_ceos
+      startup-config: configs/router.cfg
+
+    # Three backend servers, each running BGP to the router,
+    # each announcing the same VIP 10.99.99.1/32.
+    backend1:
+      kind: linux
+      image: quay.io/frrouting/frr:10.2.0
+      binds:
+        - configs/backend1-frr.conf:/etc/frr/frr.conf
+      exec:
+        - sh -c "echo 'bgpd=yes' >> /etc/frr/daemons"
+        - sh -c "echo 'zebra=yes' >> /etc/frr/daemons"
+        - /usr/lib/frr/frrinit.sh start
+        - ip addr add 10.0.1.10/24 dev eth1
+        - ip addr add 10.99.99.1/32 dev lo
+        - ip route add default via 10.0.1.1
+
+    backend2:
+      kind: linux
+      image: quay.io/frrouting/frr:10.2.0
+      binds:
+        - configs/backend2-frr.conf:/etc/frr/frr.conf
+      exec:
+        - sh -c "echo 'bgpd=yes' >> /etc/frr/daemons"
+        - sh -c "echo 'zebra=yes' >> /etc/frr/daemons"
+        - /usr/lib/frr/frrinit.sh start
+        - ip addr add 10.0.2.10/24 dev eth1
+        - ip addr add 10.99.99.1/32 dev lo
+        - ip route add default via 10.0.2.1
+
+    backend3:
+      kind: linux
+      image: quay.io/frrouting/frr:10.2.0
+      binds:
+        - configs/backend3-frr.conf:/etc/frr/frr.conf
+      exec:
+        - sh -c "echo 'bgpd=yes' >> /etc/frr/daemons"
+        - sh -c "echo 'zebra=yes' >> /etc/frr/daemons"
+        - /usr/lib/frr/frrinit.sh start
+        - ip addr add 10.0.3.10/24 dev eth1
+        - ip addr add 10.99.99.1/32 dev lo
+        - ip route add default via 10.0.3.1
+
+    # Client
+    client:
+      kind: linux
+      exec:
+        - ip addr add 10.0.99.10/24 dev eth1
+        - ip route add default via 10.0.99.1
+
+  links:
+    - endpoints: ["router:eth1", "backend1:eth1"]
+    - endpoints: ["router:eth2", "backend2:eth1"]
+    - endpoints: ["router:eth3", "backend3:eth1"]
+    - endpoints: ["router:eth4", "client:eth1"]

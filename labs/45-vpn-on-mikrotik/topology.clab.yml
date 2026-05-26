@@ -1,0 +1,46 @@
+name: vpn-on-mikrotik
+
+# Note: MikroTik CHR image is NOT publicly redistributable.
+# You'll need to manually download from mikrotik.com (free CHR with 1Mbit limit
+# unless licensed) and import as a docker image. See README.md for instructions.
+
+topology:
+  kinds:
+    mikrotik_ros:
+      # Tag after manual import; see README "Setup" section
+      image: mikrotik_routeros:7.15
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # Site A (our DC)
+    rtr-a:
+      kind: mikrotik_ros
+      startup-config: configs/rtr-a.rsc
+
+    # Site B (partner DC)
+    rtr-b:
+      kind: mikrotik_ros
+      startup-config: configs/rtr-b.rsc
+
+    # Site A LAN client
+    host-a:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.10/24 dev eth1
+        - ip route add default via 10.10.10.1
+
+    # Site B LAN client
+    host-b:
+      kind: linux
+      exec:
+        - ip addr add 10.20.20.10/24 dev eth1
+        - ip route add default via 10.20.20.1
+
+  links:
+    # Site A internal
+    - endpoints: ["host-a:eth1", "rtr-a:ether2"]
+    # Site B internal
+    - endpoints: ["host-b:eth1", "rtr-b:ether2"]
+    # WAN between sites (simulated public internet)
+    - endpoints: ["rtr-a:ether1", "rtr-b:ether1"]

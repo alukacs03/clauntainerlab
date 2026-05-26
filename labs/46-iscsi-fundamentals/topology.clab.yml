@@ -1,0 +1,36 @@
+name: iscsi-fundamentals
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # Storage switch — dedicated to storage traffic
+    sw-storage:
+      kind: arista_ceos
+      startup-config: configs/sw-storage.cfg
+
+    # iSCSI target (the "SAN")
+    target:
+      kind: linux
+      exec:
+        - ip addr add 10.50.0.10/24 dev eth1
+        - ip addr add 10.50.0.11/24 dev eth2
+
+    # iSCSI initiator A (multipath: 2 NICs to 2 separate storage paths)
+    init-a:
+      kind: linux
+      exec:
+        - ip addr add 10.50.0.20/24 dev eth1
+        - ip addr add 10.50.0.21/24 dev eth2
+
+  links:
+    # Two separate paths from target to switch
+    - endpoints: ["target:eth1", "sw-storage:eth1"]
+    - endpoints: ["target:eth2", "sw-storage:eth2"]
+    # Two separate paths from initiator to switch
+    - endpoints: ["init-a:eth1", "sw-storage:eth3"]
+    - endpoints: ["init-a:eth2", "sw-storage:eth4"]
