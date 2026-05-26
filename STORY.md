@@ -44,6 +44,7 @@ The Company hired its first part-time security consultant. They're going through
 |---|---|
 | **06 — Port security & storm control** | Security found that an unauthorized laptop got LAN access from a conference room jack by spoofing a registered MAC. Also: a malfunctioning NIC on a tenant VM took down a segment with a broadcast storm. You implement MAC limits and storm thresholds. |
 | **07 — L2 security trifecta** | Support keeps getting tickets about "weird IPs" and "the gateway suddenly being someone else's machine." You discover rogue DHCP servers and ARP spoofing. You learn the binding-table-based defense: DHCP snooping → DAI → IPSG. |
+| **07b — QinQ / 802.1ad tunneling** | A new customer ("CompanyX") onboards with their own internal VLAN structure that overlaps existing customers'. You learn to tunnel their entire VLAN structure inside one of your service VLANs, transparently. |
 
 **Where you are by end of Phase 2**: you're treating the access layer as an attack surface, not just a switching layer. Security signs off on the office. You feel competent for the first time.
 
@@ -88,6 +89,7 @@ The Company won a contract that required a second DC. Suddenly you have two phys
 | **17 — OSPF basics** | You roll out OSPF across all internal L3 switches. New links auto-discover. Failures reroute in under a second. You feel a quiet relief every time you `show ip ospf neighbor`. |
 | **18 — OSPF design** | Your OSPF area got bigger than ~50 routers. SPF recalculations take longer; LSDB is huge. You split into a backbone area plus branch areas (stub) for the smaller sites. |
 | **19 — BFD** | A transport switch between two of your core routers had a partial hardware failure. OSPF didn't notice for 40 seconds (default dead timer). You roll out BFD everywhere. Convergence is now sub-second. |
+| **19b — IS-IS as alternative underlay** | The CTO read a hyperscaler engineering blog about IS-IS and asks "should we?" You build a small IS-IS-underlay lab to evaluate. Conclusion: stay on OSPF for now (your scale doesn't need IS-IS), but you understand both protocols now. |
 
 **Where you are by end of Phase 4**: You operate a multi-site, redundant, OSPF-routed network with sub-second convergence. Your job has moved from "configure stuff" to "design the topology". The founders gave you the title **Senior Network Engineer** and a small budget.
 

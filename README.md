@@ -28,6 +28,7 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 05 | [stp-protections](labs/05-stp-protections) | PortFast, BPDU Guard, Root Guard | Ready | — |
 | 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, sticky learning, broadcast/multicast storm control | Ready | — |
 | 07 | [l2-security-trifecta](labs/07-l2-security-trifecta) | DHCP snooping + DAI + IP Source Guard | Ready | — |
+| 07b | [qinq-tunneling](labs/07b-qinq-tunneling) | QinQ / 802.1ad — customer VLAN structure tunneled inside provider S-VLAN | Ready | — |
 | 08 | [management-vrf](labs/08-management-vrf) | Logical separation of mgmt from data via VRF | Ready | — |
 | 09 | [aaa-tacacs](labs/09-aaa-tacacs) | Per-user login, command authz, accounting via TACACS+ | Ready | — |
 | 10 | [logging-ntp-baseline](labs/10-logging-ntp-baseline) | Remote syslog, NTP, banner, idle timeouts, baseline hardening | Ready | — |
@@ -40,6 +41,7 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 17 | [ospf-basics](labs/17-ospf-basics) | Single-area OSPF, neighbor formation, LSDB | Ready | — |
 | 18 | [ospf-design](labs/18-ospf-design) | Multi-area OSPF, ABR/ASBR, LSA types, stub areas | Ready | — |
 | 19 | [bfd](labs/19-bfd) | Sub-second failure detection for routing protocols | Ready | — |
+| 19b | [isis-underlay](labs/19b-isis-underlay) | IS-IS as alternative IGP — what hyperscalers run instead of OSPF | Ready | — |
 | 20 | [bgp-fundamentals](labs/20-bgp-fundamentals) | eBGP between two ASes, "hello world" of BGP | Ready | — |
 | 21 | [ibgp-route-reflectors](labs/21-ibgp-route-reflectors) | iBGP scaling via route reflectors, RR clients, IGP underneath | Ready | — |
 | 22 | [bgp-path-selection](labs/22-bgp-path-selection) | local-pref, AS-path prepend, MED, the 13-step decision process | Ready | — |
@@ -94,9 +96,7 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 | ~~05~~ | ~~STP protections~~ | BPDU guard, root guard, loop guard, bridge assurance |
 | ~~06~~ | ~~Port security & storm control~~ | MAC limits, sticky MACs, broadcast/multicast/unicast storms, errdisable recovery |
 | ~~07~~ | ~~L2 security trifecta~~ | DHCP snooping + Dynamic ARP Inspection + IP Source Guard |
-
-**Planned additions to this chapter:**
-- **QinQ / 802.1ad tunneling** — for hosting providers offering customer L2 service: encapsulate customer's own VLAN tags inside your own outer tag. Less common, but real when it appears.
+| ~~07b~~ | ~~QinQ / 802.1ad tunneling~~ | Customer VLAN structure tunneled inside provider S-VLAN; double-tagged frames, MTU implications, TPID. |
 
 ### Chapter 3 — Production hygiene basics
 
@@ -124,9 +124,7 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 | ~~17~~ | ~~OSPF basics~~ | Single-area OSPF, neighbor discovery, LSDB |
 | ~~18~~ | ~~OSPF design~~ | Multi-area, LSA types, DR/BDR, ABR/ASBR roles |
 | ~~19~~ | ~~BFD~~ | Sub-second failure detection for routing protocols |
-
-**Planned additions to this chapter:**
-- **IS-IS as alternative underlay** — the IGP every hyperscaler runs. Once you know OSPF, IS-IS is small additive: protocol semantics, area/level model, why IS-IS scales better at large LSDBs, when you'd choose it over OSPF.
+| ~~19b~~ | ~~IS-IS as alternative underlay~~ | NET addressing, L2-only DC pattern, LSPs/TLVs vs OSPF LSAs, when to choose IS-IS over OSPF. |
 
 ### Chapter 6 — BGP (the long chapter)
 

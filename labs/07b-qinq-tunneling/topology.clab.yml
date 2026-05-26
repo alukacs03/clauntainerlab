@@ -1,0 +1,60 @@
+name: qinq-tunneling
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    # Provider Edge switches (the "tier 1" / s-VLAN network)
+    pe1:
+      kind: arista_ceos
+      startup-config: configs/pe1.cfg
+    pe2:
+      kind: arista_ceos
+      startup-config: configs/pe2.cfg
+
+    # Customer Edge switches (CompanyX's own switches at two sites — they run
+    # their own internal c-VLAN structure unaware of the provider)
+    ce1:
+      kind: arista_ceos
+      startup-config: configs/ce1.cfg
+    ce2:
+      kind: arista_ceos
+      startup-config: configs/ce2.cfg
+
+    # Customer hosts in CompanyX's VLAN 10 at each site
+    h1:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.10/24 dev eth1
+    h2:
+      kind: linux
+      exec:
+        - ip addr add 10.10.10.20/24 dev eth1
+
+    # Customer hosts in CompanyX's VLAN 20 at each site (to prove both VLANs travel)
+    h3:
+      kind: linux
+      exec:
+        - ip addr add 10.20.20.10/24 dev eth1
+    h4:
+      kind: linux
+      exec:
+        - ip addr add 10.20.20.20/24 dev eth1
+
+  links:
+    # Provider backbone — pe1 ↔ pe2 trunk carries the s-VLAN
+    - endpoints: ["pe1:eth1", "pe2:eth1"]
+
+    # Customer-to-provider edge — these are the dot1q-tunnel ports on the PE side
+    - endpoints: ["ce1:eth1", "pe1:eth2"]
+    - endpoints: ["ce2:eth1", "pe2:eth2"]
+
+    # Customer hosts attached to their own customer edge switches
+    - endpoints: ["h1:eth1", "ce1:eth2"]
+    - endpoints: ["h3:eth1", "ce1:eth3"]
+    - endpoints: ["h2:eth1", "ce2:eth2"]
+    - endpoints: ["h4:eth1", "ce2:eth3"]
