@@ -83,6 +83,9 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 | ~~02~~ | ~~Inter-VLAN routing (SVI)~~ | L3 switch role, virtual VLAN interfaces |
 | ~~03~~ | ~~Trunk deep-dive~~ | Native VLAN, allowed VLANs, DTP, VLAN pruning; latent bugs & VLAN hopping risk |
 
+**Planned additions to this chapter:**
+- **LLDP & operational link discovery** — daily-driver operational tool ("who is on the other end of this cable?"). LLDP frame anatomy, `show lldp neighbors` reflexes, integration with monitoring tools that auto-build topology from LLDP.
+
 ### Chapter 2 — L2 in production
 
 | # | Lab | What it adds |
@@ -145,29 +148,50 @@ BGP gets its own chapter because it's the protocol you'll spend the most operati
 | ~~32~~ | ~~Anycast gateway in EVPN~~ | Distributed L3 gateway across all leaves |
 | ~~33~~ | ~~Multi-site DCI~~ | Stretched subnet across two physical sites via EVPN multi-site or DCI gateway patterns |
 
-### Chapter 8 — Edge / WAN
+**Planned additions to this chapter:**
+- **EVPN Multi-Homing (ESI)** — the EVPN-native replacement for MLAG. Modern greenfield EVPN fabrics use ESI multi-homing instead of MLAG. Type 1 (Ethernet A-D) and Type 4 (ES) routes, all-active vs single-active, designated forwarder election.
+
+### Chapter 8 — Internet Edge & Public-facing
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 34 | eBGP upstream peering | Operational eBGP config, prefix filtering, max-prefix protection |
-| 35 | NAT in the DC | 1:1 NAT, PAT, NAT44 vs NAT64, when (and when not) to NAT |
-| 36 | IPv6 deployment | Dual-stack, prefix delegation, NDP/RA, IPv6-only with NAT64/DNS64 |
-| 37 | Control-plane protection & DDoS basics | CoPP, mgmt-plane ACL, RTBH, BGP flowspec intro |
+| 34 | eBGP upstream peering | Operational eBGP config, prefix filtering, max-prefix protection at scale |
+| 35 | NAT in the DC | 1:1 NAT, PAT/source NAT, NAT44 patterns, when (and when not) to NAT |
+| 36 | **CGNAT (Carrier-Grade NAT)** | NAT444, port allocation strategies, logging for compliance, RFC 6598 (100.64.0.0/10) shared space |
+| 37 | IPv6 fundamentals + dual-stack | NDP/RA, SLAAC vs DHCPv6, dual-stack rollout patterns, BGP for IPv6 |
+| 38 | **IPv6-only deployment** | NAT64/DNS64 for IPv4-only services, prefix delegation, IPv6-only customer access |
+| 39 | **Service Anycast** | Same IP at multiple sites via BGP — the pattern behind 1.1.1.1, 8.8.8.8, anycast DNS. Multi-site service deployment via BGP advertisement |
+| 40 | **DDoS mitigation** | RTBH (Remote-Triggered Black Hole), BGP Flowspec (RFC 5575), upstream scrubbing integration, the operator playbook for "we're under attack" |
+| 41 | Control-plane protection | CoPP, mgmt-plane ACLs, hardware vs software-punt protections |
 
-### Chapter 9 — Operations & day-2
+### Chapter 9 — Application & Traffic Management
+
+The labs in chapters 1-8 cover *transport*. This chapter covers what runs *on* the transport for the customer.
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 38 | Streaming telemetry | gNMI/OpenConfig, structured syslog, log shipping patterns |
-| 39 | Configuration as code | Git-driven config workflow, validation, rollback strategies |
-| 40 | Failure scenario playbook | Deliberate breaks + recovery: link, switch, gateway, BGP session, EVPN |
-| 41 | Capacity & MTU planning | Bandwidth headroom, jumbo frames in a VXLAN fabric, oversubscription |
+| 42 | **QoS fundamentals** | DSCP marking, classification, queuing disciplines, shaping vs policing, end-to-end QoS in a fabric |
+| 43 | **VoIP networking** | Latency / jitter / packet-loss budgets for voice, RTP, prioritization patterns, voice VLANs, common pitfalls (one-way audio, codec mismatch); how a customer's bad WiFi is your support ticket |
+| 44 | **Load balancing patterns** | BGP-as-LB, ECMP-based LB at the network layer, anycast LB, integration with L7 LBs (HAProxy/Envoy/F5); when network handles LB vs when app/LB layer does |
+| 45 | **VPN technologies on MikroTik** | IPsec site-to-site, WireGuard, GRE, L2TP/IPsec for partner connectivity and customer-facing VPN service. Uses MikroTik RouterOS (CHR) since that's the typical platform for this in mid-size shops |
+
+### Chapter 10 — Operations & Day-2
+
+| # | Lab | What it adds |
+|---|-----|--------------|
+| 46 | Streaming telemetry | gNMI/OpenConfig subscriptions, structured syslog, log shipping patterns, time-series storage |
+| 47 | NETCONF / RESTCONF foundations | Programmatic device config protocol; YANG models; the building block for everything below |
+| 48 | **Ansible & Nornir for network automation** | Inventory, modules, idempotent config, the network automation toolbox |
+| 49 | **Network CI/CD pipeline** | Git-driven config workflow, linting (`batfish`, custom), staging validation, automated rollback |
+| 50 | **Source of truth & IPAM (NetBox)** | IPAM, VRF assignments, circuit tracking, the canonical "what should this device be configured as" database |
+| 51 | Failure scenario playbook | Deliberate breaks + recovery: link, switch, gateway, BGP session, EVPN. The on-call training material |
+| 52 | Capacity & MTU planning | Quantitative bandwidth modeling, jumbo frames in VXLAN, oversubscription ratios, capacity-vs-cost economics |
 
 ### Closing chapter — Reference design
 
 | # | Item | What it is |
 |---|------|------------|
-| RD | Sample dual-site DC reference design | An architecture document (not a lab) that ties everything together: two physical sites, MLAG'd leaves, BGP-EVPN underlay, VXLAN-stretched subnets, redundant edge, AAA, mgmt VRF, telemetry. Diagrams + design rationale. The artifact someone reads to understand the entire DC. |
+| RD | Sample dual-site DC reference design | An architecture document (not a lab) that ties everything together: two physical sites, EVPN-MH leaves, BGP-EVPN underlay, VXLAN-stretched subnets, redundant edge with DDoS handling, anycast services, AAA, mgmt VRF, telemetry, IPAM-driven config. Diagrams + design rationale. The artifact someone reads to understand the entire DC. |
 
 ## Concepts
 

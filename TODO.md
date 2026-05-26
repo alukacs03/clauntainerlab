@@ -24,11 +24,18 @@ A short list of things we discussed and want to revisit. Not blocking; not activ
 
 ---
 
-## Chapters 8-9 + closing reference design
+## Chapters 7-10 + closing reference design
 
-Still planned, not yet written. Story callouts and directory structure already exist; just need the technical content:
-- Ch 8 (Edge/WAN): eBGP at scale, NAT, IPv6 deployment, control-plane protection
-- Ch 9 (Operations): streaming telemetry, config-as-code, failure playbooks, capacity planning
-- Closing: dual-site reference design document
+Still planned, not yet written. Story callouts in `STORY.md` and full roadmap in `README.md` reflect the planned scope:
+- **Ch 7 (Internet Edge & Public-facing)** — 8 labs: eBGP at scale, NAT, CGNAT, IPv6 fundamentals + dual-stack, IPv6-only with NAT64/DNS64, Service Anycast, DDoS mitigation (RTBH + Flowspec), control-plane protection.
+- **Ch 8 (Application & Traffic Management)** — 4 labs: QoS fundamentals, VoIP networking, load balancing patterns, VPN technologies on MikroTik (IPsec/WireGuard/GRE/L2TP/IPsec).
+- **Ch 9 (Operations & Day-2)** — 7 labs: streaming telemetry (gNMI), NETCONF/RESTCONF foundations, Ansible/Nornir, network CI/CD, NetBox/IPAM, failure playbook, capacity planning.
+- **Closing**: dual-site reference design document.
 
-**Pick this up when**: after the existing 33 labs are validated. The current 33 + Phase 6 are enough material for a long stretch of learning.
+**Also pending**:
+- **Chapter 1 addition**: LLDP & operational link discovery (planned to be inserted as a Phase 1 lab).
+- **Chapter 7 addition**: EVPN Multi-Homing (ESI) — the EVPN-native replacement for MLAG.
+
+**Pick this up when**: after the existing 33 labs are validated. The current 33 labs + practice docs give the learner enough material for a long stretch of learning before chapter 7+ becomes urgent.
+
+**Notable platform shift**: lab 45 (VPN on MikroTik) is the first lab to step away from Arista cEOS. Will use MikroTik CHR (Cloud Hosted Router); needs vrnetlab integration into containerlab, or running CHR as a sibling VM.

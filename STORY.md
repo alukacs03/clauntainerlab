@@ -150,26 +150,51 @@ The growth keeps coming. The colo-rack-and-a-couple-of-servers era is over — T
 
 ---
 
-## Phase 7 — Edge & Operations (Labs 34–41)
+## Phase 7 — Internet Edge & Public-facing (Labs 34–41)
 
-> Year 4+. Tech lead. The Company has 5+ DCs, hundreds of customers, and you're hiring.
+> Year 4. Senior+. The Company is no longer just running its own DCs — it's a real internet operator, with public IP space, RIPE membership, peering relationships, and customers who get DDoS'd.
 
-> *(Labs 34-41 are planned, not yet written. This phase covers operational scale: peering at IXPs, NAT and dual-stack IPv6, control-plane hardening, streaming telemetry, configuration-as-code, formal failure playbooks, and capacity planning.)*
+> *(Labs 34-52 are planned, not yet written. Phase 7-9 span the work of turning a DC operator into a real internet operator, traffic-manager, and day-2 ops shop.)*
 
-The Company is no longer scrappy. There's a NOC. You have a team. You're the **Tech Lead**. Your job is now mostly design, review, and onboarding — your team operates day-to-day. You write standards, not configs. But you still get pulled into the gnarliest incidents.
-
-| Phase | Theme |
-|---|---|
+| # | Lab | Theme |
+|---|---|---|
 | **34 — eBGP upstream peering at scale** | Peering at multiple IXPs. RPKI ROV deployment. Real peering economics. |
-| **35 — NAT in the DC** | Carrier-grade NAT for shared-IP customers. NAT44/NAT64. When NOT to NAT. |
-| **36 — IPv6 dual-stack** | The Company's `/22` of IPv4 is running out and ARIN/RIPE have nothing left to sell. Time to deploy IPv6 for real. |
-| **37 — Control-plane protection** | DDoS started hitting the edge. You implement CoPP, mgmt-plane ACLs, RTBH, intro to BGP flowspec. |
-| **38 — Streaming telemetry** | The legacy `show interface counter` polling can't keep up. You move to gNMI/OpenConfig for high-resolution monitoring. |
-| **39 — Configuration as code** | Click-ops doesn't scale. You roll out a git-driven config workflow with validation and rollback. |
-| **40 — Failure scenario playbook** | A new junior joined the team. You write failure playbooks they can follow at 3 AM. |
-| **41 — Capacity & MTU planning** | Several near-misses with link saturation and MTU mismatches in the EVPN fabric. You write capacity-planning standards and MTU-validation tooling. |
+| **35 — NAT in the DC** | 1:1 NAT, PAT/source NAT, common patterns and anti-patterns. |
+| **36 — CGNAT** | Carrier-grade NAT44 with port allocation strategies. The IPv4-exhaustion answer for customer-facing operators. |
+| **37 — IPv6 fundamentals + dual-stack** | The Company's `/22` of IPv4 is running out and RIPE has nothing left to sell. Time to deploy IPv6 for real. |
+| **38 — IPv6-only deployment** | NAT64/DNS64 for the long tail of IPv4-only services. Customer-facing IPv6-only access with backwards compatibility. |
+| **39 — Service Anycast** | A customer wants their service to "just work globally". You learn the same pattern that runs 1.1.1.1, 8.8.8.8, and every modern CDN. |
+| **40 — DDoS mitigation** | A customer gets DDoS'd at 3 AM. You implement RTBH, BGP Flowspec, and integrate with upstream scrubbing. The new operational playbook for "we're under attack". |
+| **41 — Control-plane protection** | CoPP + mgmt-plane ACLs to harden every device from the inside. |
 
-**Skills earned beyond the labs in Phase 7**:
+## Phase 8 — Application & Traffic Management (Labs 42–45)
+
+> Year 4-5. Senior+. Customers stop being "VMs" and start being "applications" that need network behavior.
+
+A long-time customer adds a VoIP service. Their one-way audio issue is now your problem. Another customer asks for load-balancing across their backends. The partner network you connect to over the internet wants an encrypted tunnel. Your network needs to understand the *applications* on top of it.
+
+| # | Lab | Theme |
+|---|---|---|
+| **42 — QoS fundamentals** | DSCP, queuing, shaping vs policing. End-to-end QoS in your fabric. |
+| **43 — VoIP networking** | Latency / jitter / packet-loss budgets, RTP, voice VLANs, one-way audio debug. Your VoIP-using customers' calls travel over your network — make them sound good. |
+| **44 — Load balancing patterns** | BGP-as-LB, ECMP-LB, anycast LB, integration with HAProxy/Envoy/F5. Where the network ends and the application starts. |
+| **45 — VPN technologies on MikroTik** | IPsec site-to-site, WireGuard, GRE, L2TP/IPsec — for partner connections and customer-facing VPN service. MikroTik because that's the typical mid-size-shop platform for this. |
+
+## Phase 9 — Operations & Day-2 (Labs 46–52)
+
+> Year 5+. Tech lead. There's a NOC. You have a team. You write standards, not configs. But you still get pulled into the gnarliest incidents.
+
+| # | Lab | Theme |
+|---|---|---|
+| **46 — Streaming telemetry** | Legacy `show interface counter` polling can't keep up. You move to gNMI/OpenConfig. |
+| **47 — NETCONF / RESTCONF foundations** | The programmable-device protocols. YANG models. Foundation for everything below. |
+| **48 — Ansible & Nornir for network automation** | Toolbox for managing 100+ devices at once. Idempotent, inventory-driven config. |
+| **49 — Network CI/CD pipeline** | Click-ops doesn't scale. You roll out a git-driven config workflow with linting, staging validation, and automated rollback. |
+| **50 — Source of truth & IPAM (NetBox)** | The canonical database that knows what every device *should* be. Drives automation. |
+| **51 — Failure scenario playbook** | A new junior joined the team. You write failure playbooks they can follow at 3 AM. |
+| **52 — Capacity & MTU planning** | Several near-misses with saturation and MTU mismatches. Quantitative planning and validation tooling. |
+
+**Skills earned beyond the labs in Phases 7–9**:
 - You no longer write configs directly. You **review** configs, **mentor** writers, and **own standards**.
 - You've written the team's incident response standard, the MOP review checklist, the ADR practice document, and the runbook style guide.
 - You onboard new hires by walking them through the ADR repository — the org's institutional memory in document form.
