@@ -65,6 +65,13 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 39 | [service-anycast](labs/39-service-anycast) | Multi-site service via BGP anycast — the 1.1.1.1 / 8.8.8.8 pattern | Ready | — |
 | 40 | [ddos-mitigation](labs/40-ddos-mitigation) | RTBH via BGP community signaling to upstream | Ready | — |
 | 41 | [control-plane-protection](labs/41-control-plane-protection) | Mgmt-plane ACLs + CoPP to harden the device itself | Ready | — |
+| 42 | [qos-fundamentals](labs/42-qos-fundamentals) | DSCP marking, priority queueing, voice vs bulk | Ready | — |
+| 43 | [voip-networking](labs/43-voip-networking) | Voice access port, RTP/SIP marking, common pitfalls | Ready | — |
+| 44 | [load-balancing-patterns](labs/44-load-balancing-patterns) | BGP + ECMP across backends (FRR on Linux servers) | Ready | — |
+| 45 | [vpn-on-mikrotik](labs/45-vpn-on-mikrotik) | WireGuard + IPsec site-to-site (MikroTik) | Ready | — |
+| 46 | [iscsi-fundamentals](labs/46-iscsi-fundamentals) | Storage VLAN, jumbo MTU, multipath topology | Ready | — |
+| 47 | [lossless-ethernet-dcb](labs/47-lossless-ethernet-dcb) | DCB / PFC / ETS pattern (cEOS limited; production config) | Ready | — |
+| 48 | [storage-qos-isolation](labs/48-storage-qos-isolation) | Per-tenant policer + DSCP + queue allocation | Ready | — |
 
 **Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
 
@@ -180,13 +187,13 @@ The labs in chapters 1-8 cover *transport*. This chapter covers what runs *on* t
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 42 | **QoS fundamentals** | DSCP marking, classification, queuing disciplines, shaping vs policing, end-to-end QoS in a fabric |
-| 43 | **VoIP networking** | Latency / jitter / packet-loss budgets for voice, RTP, prioritization patterns, voice VLANs, common pitfalls (one-way audio, codec mismatch); how a customer's bad WiFi is your support ticket |
-| 44 | **Load balancing patterns** | BGP-as-LB, ECMP-based LB at the network layer, anycast LB, integration with L7 LBs (HAProxy/Envoy/F5); when network handles LB vs when app/LB layer does |
-| 45 | **VPN technologies on MikroTik** | IPsec site-to-site, WireGuard, GRE, L2TP/IPsec for partner connectivity and customer-facing VPN service. Uses MikroTik RouterOS (CHR) since that's the typical platform for this in mid-size shops |
-| 46 | **Storage networking: iSCSI fundamentals** | iSCSI initiators/targets, typical topology, separating storage from data VLAN, why storage networking is its own discipline |
-| 47 | **Lossless ethernet: DCB / PFC / ETS** | The protocols that make iSCSI and RoCE actually work at scale: Priority Flow Control, Enhanced Transmission Selection, DCBX. The "why is the storage VM slow" answer most people don't know. |
-| 48 | **Storage QoS and isolation** | Per-tenant storage IOPS limits at the network layer, traffic class prioritization for storage backplane, "noisy neighbor" mitigation. |
+| ~~42~~ | ~~QoS fundamentals~~ | DSCP marking, classification, queuing, shaping vs policing |
+| ~~43~~ | ~~VoIP networking~~ | RTP/SIP marking, voice access port, latency/jitter budgets |
+| ~~44~~ | ~~Load balancing patterns~~ | BGP+ECMP across backends (FRR-on-Linux pattern) |
+| ~~45~~ | ~~VPN technologies on MikroTik~~ | WireGuard + IPsec site-to-site, partner-connectivity pattern |
+| ~~46~~ | ~~Storage networking: iSCSI fundamentals~~ | Storage VLAN, jumbo MTU, multipath topology |
+| ~~47~~ | ~~Lossless ethernet: DCB / PFC / ETS~~ | Per-class PAUSE, bandwidth guarantees, DCBX (cEOS limited) |
+| ~~48~~ | ~~Storage QoS and isolation~~ | Per-tenant policer + DSCP marking + egress allocation |
 
 ### Chapter 10 — Operations & Day-2
 

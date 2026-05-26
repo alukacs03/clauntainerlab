@@ -169,32 +169,39 @@ The Company joined an IXP, has its own /22 of IPv4 (and it's filling up), and st
 | **40 — DDoS mitigation** | 3 AM: customer at `198.51.100.10` is under a 50 Gbps DDoS. Your 10 Gbps transit is saturated. You announce a /32 to the upstream tagged with their RTBH community `65000:666`. The upstream blackholes the victim at their edge; your pipe is free; the rest of your /24 stays online. Tactical sacrifice. |
 | **41 — Control-plane protection** | Last week an attacker brute-forced SSH from the internet against an edge router. Passwords held, but 100k attempts/sec cooked the CPU and BGP started flapping. You apply mgmt-plane ACLs (no SSH from anywhere but the mgmt network) and CoPP to rate-limit anything CPU-bound. |
 
-## Phase 8 — Application & Traffic Management (Labs 42–45)
+## Phase 8 — Application & Traffic Management (Labs 42–48)
 
 > Year 4-5. Senior+. Customers stop being "VMs" and start being "applications" that need network behavior.
 
-A long-time customer adds a VoIP service. Their one-way audio issue is now your problem. Another customer asks for load-balancing across their backends. The partner network you connect to over the internet wants an encrypted tunnel. Your network needs to understand the *applications* on top of it.
+A long-time customer adds a VoIP service — their one-way audio is now your problem. Another asks for load-balancing across backends. A partner wants an encrypted tunnel. And the new managed-storage product means iSCSI traffic shares your fabric with everything else. Your network has to learn to be *application-aware*.
 
-| # | Lab | Theme |
-|---|---|---|
-| **42 — QoS fundamentals** | DSCP, queuing, shaping vs policing. End-to-end QoS in your fabric. |
-| **43 — VoIP networking** | Latency / jitter / packet-loss budgets, RTP, voice VLANs, one-way audio debug. Your VoIP-using customers' calls travel over your network — make them sound good. |
-| **44 — Load balancing patterns** | BGP-as-LB, ECMP-LB, anycast LB, integration with HAProxy/Envoy/F5. Where the network ends and the application starts. |
-| **45 — VPN technologies on MikroTik** | IPsec site-to-site, WireGuard, GRE, L2TP/IPsec — for partner connections and customer-facing VPN service. MikroTik because that's the typical mid-size-shop platform for this. |
+| Lab | Story beat |
+|---|---|
+| **42 — QoS fundamentals** | A customer's VoIP collapses during their nightly backup. You can't buy more bandwidth — you have to make voice skip the queue. You learn DSCP, priority queueing, and where to mark vs trust. |
+| **43 — VoIP networking** | First "one-way audio" ticket. You build the voice-access-port pattern (untagged data + tagged voice), mark RTP/SIP, harden the phone port, and learn the latency/jitter/loss budgets that make calls sound human. |
+| **44 — Load balancing patterns** | A customer wants horizontal scaling without buying an LB appliance. You teach them the BGP+ECMP pattern: every backend announces the same VIP via BGP, the network does the spreading. The same pattern behind anycast DNS. |
+| **45 — VPN technologies on MikroTik** | A partner ("Vendor X") needs site-to-site connectivity. They run MikroTik; you don't, but it's cheap and the partner's team speaks RouterOS. You build a WireGuard tunnel (and the IPsec equivalent for the next partner who insists). |
+| **46 — Storage networking: iSCSI fundamentals** | The Company launches managed storage. Day one: customers report random "slow disk". You learn that storage is its own animal: dedicated VLAN, jumbo MTU, multipath topology, no spanning-tree slack. |
+| **47 — Lossless ethernet: DCB / PFC / ETS** | iSCSI works but plateaus at 60% line rate, and one customer complains of "IOPS spikes". Ethernet drops packets when congested; storage hates retransmits. You learn PFC (per-class PAUSE) and ETS (bandwidth guarantees) — the difference between "works" and "works under load". |
+| **48 — Storage QoS and tenant isolation** | The noisy-neighbor incident: Tenant B's backup at 02:00 starves Tenant A's database. You build per-tenant policing + DSCP marking + per-class bandwidth allocation, and the SLA breach goes away. |
 
-## Phase 9 — Operations & Day-2 (Labs 46–52)
+## Phase 9 — Operations & Day-2 (Labs 49–59)
 
 > Year 5+. Tech lead. There's a NOC. You have a team. You write standards, not configs. But you still get pulled into the gnarliest incidents.
 
-| # | Lab | Theme |
-|---|---|---|
-| **46 — Streaming telemetry** | Legacy `show interface counter` polling can't keep up. You move to gNMI/OpenConfig. |
-| **47 — NETCONF / RESTCONF foundations** | The programmable-device protocols. YANG models. Foundation for everything below. |
-| **48 — Ansible & Nornir for network automation** | Toolbox for managing 100+ devices at once. Idempotent, inventory-driven config. |
-| **49 — Network CI/CD pipeline** | Click-ops doesn't scale. You roll out a git-driven config workflow with linting, staging validation, and automated rollback. |
-| **50 — Source of truth & IPAM (NetBox)** | The canonical database that knows what every device *should* be. Drives automation. |
-| **51 — Failure scenario playbook** | A new junior joined the team. You write failure playbooks they can follow at 3 AM. |
-| **52 — Capacity & MTU planning** | Several near-misses with saturation and MTU mismatches. Quantitative planning and validation tooling. |
+| Lab | Story beat |
+|---|---|
+| **49 — Streaming telemetry** | The 10-second SNMP poll interval misses everything interesting. You move to gNMI/OpenConfig subscriptions — push, not poll. |
+| **50 — gnmic + Prometheus + Grafana stack** | You stand up the full observability stack inside containerlab. Dashboards for BGP sessions, interface counters, EVPN routes. Other teams start asking for read access. |
+| **51 — NETCONF / RESTCONF foundations** | Programmable-device protocols. YANG models. The foundation for everything that automates EOS. |
+| **52 — Ansible & Nornir for network automation** | 100+ devices. Click-ops doesn't scale. You build idempotent, inventory-driven config workflows. |
+| **53 — Network CI/CD pipeline** | Configs in git, linting in CI, staged validation, automated rollback. Junior engineers can ship changes safely. |
+| **54 — Source of truth & IPAM (NetBox)** | The canonical "what every device should be configured as" database. Drives automation in lab 52. |
+| **55 — Network device backup & disaster recovery** | "A switch died overnight" — walk-through of config backup, ZTP for the replacement, restoring state from NetBox, validating before traffic flows. |
+| **56 — Hitless upgrade / rolling EOS upgrade** | Upgrade the fabric without taking customers down. Drain/undrain dance, MLAG and EVPN-MH pair upgrades, validation between steps. |
+| **57 — Production packet capture: SPAN + traffic generation** | How to capture from production without melting the switch CPU (port mirroring). Pairs with traffic generation (iperf3, scapy) for validation. |
+| **58 — Failure scenario playbook** | A new junior joined the team. You write failure playbooks (link, switch, gateway, BGP session, EVPN VTEP) they can follow at 3 AM. |
+| **59 — Capacity & MTU planning** | After several near-misses with saturation and MTU mismatches, you build quantitative planning models. Pixel-precise bandwidth math, jumbo-in-VXLAN gotchas, oversubscription. |
 
 **Skills earned beyond the labs in Phases 7–9**:
 - You no longer write configs directly. You **review** configs, **mentor** writers, and **own standards**.
