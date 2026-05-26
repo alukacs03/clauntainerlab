@@ -95,6 +95,9 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 | ~~06~~ | ~~Port security & storm control~~ | MAC limits, sticky MACs, broadcast/multicast/unicast storms, errdisable recovery |
 | ~~07~~ | ~~L2 security trifecta~~ | DHCP snooping + Dynamic ARP Inspection + IP Source Guard |
 
+**Planned additions to this chapter:**
+- **QinQ / 802.1ad tunneling** — for hosting providers offering customer L2 service: encapsulate customer's own VLAN tags inside your own outer tag. Less common, but real when it appears.
+
 ### Chapter 3 — Production hygiene basics
 
 | # | Lab | What it adds |
@@ -121,6 +124,9 @@ Every lab is grounded in a **real production scenario** — not abstract "ping A
 | ~~17~~ | ~~OSPF basics~~ | Single-area OSPF, neighbor discovery, LSDB |
 | ~~18~~ | ~~OSPF design~~ | Multi-area, LSA types, DR/BDR, ABR/ASBR roles |
 | ~~19~~ | ~~BFD~~ | Sub-second failure detection for routing protocols |
+
+**Planned additions to this chapter:**
+- **IS-IS as alternative underlay** — the IGP every hyperscaler runs. Once you know OSPF, IS-IS is small additive: protocol semantics, area/level model, why IS-IS scales better at large LSDBs, when you'd choose it over OSPF.
 
 ### Chapter 6 — BGP (the long chapter)
 
@@ -172,18 +178,25 @@ The labs in chapters 1-8 cover *transport*. This chapter covers what runs *on* t
 | 43 | **VoIP networking** | Latency / jitter / packet-loss budgets for voice, RTP, prioritization patterns, voice VLANs, common pitfalls (one-way audio, codec mismatch); how a customer's bad WiFi is your support ticket |
 | 44 | **Load balancing patterns** | BGP-as-LB, ECMP-based LB at the network layer, anycast LB, integration with L7 LBs (HAProxy/Envoy/F5); when network handles LB vs when app/LB layer does |
 | 45 | **VPN technologies on MikroTik** | IPsec site-to-site, WireGuard, GRE, L2TP/IPsec for partner connectivity and customer-facing VPN service. Uses MikroTik RouterOS (CHR) since that's the typical platform for this in mid-size shops |
+| 46 | **Storage networking: iSCSI fundamentals** | iSCSI initiators/targets, typical topology, separating storage from data VLAN, why storage networking is its own discipline |
+| 47 | **Lossless ethernet: DCB / PFC / ETS** | The protocols that make iSCSI and RoCE actually work at scale: Priority Flow Control, Enhanced Transmission Selection, DCBX. The "why is the storage VM slow" answer most people don't know. |
+| 48 | **Storage QoS and isolation** | Per-tenant storage IOPS limits at the network layer, traffic class prioritization for storage backplane, "noisy neighbor" mitigation. |
 
 ### Chapter 10 — Operations & Day-2
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 46 | Streaming telemetry | gNMI/OpenConfig subscriptions, structured syslog, log shipping patterns, time-series storage |
-| 47 | NETCONF / RESTCONF foundations | Programmatic device config protocol; YANG models; the building block for everything below |
-| 48 | **Ansible & Nornir for network automation** | Inventory, modules, idempotent config, the network automation toolbox |
-| 49 | **Network CI/CD pipeline** | Git-driven config workflow, linting (`batfish`, custom), staging validation, automated rollback |
-| 50 | **Source of truth & IPAM (NetBox)** | IPAM, VRF assignments, circuit tracking, the canonical "what should this device be configured as" database |
-| 51 | Failure scenario playbook | Deliberate breaks + recovery: link, switch, gateway, BGP session, EVPN. The on-call training material |
-| 52 | Capacity & MTU planning | Quantitative bandwidth modeling, jumbo frames in VXLAN, oversubscription ratios, capacity-vs-cost economics |
+| 49 | Streaming telemetry | gNMI/OpenConfig subscriptions, structured syslog, log shipping patterns, time-series storage |
+| 50 | **gnmic + Prometheus + Grafana stack** | Hands-on: deploy the full monitoring stack inside containerlab (Prometheus, Grafana, gnmic as collector). Pre-built dashboards for BGP sessions, interface counters, EVPN routes. The "I can actually see what my fabric is doing" lab. |
+| 51 | NETCONF / RESTCONF foundations | Programmatic device config protocol; YANG models; the building block for everything below |
+| 52 | **Ansible & Nornir for network automation** | Inventory, modules, idempotent config, the network automation toolbox |
+| 53 | **Network CI/CD pipeline** | Git-driven config workflow, linting (`batfish`, custom), staging validation, automated rollback |
+| 54 | **Source of truth & IPAM (NetBox)** | IPAM, VRF assignments, circuit tracking, the canonical "what should this device be configured as" database |
+| 55 | **Network device backup & disaster recovery** | "A switch died overnight, walk through the full procedure": config backup automation, ZTP for a replacement, restoring state, validation. Builds on lab 54 (NetBox as source of truth). |
+| 56 | **Hitless upgrade / rolling EOS upgrade** | Upgrading the fabric without outage: drain/undrain, MLAG and EVPN-MH pair upgrade dance, graceful restart, "reload fast", validation between steps. Senior+ operational skill. |
+| 57 | **Production packet capture: SPAN/mirror + traffic generation** | How to get packet capture from production without putting CPU pressure on the switch (mirror/SPAN ports, TAP aggregator concepts). Companion: generating test traffic (iperf3, scapy) for validation. |
+| 58 | Failure scenario playbook | Deliberate breaks + recovery: link, switch, gateway, BGP session, EVPN. The on-call training material |
+| 59 | Capacity & MTU planning | Quantitative bandwidth modeling, jumbo frames in VXLAN, oversubscription ratios, capacity-vs-cost economics |
 
 ### Closing chapter — Reference design
 
@@ -215,6 +228,10 @@ Labs teach the technical moves. The senior+ skill set is everything around the l
 - [The physical layer — optics, cables, MTU](docs/practice/physical-layer.md) — SR vs LR, DAC vs AOC, fiber cleaning, MTU planning, the L1 debug workflow that saves you hours.
 - [AI-assisted network engineering](docs/practice/ai-assisted-engineering.md) — using Claude/Copilot/Cursor responsibly. What AI is good at, where it gets you bitten, sanitization rules, team policy.
 - [Career growth — what "senior" actually means](docs/practice/career-growth.md) — the level-to-level transitions, IC vs management, compound-interest skills, what's measured vs what matters.
+
+**Planned additions** (not yet written, listed for visibility):
+- **TWAMP / SLA measurement** — how to measure latency/jitter/loss against customer SLAs; one-way (OWAMP) vs two-way (TWAMP) protocols; running it operationally.
+- **License management & EOS lifecycle** — license expiry traps, what you lose when a license lapses, EOS version EOL planning. Not glamorous; bites people regularly.
 
 By Phase 4-5 of [`STORY.md`](STORY.md), these stop being optional.
 
