@@ -1,0 +1,39 @@
+name: storage-qos-isolation
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    # Tenant A (premium — gets bandwidth guarantee)
+    tenant-a:
+      kind: linux
+      exec:
+        - ip addr add 10.50.1.10/24 dev eth1
+        - ip route add default via 10.50.1.1
+
+    # Tenant B (standard — gets rate-limited)
+    tenant-b:
+      kind: linux
+      exec:
+        - ip addr add 10.50.2.10/24 dev eth1
+        - ip route add default via 10.50.2.1
+
+    # Shared SAN
+    target:
+      kind: linux
+      exec:
+        - ip addr add 10.50.99.10/24 dev eth1
+        - ip route add default via 10.50.99.1
+
+  links:
+    - endpoints: ["tenant-a:eth1", "sw1:eth1"]
+    - endpoints: ["tenant-b:eth1", "sw1:eth2"]
+    - endpoints: ["target:eth1", "sw1:eth3"]

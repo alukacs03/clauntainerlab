@@ -1,0 +1,33 @@
+name: lossless-ethernet-dcb
+
+# Note: cEOS implements DCB/PFC/ETS only in a limited/simulated way.
+# Real hardware (DCS-7280R, 7500R, 7060X) implements PFC in ASIC.
+# This lab demonstrates the *configuration pattern* and the conceptual
+# model; performance differences vs no-PFC will not be observable in
+# the lab, only in production hardware.
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+
+  nodes:
+    sw1:
+      kind: arista_ceos
+      startup-config: configs/sw1.cfg
+
+    initiator:
+      kind: linux
+      exec:
+        - ip addr add 10.50.0.10/24 dev eth1
+
+    target:
+      kind: linux
+      exec:
+        - ip addr add 10.50.0.20/24 dev eth1
+
+  links:
+    - endpoints: ["initiator:eth1", "sw1:eth1"]
+    - endpoints: ["target:eth1", "sw1:eth2"]
