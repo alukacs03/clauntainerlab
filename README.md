@@ -187,6 +187,12 @@ Labs teach the technical moves. The senior+ skill set is everything around the l
 - [Incident response & blameless postmortems](docs/practice/incident-response.md) — IC role, severities, status update discipline, postmortem template. [Postmortem template](docs/practice/templates/postmortem-template.md).
 - [Architecture Decision Records (ADRs)](docs/practice/adr.md) — capture *why* you chose what you chose, so future-you remembers. [ADR template](docs/practice/templates/adr-template.md).
 - [Runbooks](docs/practice/runbooks.md) — turn known incidents into checklists juniors can execute. [Runbook template](docs/practice/templates/runbook-template.md).
+- [Monitoring & alerting — what to actually monitor](docs/practice/monitoring-and-alerting.md) — the metrics juniors miss (control-plane CPU, error deltas, TCAM fill), three alert tiers, "every alert needs a runbook link."
+- [tcpdump fluency](docs/practice/tcpdump-fluency.md) — career-multiplier skill. Filter recipes for BGP, OSPF, VXLAN, VLANs, BFD, ARP, MTU debugging.
+- [Linux networking quick reference](docs/practice/linux-networking-quickref.md) — iproute2 toolkit, VRFs and namespaces on Linux, `ethtool`, sockets. Modern network gear runs Linux underneath.
+- [The physical layer — optics, cables, MTU](docs/practice/physical-layer.md) — SR vs LR, DAC vs AOC, fiber cleaning, MTU planning, the L1 debug workflow that saves you hours.
+- [AI-assisted network engineering](docs/practice/ai-assisted-engineering.md) — using Claude/Copilot/Cursor responsibly. What AI is good at, where it gets you bitten, sanitization rules, team policy.
+- [Career growth — what "senior" actually means](docs/practice/career-growth.md) — the level-to-level transitions, IC vs management, compound-interest skills, what's measured vs what matters.
 
 By Phase 4-5 of [`STORY.md`](STORY.md), these stop being optional.
 
