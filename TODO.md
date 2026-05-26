@@ -39,3 +39,36 @@ Still planned, not yet written. Story callouts in `STORY.md` and full roadmap in
 **Pick this up when**: after the existing 33 labs are validated. The current 33 labs + practice docs give the learner enough material for a long stretch of learning before chapter 7+ becomes urgent.
 
 **Notable platform shift**: lab 45 (VPN on MikroTik) is the first lab to step away from Arista cEOS. Will use MikroTik CHR (Cloud Hosted Router); needs vrnetlab integration into containerlab, or running CHR as a sibling VM.
+
+---
+
+## Out of scope for this repo: a separate "Network team leadership" track
+
+This curriculum is technical networking. Distinct (and explicitly *not* part of it) is the management/leadership track that becomes relevant when someone transitions from senior IC to team lead. Parked here so the brainstorm isn't lost in case a separate venue (personal blog, internal company wiki, separate repo) ever wants it.
+
+Topics that would belong there, not here:
+
+**Tier 1 — for someone just becoming team lead:**
+- Setting up project tracking for a small ops team (e.g., moving from Slack todos to Jira/Linear; ticket types, workflow states, label scheme)
+- One-on-ones with a direct report (cadence, structure, growth conversations, note-taking)
+- Translating business asks into network work ("sales committed something; can we do it?")
+- First 90 days as a network team lead (what to fix vs. leave alone)
+- SLAs / SLOs / error budgets for a network team
+
+**Tier 2 — once established:**
+- Vendor management at team/business level (RFPs, support contracts, vendor switching)
+- Budget thinking — CapEx vs OpEx, TCO, cost-per-port-per-month
+- Reporting up to leadership (green/yellow/red status format, asking for decisions vs informing)
+- On-call rotation design for a small team
+- Knowledge transfer & onboarding new hires
+- Working with consultants
+
+**Tier 3 — at larger team sizes:**
+- Hiring for the network team
+- Performance reviews / continuous feedback
+- Change Advisory Board (CAB) processes
+- Treating the network team as a product with internal customers
+
+**Why not in this repo**: the technical curriculum is *publicly defensible* — anyone can learn from it, generic across orgs. Leadership content is much more situational, often company-specific, and dilutes the focus.
+
+**Where it could go**: a separate personal/professional knowledge base or blog, or a company-internal wiki. The career-growth.md and incident-response.md docs in `docs/practice/` already touch the edges of this; deeper leadership content would warrant its own home.
