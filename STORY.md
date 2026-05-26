@@ -189,6 +189,8 @@ A long-time customer adds a VoIP service — their one-way audio is now your pro
 
 > Year 5+. Tech lead. There's a NOC. You have a team. You write standards, not configs. But you still get pulled into the gnarliest incidents.
 
+The Company now has 100+ devices, 4 sites, real on-call. The tools you choose now decide whether the next 5 years are "manageable" or "constantly on fire". This phase is about everything *around* the configs.
+
 | Lab | Story beat |
 |---|---|
 | **49 — Streaming telemetry** | The 10-second SNMP poll interval misses everything interesting. You move to gNMI/OpenConfig subscriptions — push, not poll. |

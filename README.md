@@ -72,6 +72,17 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 46 | [iscsi-fundamentals](labs/46-iscsi-fundamentals) | Storage VLAN, jumbo MTU, multipath topology | Ready | — |
 | 47 | [lossless-ethernet-dcb](labs/47-lossless-ethernet-dcb) | DCB / PFC / ETS pattern (cEOS limited; production config) | Ready | — |
 | 48 | [storage-qos-isolation](labs/48-storage-qos-isolation) | Per-tenant policer + DSCP + queue allocation | Ready | — |
+| 49 | [streaming-telemetry](labs/49-streaming-telemetry) | gNMI subscriptions; push vs poll | Ready | — |
+| 50 | [gnmic-prom-grafana](labs/50-gnmic-prom-grafana) | Full observability stack in containerlab | Ready | — |
+| 51 | [netconf-restconf](labs/51-netconf-restconf) | NETCONF/SSH + eAPI for programmatic config | Ready | — |
+| 52 | [ansible-nornir](labs/52-ansible-nornir) | Idempotent baseline playbook across N devices | Ready | — |
+| 53 | [network-cicd](labs/53-network-cicd) | Lint→validate→stage→prod pipeline + smoke tests | Ready | — |
+| 54 | [netbox-ipam](labs/54-netbox-ipam) | Source of truth; Ansible inventory from NetBox | Ready | — |
+| 55 | [backup-and-dr](labs/55-backup-and-dr) | Automated config backup + recovery procedure | Ready | — |
+| 56 | [hitless-upgrade](labs/56-hitless-upgrade) | Rolling EOS upgrade across an MLAG/ESI pair | Ready | — |
+| 57 | [span-capture](labs/57-span-capture) | Port mirroring + scapy/iperf3 traffic generation | Ready | — |
+| 58 | [failure-playbook](labs/58-failure-playbook) | Chaos-experiments + scripted response | Ready | — |
+| 59 | [capacity-mtu-planning](labs/59-capacity-mtu-planning) | Oversubscription math + end-to-end MTU budget | Ready | — |
 
 **Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
 
@@ -199,23 +210,23 @@ The labs in chapters 1-8 cover *transport*. This chapter covers what runs *on* t
 
 | # | Lab | What it adds |
 |---|-----|--------------|
-| 49 | Streaming telemetry | gNMI/OpenConfig subscriptions, structured syslog, log shipping patterns, time-series storage |
-| 50 | **gnmic + Prometheus + Grafana stack** | Hands-on: deploy the full monitoring stack inside containerlab (Prometheus, Grafana, gnmic as collector). Pre-built dashboards for BGP sessions, interface counters, EVPN routes. The "I can actually see what my fabric is doing" lab. |
-| 51 | NETCONF / RESTCONF foundations | Programmatic device config protocol; YANG models; the building block for everything below |
-| 52 | **Ansible & Nornir for network automation** | Inventory, modules, idempotent config, the network automation toolbox |
-| 53 | **Network CI/CD pipeline** | Git-driven config workflow, linting (`batfish`, custom), staging validation, automated rollback |
-| 54 | **Source of truth & IPAM (NetBox)** | IPAM, VRF assignments, circuit tracking, the canonical "what should this device be configured as" database |
-| 55 | **Network device backup & disaster recovery** | "A switch died overnight, walk through the full procedure": config backup automation, ZTP for a replacement, restoring state, validation. Builds on lab 54 (NetBox as source of truth). |
-| 56 | **Hitless upgrade / rolling EOS upgrade** | Upgrading the fabric without outage: drain/undrain, MLAG and EVPN-MH pair upgrade dance, graceful restart, "reload fast", validation between steps. Senior+ operational skill. |
-| 57 | **Production packet capture: SPAN/mirror + traffic generation** | How to get packet capture from production without putting CPU pressure on the switch (mirror/SPAN ports, TAP aggregator concepts). Companion: generating test traffic (iperf3, scapy) for validation. |
-| 58 | Failure scenario playbook | Deliberate breaks + recovery: link, switch, gateway, BGP session, EVPN. The on-call training material |
-| 59 | Capacity & MTU planning | Quantitative bandwidth modeling, jumbo frames in VXLAN, oversubscription ratios, capacity-vs-cost economics |
+| ~~49~~ | ~~Streaming telemetry~~ | gNMI/OpenConfig subscribe; push vs poll |
+| ~~50~~ | ~~gnmic + Prometheus + Grafana stack~~ | Full observability stack inside containerlab |
+| ~~51~~ | ~~NETCONF / RESTCONF foundations~~ | YANG, NETCONF over SSH, eAPI on Arista |
+| ~~52~~ | ~~Ansible & Nornir for network automation~~ | Idempotent baseline playbook + Nornir equivalent |
+| ~~53~~ | ~~Network CI/CD pipeline~~ | Lint → validate → stage-deploy → stage-test → prod-deploy → smoke |
+| ~~54~~ | ~~Source of truth & IPAM (NetBox)~~ | NetBox as the canonical inventory; Ansible inventory plugin |
+| ~~55~~ | ~~Network device backup & disaster recovery~~ | Daily backup to git + ZTP-driven replacement procedure |
+| ~~56~~ | ~~Hitless upgrade / rolling EOS upgrade~~ | MLAG-pair drain/upgrade/undrain dance; reload-fast |
+| ~~57~~ | ~~Production packet capture: SPAN + traffic generation~~ | Port mirroring + scapy/iperf3 |
+| ~~58~~ | ~~Failure scenario playbook~~ | Chaos-experiments + scripted on-call response |
+| ~~59~~ | ~~Capacity & MTU planning~~ | Oversubscription math + end-to-end MTU budget |
 
 ### Closing chapter — Reference design
 
 | # | Item | What it is |
 |---|------|------------|
-| RD | Sample dual-site DC reference design | An architecture document (not a lab) that ties everything together: two physical sites, EVPN-MH leaves, BGP-EVPN underlay, VXLAN-stretched subnets, redundant edge with DDoS handling, anycast services, AAA, mgmt VRF, telemetry, IPAM-driven config. Diagrams + design rationale. The artifact someone reads to understand the entire DC. |
+| ~~RD~~ | [~~Sample dual-site DC reference design~~](docs/reference-design/dual-site-dc.md) | Architecture document (not a lab) that ties the curriculum into one cohesive design. |
 
 ## Concepts
 
