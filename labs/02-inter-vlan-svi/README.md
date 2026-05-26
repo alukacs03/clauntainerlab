@@ -114,11 +114,15 @@ end
 write memory
 ```
 
-Host route command (from the VM, not inside the host shell — easier):
+Host route command (run from the VM, not inside the host shell — easier). The Linux syntax:
 
+```bash
+docker exec <container> ip route add <dst-subnet>/<prefix> via <gateway-ip>
 ```
-docker exec clab-inter-vlan-svi-<host> ip route add <other-subnet>/24 via <svi-ip>
-```
+
+**All four hosts** need a route to the *other* VLAN's subnet — otherwise the cross-VLAN pings will fail asymmetrically (request goes through, reply has no return path).
+
+> Don't add a default route (`ip route add default ...`) — the hosts need their existing default via `eth0` for the containerlab mgmt network. A specific `/24` route to the other VLAN is the right tool.
 
 ## Deploy
 
