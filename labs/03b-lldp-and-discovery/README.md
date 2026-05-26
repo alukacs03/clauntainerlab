@@ -260,13 +260,15 @@ configure terminal
 ### 8. The Linux host side
 
 ```bash
-docker exec clab-lldp-discovery-h1 lldpctl
+docker exec clab-lldp-discovery-h1 lldpcli show neighbors
 ```
 
 Should show sw1 as a detected neighbor — with the same TLVs that sw1 sees from the switch side. Two-way LLDP works between Linux and a switch.
 
+> Note: the network-multitool image is Alpine-based; the binary is `lldpcli`. On Debian/Ubuntu the binary is usually `lldpctl` (or `lldpcli` — both exist, `lldpctl` is the legacy name).
+
 ```bash
-docker exec clab-lldp-discovery-h1 lldpctl -f keyvalue
+docker exec clab-lldp-discovery-h1 lldpcli show neighbors -f keyvalue
 ```
 
 Same info in a parser-friendly format — useful for scripting (auto-update DNS records, build topology graphs, validate cabling at boot, etc.).
@@ -283,7 +285,7 @@ Same info in a parser-friendly format — useful for scripting (auto-update DNS 
 - **L2-only requirement** — works even without IP. Useful for early-boot debug.
 - **Default timer**: 30s tx / 120s hold. Tune lower for fast change detection.
 - **`show lldp neighbors`** is the senior's first command in any unfamiliar network.
-- **`lldpctl`** on Linux hosts (via `lldpd` daemon) integrates servers into LLDP topology.
+- **`lldpcli`** / **`lldpctl`** on Linux hosts (via `lldpd` daemon) integrates servers into LLDP topology.
 
 ## Operational patterns
 

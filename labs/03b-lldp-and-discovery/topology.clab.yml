@@ -18,12 +18,14 @@ topology:
       kind: arista_ceos
       startup-config: configs/sw3.cfg
 
-    # Linux host running lldpd — represents a server that participates in LLDP
+    # Linux host running lldpd — represents a server that participates in LLDP.
+    # network-multitool is Alpine-based; install via apk and start the daemon.
     h1:
       kind: linux
       exec:
         - ip addr add 10.10.10.10/24 dev eth1
-        - sh -c "command -v lldpd >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq lldpd) ; service lldpd start || lldpd"
+        - sh -c "command -v lldpcli >/dev/null 2>&1 || apk add --no-cache lldpd"
+        - sh -c "lldpd"
 
   links:
     # Triangle of inter-switch links
