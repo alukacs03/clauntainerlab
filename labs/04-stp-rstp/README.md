@@ -81,15 +81,18 @@ On the root bridge itself, **every port is designated** (the root has no path "t
 
 Classic STP (802.1D): convergence took ~50 seconds. Painful.
 
-RSTP (802.1w, baseline default on every modern switch): uses proposal/agreement handshakes to converge in **under a second** on point-to-point links. Arista runs RSTP by default; configure it as MSTP later if you need per-VLAN-group control.
+RSTP (802.1w, baseline default on every modern switch): uses proposal/agreement handshakes to converge in **under a second** on point-to-point links.
+
+> **cEOS default is MSTP**, not RSTP — `show spanning-tree` will say "protocol mstp". For this lab we explicitly switch to **Rapid-PVST** (Rapid Per-VLAN Spanning Tree), which gives RSTP-speed convergence with per-VLAN priorities. The classic `spanning-tree vlan-id <id> priority <val>` syntax only takes effect in PVST/Rapid-PVST mode — in MSTP it's silently ignored. (In MSTP you'd use `spanning-tree mst <instance> priority`.)
 
 ## Your task
 
 1. Deploy and figure out **who the current root is** (probably whichever switch happens to have the lowest MAC).
 2. Look at port roles on all three switches. **Which trunk is currently blocked?** Why that one?
-3. Configure **sw1 as the primary root** by setting its priority to `4096`.
-4. Configure **sw2 as the secondary root** (`8192`).
-5. Re-check the topology. Did the blocked port move? Why?
+3. On all three switches, switch the protocol to **Rapid-PVST** (`spanning-tree mode rapid-pvst`).
+4. Configure **sw1 as the primary root** by setting its VLAN-10 priority to `4096`.
+5. Configure **sw2 as the secondary root** (`8192`).
+6. Re-check the topology. Did the blocked port move? Why?
 
 ## Hints
 
@@ -97,6 +100,7 @@ Arista commands you'll need:
 
 ```
 configure terminal
+  spanning-tree mode rapid-pvst           ! switch from default MSTP
   spanning-tree vlan-id <vlan> priority <value>
 end
 ```

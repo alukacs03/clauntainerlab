@@ -1,0 +1,218 @@
+site_name: Containerlab Networking Curriculum
+site_description: >
+  A hands-on networking curriculum built on containerlab + Arista cEOS.
+  Junior to DC architect, across 59 labs and a full reference design.
+site_url: https://alukacs03.github.io/clauntainerlab/
+repo_url: https://github.com/alukacs03/clauntainerlab
+repo_name: alukacs03/clauntainerlab
+edit_uri: edit/main/
+
+# docs/ is the source. Symlinks inside docs/ point to labs/, README.md,
+# STORY.md, etc. so the existing repo layout doesn't need restructuring.
+# Run scripts/setup-docs-symlinks.sh once after cloning.
+docs_dir: docs
+
+# Pretty URLs: /labs/01-vlan-basics/ instead of /labs/01-vlan-basics/README/
+use_directory_urls: true
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+  font:
+    text: Inter
+    code: JetBrains Mono
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: "¶"
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - pymdownx.caret
+  - pymdownx.mark
+
+plugins:
+  - search
+  - awesome-pages       # Auto-discovers pages where nav isn't explicit
+  # git-revision-date-localized disabled — clashes with symlinks. Re-enable
+  # once docs/ is the real source (or once we switch to a build-time copy).
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/alukacs03/clauntainerlab
+  generator: false
+
+# Explicit navigation. Each section's README.md becomes the section index
+# (thanks to `navigation.indexes`). Adding a new lab = add one line here.
+nav:
+  - Home: index.md
+  - The Story: STORY.md
+  - Conventions: CLAUDE.md
+
+  - Labs:
+      - "Chapter 1 — L2 fundamentals":
+          - labs/01-vlan-basics/README.md
+          - labs/02-inter-vlan-svi/README.md
+          - labs/03-trunk-deep-dive/README.md
+          - labs/03b-lldp-and-discovery/README.md
+      - "Chapter 2 — L2 in production":
+          - labs/04-stp-rstp/README.md
+          - labs/05-stp-protections/README.md
+          - labs/06-port-security-storm-control/README.md
+          - labs/07-l2-security-trifecta/README.md
+          - labs/07b-qinq-tunneling/README.md
+      - "Chapter 3 — Production hygiene":
+          - labs/08-management-vrf/README.md
+          - labs/09-aaa-tacacs/README.md
+          - labs/10-logging-ntp-baseline/README.md
+          - labs/11-oob-management/README.md
+      - "Chapter 4 — Redundancy":
+          - labs/12-lacp/README.md
+          - labs/13-vrrp/README.md
+          - labs/14-mlag/README.md
+          - labs/15-anycast-gateway/README.md
+      - "Chapter 5 — IGP":
+          - labs/16-static-routing/README.md
+          - labs/17-ospf-basics/README.md
+          - labs/18-ospf-design/README.md
+          - labs/19-bfd/README.md
+          - labs/19b-isis-underlay/README.md
+      - "Chapter 6 — BGP":
+          - labs/20-bgp-fundamentals/README.md
+          - labs/21-ibgp-route-reflectors/README.md
+          - labs/22-bgp-path-selection/README.md
+          - labs/23-bgp-route-policy/README.md
+          - labs/24-bgp-internet-edge/README.md
+          - labs/25-bgp-business/README.md
+          - labs/26-bgp-operations/README.md
+      - "Chapter 7 — Modern DC fabric":
+          - labs/27-spine-leaf/README.md
+          - labs/28-bgp-unnumbered/README.md
+          - labs/29-vxlan-data-plane/README.md
+          - labs/30-evpn-intro/README.md
+          - labs/31-evpn-type5/README.md
+          - labs/32-evpn-anycast-gateway/README.md
+          - labs/33-evpn-multisite/README.md
+          - labs/33b-evpn-multihoming/README.md
+      - "Chapter 8 — Internet Edge":
+          - labs/34-ebgp-upstream-at-scale/README.md
+          - labs/35-nat-in-dc/README.md
+          - labs/36-cgnat/README.md
+          - labs/37-ipv6-dual-stack/README.md
+          - labs/38-ipv6-only-nat64/README.md
+          - labs/39-service-anycast/README.md
+          - labs/40-ddos-mitigation/README.md
+          - labs/41-control-plane-protection/README.md
+      - "Chapter 9 — App & Traffic Mgmt":
+          - labs/42-qos-fundamentals/README.md
+          - labs/43-voip-networking/README.md
+          - labs/44-load-balancing-patterns/README.md
+          - labs/45-vpn-on-mikrotik/README.md
+          - labs/46-iscsi-fundamentals/README.md
+          - labs/47-lossless-ethernet-dcb/README.md
+          - labs/48-storage-qos-isolation/README.md
+      - "Chapter 10 — Operations & Day-2":
+          - labs/49-streaming-telemetry/README.md
+          - labs/50-gnmic-prom-grafana/README.md
+          - labs/51-netconf-restconf/README.md
+          - labs/52-ansible-nornir/README.md
+          - labs/53-network-cicd/README.md
+          - labs/55-backup-and-dr/README.md
+          - labs/56-hitless-upgrade/README.md
+          - labs/57-span-capture/README.md
+          - labs/58-failure-playbook/README.md
+          - labs/59-capacity-mtu-planning/README.md
+
+  - Concepts:
+      - concepts/l3-switch-vs-router.md
+      - concepts/stp-variants.md
+      - concepts/vrf-deep-dive.md
+      - concepts/first-hop-redundancy-comparison.md
+      - concepts/l2-security-binding-table.md
+
+  - Professional Practice:
+      - practice/migration-planning.md
+      - practice/incident-response.md
+      - practice/adr.md
+      - practice/runbooks.md
+      - practice/monitoring-and-alerting.md
+      - practice/tcpdump-fluency.md
+      - practice/linux-networking-quickref.md
+      - practice/physical-layer.md
+      - practice/ai-assisted-engineering.md
+      - practice/career-growth.md
+      - practice/ticket-hygiene-as-an-ic.md
+      - practice/pushing-back-constructively.md
+      - practice/change-communication.md
+      - practice/tls-and-certificates.md
+      - practice/attacker-perspective.md
+
+  - Reference Design: reference-design/dual-site-dc.md
+
+  - VM Setup: vm-setup.md
+
+# Files MkDocs should ignore. Keeps starter configs and topology YAMLs out
+# of the site (they'll still be browsable in the GitHub source view).
+exclude_docs: |
+  EOS-User-Manual.pdf
+  TODO.md
+  scripts/
+  images/
+  labs/*/configs/
+  labs/*/solutions/
+  labs/*/topology.clab.yml
+  node_modules/
+  .git/
+  .github/
+  site/

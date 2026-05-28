@@ -23,3 +23,7 @@ clab-*/
 # Local-only env
 .env
 .env.local
+
+# MkDocs build output
+site/
+.cache/
