@@ -17,8 +17,8 @@ Your task: harden the access ports against both classes of failure.
 
 By the end you should be able to answer:
 
-- What does **port security** actually do, and what are the trade-offs of `shutdown` vs `restrict` vs `protect`?
-- What's the difference between **static**, **dynamic**, and **sticky** MAC learning?
+- What does **port security** actually do, and what are the trade-offs of `shutdown` vs `protect` violation modes?
+- What's the difference between **static** and **dynamic** MAC learning on a secure port, and how does persistent port-security keep dynamic MACs across reboots?
 - How does **storm control** measure "too much" traffic — by percent of port bandwidth or packets-per-second?
 - Why do storm control thresholds need to be set per traffic type (broadcast vs multicast vs unknown unicast)?
 - When should err-disabled ports auto-recover, and when should they require human attention?
@@ -47,7 +47,7 @@ Limits how many (and optionally which) MAC addresses can appear on a port.
   - **shutdown** — port goes err-disabled (loud, manual recovery). Default and recommended.
   - **protect** — silently drop the violating MAC's frames. No log. Almost never the right choice.
 
-> **Arista vs Cisco port-security.** Cisco IOS has a `switchport port-security mac-address sticky` keyword that promotes dynamically learned MACs into the running-config so they survive reboots. Arista doesn't have that exact knob — instead, "persistent port security" is **enabled globally by default** (`show port-security` → `Secure address reboot persistence: enabled`), so the same effect happens automatically. If you need explicit pinned MACs, use `mac address-table static <mac> vlan <id> interface <name>`.
+> **Persistent secure MACs on Arista.** "Persistent port security" is **enabled globally by default** — dynamically learned secure MACs survive reboots and link flaps automatically. Check with `show port-security` → `Secure address reboot persistence: enabled`. If you want to pin a specific MAC explicitly, use `mac address-table static <mac> vlan <id> interface <name>`. (Cisco's per-port `mac-address sticky` keyword has no direct equivalent on Arista; it's a global property instead.)
 
 Use cases:
 - **Hosted hosting / customer-port scenarios** — bind a customer port to exactly one MAC so they can't multi-home or sublease the cable.
@@ -92,11 +92,12 @@ A common pattern: auto-recover storm-related causes (transient), require manual 
 
 1. Enable **port security** on Et1 and Et2:
    - max 1 MAC
-   - sticky learning
    - violation: shutdown
+   (Persistent port-security is global-default on Arista, so dynamically learned MACs survive reboots without an extra knob.)
 2. Enable **storm control** on Et3:
    - broadcast threshold: 1%
    - multicast threshold: 1%
+   > **cEOS limitation:** `storm-control` is **not supported on the virtual hardware** (`storm-control not supported on this hardware platform`). The config syntax is shown for production-hardware reference (DCS-7280/7500 etc.); on cEOS you'll see the error and can't validate it live. Configure it on Et3 anyway if you want to read about the syntax, but expect rejection.
 3. Configure **err-disable recovery** globally for port-security and BPDU guard violations, 5-minute interval.
 
 ## Hints
@@ -154,7 +155,7 @@ show port-security
 show port-security interface Ethernet1
 ```
 
-You should see h1's MAC listed as a sticky-learned secure MAC.
+You should see h1's MAC listed as a learned secure MAC.
 
 ### 2. Port security — trigger the violation
 
@@ -237,14 +238,14 @@ errdisable recovery cause portsecurity
 
 ## Concepts cheat-sheet
 
-- **Port security** — limit MACs per port. Sticky = learn-and-stick. Violation modes: shutdown (default), restrict (drop+log), protect (drop silently — rarely right).
-- **Storm control** — rate-limit broadcast/multicast/unknown-unicast per port. Set thresholds per traffic class, not just one global limit.
+- **Port security** — limit MACs per port. Arista has two violation modes: shutdown (default, port → err-disabled, recommended) and protect (silently drops violating MACs — rarely right). Persistent port-security is global-default, so dynamic learned MACs survive reboots.
+- **Storm control** — rate-limit broadcast/multicast/unknown-unicast per port. Set thresholds per traffic class, not just one global limit. **cEOS limitation: not supported on the virtual platform.**
 - **Err-disable** — switch's way of saying "port has misbehaved; cut it off". Recovery is either manual (`no shutdown`) or automatic (`errdisable recovery cause <x>` + `interval <s>`).
-- **MAC table vs port-security MAC table** — different tables. The MAC table is the forwarding table (dynamic, ages out). Port-security MACs are a security-policy table (sticky → saved to config).
+- **MAC table vs port-security MAC table** — different tables. The MAC table is the forwarding table (dynamic, ages out). Port-security MACs are a security-policy table (persistent across reboot by default on Arista).
 
 ## Operational reminders
 
-- Pair sticky port-security with **`copy running-config startup-config`** after the first user attaches — otherwise the learned MAC is lost on reboot.
+- After the first device attaches to a secure port and is learned, save with **`copy running-config startup-config`** so the global persistence has something to persist (otherwise a wipe-and-reboot loses the learned MAC).
 - **Don't set port-security maximum to "very large"** to avoid violations — that defeats the purpose. If you need a multi-MAC port (server with multiple VMs), use the real value (e.g., 8) and monitor.
 - **Storm control thresholds should be reviewed quarterly** — application teams add multicast services, NICs change, the ceiling drifts.
 - **Document err-disable recovery policy** — a port that auto-recovered after a security event with no record is the worst of both worlds.
