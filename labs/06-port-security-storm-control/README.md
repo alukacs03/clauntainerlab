@@ -183,32 +183,27 @@ Expect Et2 in **errdisabled** (or `notconnect`), `Security Violation Count: 1`, 
 
 > If you preferred to cycle MACs via `ip link set down / address / up`, that would **not** trigger here — by design — because the link-cycle clears the secure-MAC slot. To make that approach work you'd need to flip the per-port shutdown-mode persistence; it's not worth it for this lab.
 
-### 3. Storm control — generate a broadcast storm
+### 3. Storm control — read-only on cEOS
 
-From the VM, flood broadcasts from h-storm using `arping` (broadcasts ARP requests):
+> **cEOS does not support storm-control.** Configuring `storm-control broadcast/multicast level <n>` on an interface returns `storm-control not supported on this hardware platform`. `show storm-control` and `show interfaces ... counters rates` exist but won't show storm-control state because there is none. The block below shows the **production-hardware** test you'd run on a real switch (DCS-7280/7500/7800); on cEOS it's read-the-code-only.
+
+Production-hardware test (won't work on cEOS, kept for reference):
 
 ```bash
+# Flood broadcasts from h-storm using arping (broadcast ARP)
 docker exec -d clab-port-security-storm-control-h-storm arping -i eth1 -U 10.10.10.99 -w 30
 ```
 
-(Background, 30 seconds.)
-
-Quickly, on sw1:
+On the switch (production hardware):
 
 ```
 show storm-control
 show interfaces Ethernet3 counters rates
 ```
 
-Watch the broadcast rate climb toward your 1% threshold. Storm control will start dropping frames once exceeded. You may also see `STORM_CONTROL` log messages.
+You'd watch the broadcast rate climb toward the 1% threshold; storm control would start dropping frames and log `STORM_CONTROL` messages. h-victim (`10.10.10.3`) would stay reachable from h1 because the storm is capped before it can saturate the segment.
 
-While the storm is running, check that h-victim is still reachable from h1:
-
-```bash
-docker exec clab-port-security-storm-control-h1 ping -c 5 10.10.10.3
-```
-
-This should still work — storm control prevented the broadcast from drowning the segment. Without storm control, h-victim's CPU and the switch's flooding cost would degrade everyone.
+On cEOS the storm itself still happens (the arping does flood), but nothing rate-limits it — so the lab can only demonstrate the *config syntax* of storm-control, not its runtime effect. To validate runtime behavior, run this lab on production hardware or skip section 3.
 
 ### 4. Err-disable recovery — manual vs auto
 

@@ -26,7 +26,7 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 03b | [lldp-and-discovery](labs/03b-lldp-and-discovery) | LLDP — "what's on the other end of this cable?" daily reflex | Ready | ✅ |
 | 04 | [stp-rstp](labs/04-stp-rstp) | Root election, port roles, RSTP convergence | Ready | ✅ |
 | 05 | [stp-protections](labs/05-stp-protections) | PortFast, BPDU Guard, Root Guard | Ready | — |
-| 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, sticky learning, broadcast/multicast storm control | Ready | — |
+| 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, broadcast/multicast storm control (storm-control config-only on cEOS) | Ready | ✅ |
 | 07 | [l2-security-trifecta](labs/07-l2-security-trifecta) | DHCP snooping + DAI + IP Source Guard | Ready | — |
 | 07b | [qinq-tunneling](labs/07b-qinq-tunneling) | QinQ / 802.1ad — customer VLAN structure tunneled inside provider S-VLAN | Ready | — |
 | 08 | [management-vrf](labs/08-management-vrf) | Logical separation of mgmt from data via VRF | Ready | — |
