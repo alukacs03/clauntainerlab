@@ -8,7 +8,7 @@
 
 Two recent incidents on the access network:
 
-1. **"NAC bypass"** — security found that an unauthorized laptop connected from a conference room jack by spoofing a registered endpoint's MAC address. The legitimate device was elsewhere, but the access port had no MAC limit, so the spoofed MAC was accepted. The user got LAN access for 4 hours before someone noticed.
+1. **"NAC (Network Access Control) bypass"** — security found that an unauthorized laptop connected from a conference room jack by spoofing a registered endpoint's MAC address. The legitimate device was elsewhere, but the access port had no MAC limit, so the spoofed MAC was accepted. The user got LAN access for 4 hours before someone noticed.
 2. **"The Tuesday Storm"** — a misbehaving NIC on a customer VM started sending broadcast traffic at line rate. The switch faithfully flooded it to every port in the VLAN. CPU on neighboring devices spiked, monitoring alerts fired across half the rack, and an SSH session got knocked offline mid-`reload`.
 
 Your task: harden the access ports against both classes of failure.
@@ -42,17 +42,17 @@ One switch, four host ports — each demonstrating one protection scenario.
 Limits how many (and optionally which) MAC addresses can appear on a port.
 
 - `switchport port-security` — turn the feature on.
-- `switchport port-security maximum <n>` — allow at most n MACs. Default is 1.
-- `switchport port-security mac-address sticky` — learn dynamically but **save** the learned MAC to running-config. After the first MAC is seen, any other MAC is a violation.
-- `switchport port-security violation { shutdown | restrict | protect }`:
+- `switchport port-security mac-address maximum <n>` — allow at most n MACs. Default is 1.
+- `switchport port-security violation { shutdown | protect }` (Arista — `restrict` doesn't exist; Cisco has it):
   - **shutdown** — port goes err-disabled (loud, manual recovery). Default and recommended.
-  - **restrict** — drop frames from the violating MAC, log + SNMP trap. Port stays up.
   - **protect** — silently drop the violating MAC's frames. No log. Almost never the right choice.
+
+> **Arista vs Cisco port-security.** Cisco IOS has a `switchport port-security mac-address sticky` keyword that promotes dynamically learned MACs into the running-config so they survive reboots. Arista doesn't have that exact knob — instead, "persistent port security" is **enabled globally by default** (`show port-security` → `Secure address reboot persistence: enabled`), so the same effect happens automatically. If you need explicit pinned MACs, use `mac address-table static <mac> vlan <id> interface <name>`.
 
 Use cases:
 - **Hosted hosting / customer-port scenarios** — bind a customer port to exactly one MAC so they can't multi-home or sublease the cable.
 - **Office endpoint enforcement** — limit each port to N MACs (N=2 if you allow VoIP phones daisy-chained with PCs).
-- **Anti-spoofing** — combined with sticky, the first device "claims" the port and any other MAC is rejected.
+- **Anti-spoofing** — the first device "claims" the port and any other MAC is rejected.
 
 ### Storm control
 
@@ -106,8 +106,7 @@ Per-port port-security:
 ```
 interface Ethernet<n>
   switchport port-security
-  switchport port-security maximum 1
-  switchport port-security mac-address sticky
+  switchport port-security mac-address maximum 1
   switchport port-security violation shutdown
 ```
 
