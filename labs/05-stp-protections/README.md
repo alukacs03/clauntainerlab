@@ -203,8 +203,11 @@ Back on sw1:
 
 ```
 show spanning-tree
-show spanning-tree inconsistentports
+show spanning-tree blockedports
+show spanning-tree detail | include inconsistent
 ```
+
+> cEOS doesn't have Cisco's `show spanning-tree inconsistentports`. Use `show spanning-tree blockedports` (the guarded port shows up as blocked) plus `show spanning-tree detail | include inconsistent` to confirm the root-inconsistent state.
 
 sw1 Et3 should now be **root-inconsistent** — the port is blocked because sw3's superior BPDU was rejected. **sw1 stays root**, sw3's BPDUs are ignored on that link.
 
