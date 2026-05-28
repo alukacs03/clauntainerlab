@@ -159,27 +159,29 @@ You should see h1's MAC listed as a learned secure MAC.
 
 ### 2. Port security — trigger the violation
 
-Spoof h1's MAC from h2's port by changing h2's MAC. (We want the MAC seen on Et2 to suddenly change.) From the VM:
+We need to inject a **second source MAC** on Et2 **without cycling the physical link** — because on cEOS, the per-port `Shutdown Mode Persistence` flag is disabled by default, meaning a link-down event clears the secure-MAC table. So `ip link set eth1 down; change MAC; up` would just learn the new MAC fresh, no violation.
+
+The trick: create a **macvlan sub-interface** with a spoofed MAC over h2's `eth1`. The physical link stays up, but frames from the sub-interface carry a different source MAC.
 
 ```bash
-docker exec clab-port-security-storm-control-h2 ip link set eth1 down
-docker exec clab-port-security-storm-control-h2 ip link set eth1 address 02:42:ac:11:00:99
-docker exec clab-port-security-storm-control-h2 ip link set eth1 up
-docker exec clab-port-security-storm-control-h2 ping -c 1 10.10.10.3
-docker exec clab-port-security-storm-control-h2 ip link set eth1 down
-docker exec clab-port-security-storm-control-h2 ip link set eth1 address aa:bb:cc:dd:ee:ff
-docker exec clab-port-security-storm-control-h2 ip link set eth1 up
-docker exec clab-port-security-storm-control-h2 ping -c 1 10.10.10.3
+docker exec clab-port-security-storm-control-h2 sh -c "
+  ip link add link eth1 macv1 type macvlan
+  ip link set dev macv1 address de:ad:be:ef:00:01 up
+  ip addr add 10.10.10.99/24 dev macv1
+  ping -c 2 -I macv1 10.10.10.3
+"
 ```
 
-The second MAC change triggers the violation on Et2. On sw1:
+On sw1:
 
 ```
 show interfaces Ethernet2 status
 show port-security
 ```
 
-Et2: `errdisabled`. Log line: `SECURITY-2-PORT_SECURITY_VIOLATION`.
+Expect Et2 in **errdisabled** (or `notconnect`), `Security Violation Count: 1`, and a log line `SECURITY-2-PORT_SECURITY_VIOLATION`.
+
+> If you preferred to cycle MACs via `ip link set down / address / up`, that would **not** trigger here — by design — because the link-cycle clears the secure-MAC slot. To make that approach work you'd need to flip the per-port shutdown-mode persistence; it's not worth it for this lab.
 
 ### 3. Storm control — generate a broadcast storm
 
