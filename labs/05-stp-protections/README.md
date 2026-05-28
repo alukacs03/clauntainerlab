@@ -79,7 +79,7 @@ You do NOT put Root Guard on the root port (toward the actual root) — that's w
 - **Loop Guard** — protects against unidirectional link failures that cause a blocked port to incorrectly transition to forwarding (because BPDUs stopped arriving). Put it on root ports and alternate ports of trunks.
 - **Bridge Assurance** — Cisco-specific; sends BPDUs on every operational port, treats lack of BPDUs as failure. Belt-and-suspenders for trunks between known switches.
 
-We won't configure these in this lab but they exist; see [`docs/concepts/stp-protections-reference.md`](../../docs/concepts/stp-protections-reference.md) when we add it.
+We won't configure these in this lab but they exist; a dedicated concept doc on STP protections is on the to-write list.
 
 ## Your task
 

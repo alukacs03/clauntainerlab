@@ -106,7 +106,7 @@ Mixed-vendor environments: stick to RSTP or MSTP (open standards). Don't try to 
 | **Bridge Assurance** (Cisco) | Send BPDUs on all operational ports; lack of BPDUs = problem | Trunks between known switches |
 | **BPDU Filter** | Silently drop BPDUs in/out — **almost always wrong**, use BPDU Guard instead | Avoid; use only if you really know why |
 
-Lab 05 covers PortFast, BPDU Guard, and Root Guard. See also the [STP protections checklist](../../labs/05-stp-protections/README.md).
+Lab 05 covers PortFast, BPDU Guard, and Root Guard. See also the [STP protections checklist](../labs/05-stp-protections/README.md).
 
 ## TCN (Topology Change Notification)
 

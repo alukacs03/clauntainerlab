@@ -97,7 +97,7 @@ Produces a prefix-list of every prefix AS65001 has registered the right to annou
 
 **RPKI (Resource Public Key Infrastructure)** — cryptographic version of the same. Each prefix has a signed ROA (Route Origin Authorization) declaring "AS X is authorized to originate this prefix". Routers connect to an RPKI validator via the RTR protocol; routes whose origin doesn't match a valid ROA are marked **invalid** and dropped (or set to a lower local-preference).
 
-Both are explained in more depth in [`docs/concepts/bgp-irr-rpki.md`](../../docs/concepts/bgp-irr-rpki.md) (future).
+A dedicated concept doc on IRR and RPKI is on the to-write list.
 
 ### Why "customer over peer over transit"
 
