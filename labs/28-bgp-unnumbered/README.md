@@ -24,9 +24,26 @@ By the end you should be able to answer:
 
 ## Topology
 
-Same as lab 27. Two spines, two leaves, full mesh between them.
+Same spine-leaf as lab 27. Two spines, two leaves, full mesh between them. The only change: the four spine-leaf transit links have **only IPv6 enabled** (link-local), no IPv4 address — so there are no /31s on the fabric. Host links keep their /24s.
 
-The only change: transit interfaces have **only IPv6 enabled**, no IPv4 address.
+```mermaid
+graph TB
+    spine1["spine1<br/>AS 65100<br/>lo 100.100.100.1"]
+    spine2["spine2<br/>AS 65200<br/>lo 100.100.100.2"]
+    leaf1["leaf1<br/>AS 65001<br/>lo 1.1.1.1"]
+    leaf2["leaf2<br/>AS 65002<br/>lo 2.2.2.2"]
+    h1["h1<br/>10.1.0.10/24"]
+    h2["h2<br/>10.2.0.10/24"]
+
+    leaf1 ---|"unnumbered (IPv6 LL)"| spine1
+    leaf1 ---|"unnumbered (IPv6 LL)"| spine2
+    leaf2 ---|"unnumbered (IPv6 LL)"| spine1
+    leaf2 ---|"unnumbered (IPv6 LL)"| spine2
+    h1 ---|"10.1.0.0/24"| leaf1
+    h2 ---|"10.2.0.0/24"| leaf2
+```
+
+Every solid spine-leaf link is unnumbered: `ipv6 enable`, no `ip address`. eBGP peers over the auto-assigned `fe80::` link-locals; IPv4 prefixes (loopbacks + host /24s) still cross the fabric via RFC 5549.
 
 ## Theory primer
 
@@ -43,7 +60,7 @@ Two routers connected by a cable, both with `ipv6 enable` on the interface, auto
 
 ### How BGP unnumbered finds the peer
 
-The router sends **IPv6 Router Advertisements** on the interface periodically. The neighbor receives them, learns the sender's link-local address, and BGP can establish a TCP session to that link-local address.
+The router sends **IPv6 Router Advertisements** on the interface periodically. The neighbor receives them, learns the sender's link-local address, and BGP establishes the session to that auto-discovered link-local — which is why you bind the neighbor **by interface, not by address** (see "Peer-groups + interface-based neighbors" below). You never type the link-local yourself; BGP discovers it.
 
 No IP planning. No IPAM. No address allocation. The link "just works" once both sides have IPv6 enabled.
 
@@ -83,8 +100,10 @@ For pure spine-leaf underlay between modern boxes: unnumbered is the modern defa
 
 ## Your task
 
-1. On every device: ensure `ipv6 unicast-routing` is on globally.
-2. Every transit interface: `ipv6 enable`, no `ip address`.
+The L1/L2 plumbing is pre-staged for you in the starter (this is a sequel to lab 27, so the focus is BGP). Verify it, then build the BGP block:
+
+1. Confirm the starter already enables `ipv6 unicast-routing` globally on every device.
+2. Confirm every transit interface (Ethernet1/Ethernet2) already has `ipv6 enable` and **no** `ip address`. If you diff the starter against lab 27 you'll see these are the only L1/L2 changes — the real work below is the `router bgp` block.
 3. Configure BGP with a peer-group (`SPINES` on leaves, `LEAVES` on spines).
 4. Use `neighbor interface <eth> peer-group <name>` to bind peers.
 5. `remote-as external` on the peer-group (for eBGP between leaves and spines).

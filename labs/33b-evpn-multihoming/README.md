@@ -4,6 +4,8 @@
 >
 > **Story chapter:** Phase 6 · Senior · Year 4. You're designing a new pod for the EVPN fabric. The old pods use MLAG (lab 14) for dual-homing servers. For this new build you're going EVPN-MH: cleaner, no peer-link cabling, no MLAG quirks (orphan ports, peer-keepalive split-brain, etc.). The mechanism is what every modern EVPN deployment chooses for new builds. See [`STORY.md`](../../STORY.md).
 
+> **cEOS caveat (read before the Verification section):** EVPN-MH all-active is part **control plane**, part **ASIC data plane**. The control-plane half works in cEOS-lab and is what you actually verify here: Ethernet Segment formation, Type 1 (A-D) and Type 4 (ES) routes, DF election state, and LACP bundling the two leaf links into one bundle on ce1. The **data-plane half is hardware behaviour and is NOT faithfully enforced in a container** — specifically (a) true per-flow active-active ECMP load-balancing across both leaf VTEPs, (b) non-DF BUM filtering (a non-DF leaf dropping broadcast/unknown-unicast so the CE never sees duplicates), and (c) fast mass-withdrawal convergence. On real DCS-7050X/7280R/7500R hardware the ASIC enforces all three; on cEOS the routes and election state are present but the forwarding may be approximated. So **verify the control-plane state** (`show evpn ethernet-segment`, `show bgp evpn route-type ...`) and treat the failover/ECMP demos as illustrative of the *mechanism*, not as proof the container is hashing flows across both VTEPs. Confirm exact behaviour against the actual cEOS 4.35.4M build on the VM.
+
 ## Real-world scenario
 
 When you built the first EVPN pod, you re-used what you knew: MLAG for dual-homed servers (lab 14), with anycast gateway via VARP (lab 15) on top. It works, but the MLAG layer is doing a lot:
@@ -103,7 +105,9 @@ In active-active EVPN-MH:
 - All PEs forward **unicast** traffic in both directions (load-balanced via LACP hashing on the CE, ECMP on the PE side)
 - Only the **DF** forwards **BUM** into the ES — preventing the CE from receiving multiple copies of broadcast frames
 
-DF election uses Type 4 routes and is deterministic (lowest router-id wins by default, but tunable).
+(Both of these are ASIC data-plane behaviours — see the cEOS caveat at the top. In cEOS-lab you can observe the DF *election state*, but the container does not necessarily enforce non-DF BUM filtering or true per-flow ECMP in the forwarding path.)
+
+DF election uses Type 4 (ES) routes. The default is the RFC 7432 **modulo / service-carving** algorithm: the PEs sharing the ES are ordered by their originating IP (VTEP) address, and the DF for a given VLAN is the PE at index `(VLAN-id mod number-of-PEs)` in that ordered list. So the DF is decided **per-VLAN** — different VLANs on the same ES can land on different leaves, and the lowest-addressed PE does *not* simply win everything. It is tunable to a preference-based scheme (`designated-forwarder election ...` under the ethernet-segment) if you need deterministic placement.
 
 ### STP must be disabled on multi-homed VLANs
 
@@ -187,6 +191,8 @@ show port-channel summary
 show lacp interface
 ```
 
+Note: `show bgp evpn route-type ethernet-segment` is verified verbatim against the EOS User Manual (v4.36.0F, p.4352). `show evpn ethernet-segment[ detail]` and `show bgp evpn route-type auto-discovery` are standard, real EOS-MH operational commands but were not located verbatim in the manual's searched pages — confirm their exact wording/output on the running cEOS 4.35.4M build and adjust this list if the syntax differs on your image.
+
 ## Deploy
 
 ```bash
@@ -269,7 +275,7 @@ In another terminal:
 sudo docker stop clab-evpn-multihoming-leaf1
 ```
 
-The ping should miss 1-2 packets and resume — ce1's LACP failed over to the surviving member (toward leaf2), and EVPN withdrew leaf1's Type 1/4 routes.
+On hardware the ping misses ~1-2 packets and resumes — ce1's LACP fails over to the surviving member (toward leaf2), and EVPN withdraws leaf1's Type 1/4 routes (fast mass-withdrawal). In **cEOS-lab the convergence is not ASIC-fast** (fast mass-withdrawal is a hardware behaviour): expect the ping to recover, but the gap may be several packets / a few seconds while LACP and BGP-EVPN reconverge in software, not the sub-second hardware number. The point of the demo is that traffic *does* survive losing one leaf with no peer-link involved — confirm that, and confirm via `show evpn ethernet-segment` / `show bgp evpn route-type ethernet-segment` that leaf1's ES state and Type 4 route are gone while leaf2 keeps forwarding.
 
 Restart leaf1:
 
@@ -287,7 +293,7 @@ show bgp evpn route-type mac-ip 0000.0000.0001
 
 (Use h1's actual MAC, which you can find on ce1 via `show mac address-table` or on a host.)
 
-When h1's MAC is learned at ce1, **both leaves advertise an EVPN Type 2** route for h1's MAC, each with their own VTEP IP but the same ESI in the route. Remote PEs see two equal-cost paths to the same MAC and can ECMP traffic between them — true active-active.
+When h1's MAC is learned at ce1, **both leaves advertise an EVPN Type 2** route for h1's MAC, each with their own VTEP IP but the same ESI in the route. Remote PEs see two equal-cost paths to the same MAC and *can* ECMP traffic between them — this is the "true active-active" mechanism. What you can verify in cEOS-lab is the **control-plane evidence**: two Type 2 routes for the one MAC, one per VTEP, sharing the ESI. Whether the container actually hashes individual flows across both VTEPs in the data plane is the ASIC behaviour flagged in the cEOS caveat — on hardware it does; in a container, don't rely on observing real per-flow load-sharing.
 
 ## Peek at solution
 

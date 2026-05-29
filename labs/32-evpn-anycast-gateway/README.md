@@ -26,7 +26,23 @@ By the end you should be able to answer:
 
 ## Topology
 
-Same as lab 30: same VLAN 100 on both leaves, h1 on leaf1, h2 on leaf2.
+Same as [lab 30](../30-evpn-intro/README.md): one VLAN 100 / VNI 10100 stretched across both leaves over a routed (eBGP-over-/31) spine, h1 on leaf1, h2 on leaf2. The only new thing in this lab is the **anycast SVI** (`Vlan100`, `ip address virtual 10.10.10.254/24`, shared virtual MAC) on *both* leaves.
+
+```mermaid
+graph TD
+    spine1["spine1<br/>AS 65100<br/>lo 100.100.100.1"]
+    leaf1["leaf1 (VTEP 11.11.11.11)<br/>AS 65001<br/>anycast GW 10.10.10.254"]
+    leaf2["leaf2 (VTEP 22.22.22.22)<br/>AS 65002<br/>anycast GW 10.10.10.254"]
+    h1["h1<br/>10.10.10.10/24"]
+    h2["h2<br/>10.10.10.20/24"]
+
+    spine1 ---|10.0.1.0/31| leaf1
+    spine1 ---|10.0.2.0/31| leaf2
+    leaf1 ---|VLAN 100 access| h1
+    leaf2 ---|VLAN 100 access| h2
+```
+
+Both leaves present the SAME gateway IP (`10.10.10.254`) and SAME virtual MAC (`aa:bb:cc:00:00:01`) — that is the anycast gateway. h1 and h2 are in the same subnet but on different leaves; each host's gateway is its own local leaf.
 
 ## Theory primer
 
@@ -50,7 +66,7 @@ interface Vlan100
    ip address virtual 10.10.10.254/24
 ```
 
-No per-leaf `ip address X/24` is needed for this gateway purpose. (Some platforms require a unique per-leaf real IP plus the anycast IP; Arista's `address virtual` is the cleaner one-IP form.)
+On Arista, `ip address virtual` makes the anycast IP both the **primary and the virtual** address of the SVI. You must NOT also assign a real `ip address` on the same SVI — the two are mutually exclusive (EOS requires all real IPv4 addresses be removed from the interface before `ip address virtual` is accepted). Some other platforms model anycast as a unique per-leaf real IP *plus* a shared virtual IP; Arista's `ip address virtual` is the cleaner one-IP form.
 
 ### Shared virtual MAC
 
@@ -82,6 +98,8 @@ EVPN anycast gateway supersedes VARP in modern fabric designs. VARP remains rele
 2. Configure the EVPN VRF instance (RD/RT/redistribute connected) per lab 31.
 3. Verify both h1 and h2 see `10.10.10.254` as gateway with the same MAC.
 4. h1 ↔ h2 ping works (intra-subnet, via EVPN-stretched VLAN 100).
+
+> **Note on the L3 VNI (task #1 last bullet, task #2):** this lab has only **one** tenant subnet (`10.10.10.0/24`, VLAN 100). The L3 VNI (`vxlan vrf TENANT-A vni 50001`) and the EVPN VRF instance are plumbed here for completeness and consistency with the symmetric-IRB design from [lab 31](../31-evpn-type5/README.md), so this lab's leaf config is a clean superset you can build on — **but with a single subnet there is no inter-subnet traffic to route, so the Type-5 / L3-VNI path is inert and is not exercised by the verification below.** The verification here is limited to anycast gateway reachability (every leaf answers for `.254`) and L2 mobility over the stretched VLAN. To actually see the no-hairpin *inter-subnet* routing the L3 VNI provides, see lab 31 (Type-5 routing between two subnets).
 5. Bonus: shut leaf1 → h2 still reaches the gateway via leaf2's anycast presence (h1 would lose connectivity since its leaf is gone, but anycast on the remaining leaves continues serving everyone else).
 
 ## Hints
@@ -117,6 +135,8 @@ sudo containerlab deploy
 ```
 
 ## Verification
+
+> **Scope:** every step below is about the **anycast gateway itself** (each leaf answers for `.254` with the shared MAC) and **L2 mobility** over the stretched VLAN. The L3 VNI you configured is plumbed for consistency with lab 31 but is **not** exercised here — there is only one subnet (`10.10.10.0/24`), so there is no inter-subnet traffic to route through it. `show ip route vrf TENANT-A` will show only the directly-connected `10.10.10.0/24`; there is no remote tenant prefix to see. The no-hairpin *inter-subnet* benefit is demonstrated in lab 31.
 
 ### 1. Both leaves identical for the anycast gateway
 
@@ -195,7 +215,7 @@ Wait ~60s for EVPN to reconverge.
 
 ## Production deployment notes
 
-- **Pick the MAC carefully** — locally-administered range (`02:..` etc.). Document fabric-wide convention.
+- **Pick the MAC carefully** — use a locally-administered address (the U/L bit, i.e. the second-least-significant bit of the first octet, is set to 1). Both `02:..` and the `aa:bb:cc:00:00:01` used in this lab qualify — `0xaa` = `1010 1010`, so its U/L bit is set. Document a fabric-wide convention so every leaf uses the identical value.
 - **Consistency is critical** — every leaf hosting the subnet must have IDENTICAL virtual IP + MAC. Automation/config templates are essential.
 - **First-hop ACLs** must be consistent across leaves — otherwise traffic landing on different leaves gets treated differently.
 - **MTU consistency** — every leaf's SVI for the same VLAN should have the same MTU.

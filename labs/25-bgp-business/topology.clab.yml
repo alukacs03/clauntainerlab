@@ -4,8 +4,6 @@ topology:
   kinds:
     arista_ceos:
       image: ceos:4.35.4M
-    linux:
-      image: ghcr.io/srl-labs/network-multitool
 
   nodes:
     # YOU are the transit provider

@@ -66,6 +66,10 @@ Modern practice: pick the root explicitly. On Arista:
 
 Never set priority to 0 — leaves no headroom if you ever need to override.
 
+> **The +VLAN offset (sys-id-ext).** In Rapid-PVST/PVST the *effective* bridge priority is the configured priority **plus the VLAN number** (the "system ID extension"). So with VLAN 10, configuring `priority 4096` on sw1 makes `show spanning-tree` report **Priority 4106** (`priority 4096 sys-id-ext 10`); sw2's `8192` shows as **8202**; sw3's default `32768` shows as **32778**. The relative order is unchanged (sw1 < sw2 < sw3), so the election still goes the way you intend — but don't be surprised when the numbers on screen are 10 higher than what you typed.
+>
+> Arista also offers a shorthand macro: `spanning-tree root primary` / `spanning-tree root secondary`, which set **8192** and **16384** respectively. We set explicit numeric priorities (4096/8192) here so the bridge-ID arithmetic stays visible — on the job you may see either convention.
+
 ### Port roles (RSTP)
 
 After the tree converges, every trunk port has one of:
@@ -136,13 +140,13 @@ docker exec -it clab-stp-rstp-sw1 Cli
 show spanning-tree root
 ```
 
-The line listing "this bridge is the root" appears on exactly one switch. Repeat on sw2 and sw3 to confirm.
+This prints a **tabular** view (Instance / Priority / MAC / Cost / Hello / Max Age / Fwd Dly / Root Port). The **root bridge** is the one whose row shows **Cost 0** and an **empty Root Port** — it has no path "to" itself. The other two switches list a non-zero cost and a Root Port. Repeat on sw2 and sw3 to confirm they all agree on the same root MAC.
 
 ```
 show spanning-tree
 ```
 
-Note the "Role" column — find which port is `Altn` (alternate/blocked) — that's the loop-break.
+This is the verbose view, and it's the one that prints the literal line **"This bridge is the root"** (on whichever switch is root). Also note the "Role" column — find which port is `Altn` (alternate/blocked) — that's the loop-break.
 
 ### 2. Verify connectivity works despite the blocked port
 
@@ -160,7 +164,9 @@ Apply priorities (see Hints). Then on sw1:
 show spanning-tree root
 ```
 
-It should now say sw1 is the root. Check sw2 and sw3 — they should agree, and report sw1's bridge ID as root.
+sw1's row should now show **Cost 0** and an empty Root Port — it's the root. (Run `show spanning-tree` if you want to see the explicit "This bridge is the root" line.) Check sw2 and sw3 — they should agree, reporting sw1's MAC as the root and a Root Port pointing toward sw1.
+
+Note the priority you'll see: because of the +VLAN offset (sys-id-ext), `show spanning-tree` reports sw1's priority as **4106** (`priority 4096 sys-id-ext 10`), not the bare 4096 you typed — sw2 shows 8202, sw3 shows 32778. That's expected; see the primer's "+VLAN offset" note.
 
 ### 4. Watch the blocked port move (if it did)
 
@@ -221,7 +227,7 @@ You'll see BPDUs flowing roughly every 2 seconds. Inside each: root bridge ID, s
 - **BPDU** — control frames switches exchange to run STP. Sent every 2s by default. Carries root info, cost, sender ID, timers.
 - **Port roles**: Root (toward root), Designated (away from root on a segment this switch wins), Alternate (backup root path; blocked).
 - **Port states (RSTP)**: Discarding, Learning, Forwarding. (Classic STP also has Listening/Blocking — gone in RSTP.)
-- **Bridge priority increments** in steps of 4096 on most modern platforms. 4096 = primary root, 8192 = secondary, 32768 = default.
+- **Bridge priority increments** in steps of 4096 on most modern platforms. 4096 = primary root, 8192 = secondary, 32768 = default. In Rapid-PVST the VLAN number is added to this (sys-id-ext), so VLAN 10 displays 4106/8202/32778. Arista's `spanning-tree root primary|secondary` macro instead sets 8192/16384.
 - **Convergence**: RSTP < 1s on healthy P2P links. Classic STP ~50s. Always run RSTP or MSTP today.
 - **STP runs per VLAN by default on Arista** (Rapid-PVST style) — meaning each VLAN has its own tree and can have a different root. We use one VLAN here but that's a design lever for load-spreading on Cisco's PVST.
 

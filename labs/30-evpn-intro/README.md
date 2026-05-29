@@ -24,7 +24,20 @@ By the end you should be able to answer:
 
 ## Topology
 
-Same as lab 29: 1 spine, 2 leaves, hosts in same /24.
+Same physical topology as lab 29: 1 spine, 2 leaves, two hosts in the same `10.10.10.0/24`. The spine is a pure underlay router (eBGP, AS 65100) and is **not** a VTEP; the two leaves are the VTEPs (Loopback1 = VTEP source). VLAN 100 maps to VNI 10100 on both leaves.
+
+```mermaid
+graph TD
+    subgraph underlay["eBGP underlay (IPv4 + EVPN address-families)"]
+        spine1["spine1<br/>AS 65100<br/>router-id 100.100.100.1"]
+        leaf1["leaf1<br/>AS 65001<br/>VTEP 11.11.11.11"]
+        leaf2["leaf2<br/>AS 65002<br/>VTEP 22.22.22.22"]
+    end
+    spine1 ---|"eth1 ── eth1<br/>10.0.1.0/31"| leaf1
+    spine1 ---|"eth2 ── eth1<br/>10.0.2.0/31"| leaf2
+    leaf1 ---|"eth3 ── eth1"| h1["h1<br/>10.10.10.10/24<br/>VLAN 100 / VNI 10100"]
+    leaf2 ---|"eth3 ── eth1"| h2["h2<br/>10.10.10.20/24<br/>VLAN 100 / VNI 10100"]
+```
 
 ## Theory primer
 
@@ -52,7 +65,7 @@ Same BGP session can carry IPv4 (underlay) and EVPN (overlay). One TCP connectio
 
 The most common ones:
 
-- **Type 2 (MAC/IP)** — "VTEP X has host with MAC Y and IP Z in VNI N." Used for L2 forwarding learning and ARP suppression.
+- **Type 2 (MAC/IP)** — "VTEP X has host with MAC Y and (optionally) IP Z in VNI N." Used for L2 forwarding learning and ARP suppression. **Note for this lab:** there is no SVI / L3 gateway for VLAN 100 (it's a pure-L2 stretch using only `redistribute learned`), so the leaves never learn the host *IPs* — the Type 2 routes you'll see here are **MAC-only**, with a null IP field. The IP field only gets populated once an SVI does ARP-learning or an anycast gateway exists (lab 32), which is also why ARP suppression is deferred to later labs.
 - **Type 3 (Inclusive Multicast)** — "VTEP X is participating in VNI N. Send BUM frames for VNI N to me." Used to build the per-VNI flood list automatically.
 - **Type 5 (IP Prefix)** — "Prefix P is reachable via VTEP X." Used for L3 overlay / inter-VNI routing (lab 31).
 
@@ -181,7 +194,7 @@ Now:
 show bgp evpn route-type mac-ip
 ```
 
-Type 2 entries: h1's MAC at VTEP 11.11.11.11, h2's MAC at VTEP 22.22.22.22.
+Type 2 entries: h1's MAC at VTEP 11.11.11.11, h2's MAC at VTEP 22.22.22.22. The IP column will be blank/null — this lab has no SVI, so only MACs are advertised (see the Type 2 note in the Theory primer).
 
 ```
 show vxlan address-table

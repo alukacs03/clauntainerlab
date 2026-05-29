@@ -30,6 +30,19 @@ On Arista, eAPI is the easiest entry point because it accepts CLI commands wrapp
 - Arista-only → eAPI is convenient
 - New code today → gNMI (telemetry + config in one protocol)
 
+> **A note on "RESTCONF" in this lab.** EOS does have a real RESTCONF agent (`management api restconf`, exposing `/restconf/data/...` over YANG-modeled resources). This lab does **not** configure it — instead it uses **eAPI** (`management api http-commands`, JSON-RPC over HTTPS) as a practical, low-friction stand-in for "HTTPS-based programmatic config". eAPI is *not* RESTCONF: it sends CLI commands wrapped in JSON-RPC to `/command-api`, with no `/restconf/data` URIs and no YANG-modeled resource tree. Treat the RESTCONF row in the table above as conceptual context; true `management api restconf` is left as an extension (see *What's missing*).
+>
+> **A note on gNMI.** The solution config also enables `management api gnmi` (port 6030) purely as a reference — it is **not** exercised in this lab and the topology does **not** publish 6030, so it is unreachable from the host. The `ssl profile NONE` in that block means cleartext gRPC (a lab-only convenience; never do that in production). gNMI is covered properly in labs 49-50.
+
+## Topology
+
+```mermaid
+graph LR
+    client["client<br/>10.0.0.10/24"] ---|eth1 — Ethernet1| sw1["sw1<br/>10.0.0.1/24<br/>NETCONF :830 · eAPI :443"]
+```
+
+A trivial two-node line: one Linux client driving one cEOS switch over a shared /24. All programmatic access (NETCONF on 830, eAPI on 443) rides this single link.
+
 ## Goal
 
 - Enable NETCONF and eAPI on the switch
@@ -67,12 +80,32 @@ YANG describes the shape of the data. Two flavors:
 
 Production-ish pattern: write your tooling against OpenConfig where it exists; fall back to vendor-native for vendor-specific features.
 
+### eAPI and `"format"`
+
+eAPI wraps CLI commands in JSON-RPC. The `"format"` field controls the *response* encoding:
+- `"format": "json"` returns structured JSON — but only for commands that have a JSON model. Config-mode commands (`configure`, `interface ...`, `ip address ...`) return empty result objects and execute fine, and most `show` commands have a model too.
+- Some `show`/exec commands have **no** JSON converter. Requesting `"format": "json"` for one of those returns a JSON-RPC error like *"This is an unconverted command... use format text"*. For those, send `"format": "text"` and parse the raw CLI output yourself.
+
+Rule of thumb: `"format": "json"` is the right default; if you get an "unconverted command" error, switch that call to `"format": "text"`.
+
 ## Your task
 
 1. Configure NETCONF and eAPI on the switch (in solution).
 2. From the client, install ncclient (or curl for eAPI).
 3. Pull the running config via NETCONF.
 4. Push a config change via eAPI: add a loopback interface.
+
+> NETCONF here is used **read-only** (`get-config`). The config *push* is done via eAPI, not NETCONF `edit-config` — that (and candidate/commit datastore semantics) is deliberately left for a later lab. See *What's missing*.
+
+## Hints
+
+You're enabling two management agents and bringing the interface up — no routing protocols, no fancy features. CLI verbs to reach for:
+
+- Enter the NETCONF agent: `management api netconf`, then choose the SSH transport (`transport ssh default`).
+- Enter the eAPI agent: `management api http-commands`, select `protocol https`, then `no shutdown` it (eAPI ships disabled).
+- (Optional/reference) gNMI lives under `management api gnmi` with `transport grpc default`.
+- The data interface needs `no switchport` + an `ip address`, and `ip routing` must be on so the client's default route works.
+- From the client, NETCONF is `port 830` over SSH; eAPI is HTTPS on `443` at the `/command-api` path.
 
 ## Verification
 
@@ -90,6 +123,11 @@ from ncclient import manager
 
 with manager.connect(host="10.0.0.1", port=830, username="admin",
                      password="admin", hostkey_verify=False,
+                     # ncclient has no dedicated 'eos' handler; 'default' is the
+                     # generic handler and is sufficient for read-only get-config.
+                     # If you later move to candidate/commit edit-config, the
+                     # default handler may not map Arista's datastore semantics
+                     # cleanly — see "What's missing" below.
                      device_params={"name": "default"}) as m:
     config = m.get_config(source="running")
     print(config)
@@ -128,6 +166,8 @@ curl -k -u admin:admin -H "Content-Type: application/json" \
 
 ## What's missing (deliberately)
 
+- **NETCONF `edit-config`**: this lab pushes config via eAPI, not via NETCONF. The candidate → validate → commit → unlock datastore flow (and its rollback safety) is the natural next step but is out of scope here — get the read-only `get-config` working first.
+- **True RESTCONF** (`management api restconf`, `/restconf/data/...` over YANG-modeled resources): eAPI stands in for "HTTPS programmatic config" in this lab. The real RESTCONF agent is left as an extension.
 - **YANG model browsing** (`pyang`, `yanglint`)
 - **OpenConfig translation libraries** (`pyangbind`)
 - **Confirmed commit** with auto-rollback if not re-confirmed

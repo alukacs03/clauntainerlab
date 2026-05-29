@@ -148,7 +148,7 @@ show lldp
 
 You should see:
 - LLDP transmit interval: 30 seconds (default)
-- LLDP hold-time: 120 seconds
+- LLDP transmit holdtime: 120 seconds
 - Per-port "Tx Enabled / Rx Enabled" status
 
 ### 2. Walk the topology via LLDP

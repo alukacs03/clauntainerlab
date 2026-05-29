@@ -17,6 +17,10 @@ topology:
       exec:
         - ip addr add 10.0.0.100/24 dev eth1
         - mkdir -p /backups
+        # Pre-stage the device inventory the backup script reads.
+        # One device (eAPI address) per line; here just sw1 on 10.0.0.1.
+        - mkdir -p /etc/network-backups
+        - sh -c 'echo 10.0.0.1 > /etc/network-backups/devices.txt'
 
   links:
     - endpoints: ["backup-server:eth1", "sw1:eth1"]

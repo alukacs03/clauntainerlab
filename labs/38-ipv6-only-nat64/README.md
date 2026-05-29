@@ -1,6 +1,6 @@
 # Lab 38 — IPv6-Only Deployment with NAT64/DNS64
 
-> **Format:** Conceptual + setup-only. cEOS doesn't have a full NAT64 implementation, so this lab is partly architectural discussion. To hands-on a real NAT64, deploy Jool on a Linux box (instructions in the README).
+> **Format:** Conceptual + setup-only. cEOS doesn't have a full NAT64 implementation, so this lab is partly architectural discussion. To hands-on a real NAT64, deploy Jool on a Linux box (instructions in the README). Reference scaffolding in [`solutions/`](solutions/).
 >
 > **Story chapter:** Phase 7 · Senior · Year 4-5. Some of The Company's new customer offerings are IPv6-only by design. But the world still has IPv4-only services (think: legacy enterprise APIs, some SaaS endpoints). Customer needs to reach both. NAT64 + DNS64 is how. See [`STORY.md`](../../STORY.md).
 
@@ -14,7 +14,7 @@ The fix: **NAT64 (RFC 6146)** + **DNS64 (RFC 6147)**:
 
 Result: IPv6-only client reaches IPv4-only server, transparently.
 
-This is how T-Mobile USA's network operates for cellular data — IPv6-only on the radio, NAT64 to reach the IPv4 internet. It scales.
+This is how T-Mobile USA's network operates for cellular data: IPv6-only on the radio, using **464XLAT** (RFC 6877 — a CLAT on the handset plus a stateful NAT64 PLAT in the core) to reach the IPv4 internet. NAT64 is the core of that design (464XLAT is covered under "What's missing" below). It scales.
 
 ## Goal
 
@@ -89,8 +89,13 @@ Read this README. Understand the mechanism. Recognize when you'd deploy NAT64+DN
 
 ### Option B: Hands-on with Jool
 1. Replace `nat64gw` in `topology.clab.yml` with a Linux node running Jool.
-2. Install Jool (`apt install jool-tools jool-dkms`).
-3. Configure: `jool pool6 add 64:ff9b::/96` and `jool pool4 add 192.0.2.0/24`.
+2. Install Jool (`apt install jool-tools jool-dkms`) and load the module (`modprobe jool`).
+3. Create the NAT64 instance with its translation prefix, then add the IPv4 pool — exactly as in the Production options above:
+   ```bash
+   sudo jool instance add nat64 --netfilter --pool6 64:ff9b::/96
+   sudo jool pool4 add 192.0.2.0/24 1-65535
+   ```
+   Note: for stateful NAT64 the `--pool6` prefix is fixed at instance-creation time. `jool pool6 add` is a **stateless SIIT-mode** command and does *not* apply to stateful NAT64.
 4. Set up an IPv6-only DNS resolver (Unbound with `dns64-prefix: 64:ff9b::/96`).
 5. From h-v6, query the legacy IPv4 service by name; observe NAT64 in action.
 
@@ -102,6 +107,35 @@ The README + topology.clab.yml provides the scaffolding (IPv6 segment, IPv4 lega
 - **DS-Lite vs NAT64**: similar transition technologies, different mechanism (DS-Lite tunnels IPv4 over IPv6 instead of translating)
 - **Layered NAT64 + CGN** scenarios
 - **NAT64 HA/redundancy patterns**
+
+## Verification
+
+Even though cEOS doesn't run the NAT64 data plane, the IPv6-only / IPv4-only scaffolding *is* deployable and verifiable. Confirm the environment is wired correctly:
+
+1. **The IPv6-only host gets a SLAAC address from nat64gw's RA.** `h-v6` accepts Router Advertisements (`accept_ra=2`) on the `2001:db8:100::/64` segment:
+   ```bash
+   docker exec clab-ipv6-only-nat64-h-v6 ip -6 addr show eth1
+   ```
+   Expect a global `2001:db8:100::.../64` address (the host's EUI-64 / privacy SLAAC address) alongside the link-local `fe80::` address. If only the link-local appears, the RA isn't being received — check that nat64gw's Ethernet1 is up.
+
+2. **nat64gw is emitting Router Advertisements on the IPv6 side:**
+   ```bash
+   docker exec clab-ipv6-only-nat64-nat64gw Cli -c "show ipv6 nd ra interface Ethernet1"
+   ```
+   The RA interval should reflect the configured `ipv6 nd ra interval 4`.
+
+3. **nat64gw learns the IPv6-only host as a neighbor:**
+   ```bash
+   docker exec clab-ipv6-only-nat64-nat64gw Cli -c "show ipv6 neighbors"
+   ```
+   You should see h-v6's `2001:db8:100::/64` address on Ethernet1.
+
+4. **The IPv4 legacy side is reachable from nat64gw** (`legacy-v4` sits at `192.0.2.10/24` with `192.0.2.1` as its gateway):
+   ```bash
+   docker exec clab-ipv6-only-nat64-nat64gw Cli -c "ping 192.0.2.10"
+   ```
+
+What you will **not** see: end-to-end IPv6→IPv4 translation. There is no NAT64 data plane on cEOS, so `h-v6` cannot reach `192.0.2.10` through a `64:ff9b::` synthesized address in this topology. That requires the Jool path in Option B. The checks above confirm the two single-stack ends and the gateway scaffolding are correct — which is the goal of this lab.
 
 ## Cleanup
 

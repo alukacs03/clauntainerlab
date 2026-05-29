@@ -125,22 +125,15 @@ On provider:
 
 ## Hints
 
-```
-ip community-list NAME permit <asn>:<value>
+CLI verbs you'll need (figure out the structure yourself):
 
-route-map IN-FROM-X permit 10
-   set community <asn>:<value>
-   set local-preference <n>
+- `ip community-list` — define a named list that matches one of your `<asn>:<value>` tags.
+- `route-map ... permit` with `set community` / `set local-preference` — for inbound tagging.
+- `route-map ... permit` with `match community` — for outbound filtering. Remember a route-map with multiple `permit` sequences is an OR across the matched communities, so "send customer + peer + transit" needs more sequences than "send customer only".
+- `neighbor X route-map ... in` / `... out` — bind the maps per neighbor, per direction.
+- `neighbor X send-community` — communities are NOT advertised by default; enable explicitly.
 
-route-map OUT-TO-X permit 10
-   match community NAME-1
-route-map OUT-TO-X permit 20
-   match community NAME-2
-
-neighbor X route-map IN-FROM-X in
-neighbor X route-map OUT-TO-X out
-neighbor X send-community
-```
+All of the route-map / neighbor commands that touch advertised prefixes live under `address-family ipv4`.
 
 Verification (per neighbor):
 
@@ -281,7 +274,7 @@ clear ip bgp 192.0.2.6 soft out
   - LACNIC (Latin America)
   - AFRINIC (Africa)
 - **LIR (Local Internet Registry)** — sub-allocator under a RIR (typically a national ISP or large hosting provider). To get IPs/ASNs you usually become an LIR member or get a sub-allocation from one.
-- **ASN sizes**: 16-bit public ASNs (1–64511) are largely exhausted; new allocations are 32-bit (65536+). Private 16-bit: 64512–65535. Private 32-bit: 4200000000–4294967294.
+- **ASN sizes**: 16-bit public ASNs (1–64511) are largely exhausted; new allocations are 32-bit (65536+). Private 16-bit: 64512–65534 (per RFC 6996; AS 65535 and the 65535-prefixed block are reserved, not private-use). Private 32-bit: 4200000000–4294967294. Note that AS 0, AS 23456 (AS_TRANS), and AS 64496–64511 are also reserved within the 16-bit space.
 
 ## IRR & RPKI for prefix-filter generation
 

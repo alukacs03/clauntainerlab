@@ -20,8 +20,9 @@ add interface=wg-to-a \
     public-key="REPLACE_WITH_RTR_A_PUBLIC_KEY" \
     endpoint-address=198.51.100.1 \
     endpoint-port=51820 \
-    allowed-address=172.16.0.0/30,10.10.10.0/24 \
-    persistent-keepalive=25s
+    allowed-address=172.16.0.0/30,10.10.10.0/24
+    # Both ends public here, so no keepalive. Add `persistent-keepalive=25s`
+    # only if this end is behind NAT (see rtr-a solution for the rationale).
 
 /ip route
 add dst-address=10.10.10.0/24 gateway=172.16.0.1

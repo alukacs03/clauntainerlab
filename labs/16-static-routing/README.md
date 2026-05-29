@@ -28,10 +28,10 @@ By the end you should be able to answer:
 
 ```mermaid
 graph LR
-    h1[h1<br/>10.10.10.10] --> sw1
-    sw1 ==Et2 primary==.192.168.12.0/30== sw2
-    sw1 -.Et3 backup..192.168.13.0/30.- sw2
-    sw2 --> h2[h2<br/>10.20.20.10]
+    h1[h1<br/>10.10.10.10] --- sw1
+    sw1 == Et2 primary 192.168.12.0/30 === sw2
+    sw1 -. Et3 backup 192.168.13.0/30 .- sw2
+    sw2 --- h2[h2<br/>10.20.20.10]
 ```
 
 Two L3 switches, two parallel /30 transit links, two host LANs at the edges.
@@ -63,15 +63,17 @@ ip route 10.20.20.0/24 192.168.12.2          ! default AD 1
 ip route 10.20.20.0/24 192.168.13.2 200      ! AD 200, "floats" above
 ```
 
+> The 200 here is just "comfortably above the AD-1 primary" — any value 2–254 would float above it equally well. It happens to equal the iBGP default AD from the table above, but that's a coincidence: no BGP runs in this lab, so there's nothing for it to collide with.
+
 Only the AD-1 route is installed in the FIB while its next-hop is reachable. If 192.168.12.2 stops being reachable (next-hop ARP failure, interface down), the route is removed; the AD-200 route gets installed.
 
 ### "Next-hop reachable" — what counts
 
 A static route stays installed as long as the **next-hop is reachable on a directly connected interface**. Specifically:
 
-- If the next-hop IP is in a connected subnet whose interface is up, ARP succeeds, route stays.
-- If the interface goes down (admin or physical), connected route disappears, next-hop becomes unreachable, static is removed.
-- If the interface stays up but the device beyond it (e.g., sw2 reboots silently without the link going down — rare in modern Ethernet but possible on virtual links) — ARP eventually fails, the next-hop's ARP entry ages out, static is removed.
+- If the next-hop IP sits in a **connected subnet whose interface is up**, that connected route resolves the next-hop and the static stays installed.
+- If the interface goes down (admin or physical), the connected route disappears, the next-hop is no longer resolvable, and EOS removes the static.
+- If the interface stays up but the device beyond it dies silently (e.g., sw2 reboots without the link dropping — rare on real fiber, possible on virtual links): EOS **keeps the static installed** because the connected /30 is still up and the next-hop is still considered resolvable. ARP to a dead next-hop just fails and the traffic is blackholed — the route does *not* get pulled from the FIB on ARP aging alone. This is exactly the blind spot Verification step 5 demonstrates.
 
 What static routing does NOT detect:
 - The path BEYOND the next-hop is broken (next-hop is up but it can't reach the destination).
@@ -248,8 +250,8 @@ interface Ethernet1
 - **Always document your static routes** in the config with descriptions/comments. Three months later you won't remember why `ip route 0.0.0.0/0 1.2.3.4 200` exists.
 - **Avoid static routes for prefixes that also come from dynamic protocols** unless you have a clear reason (e.g. last-resort). Otherwise debugging is "which one is winning today?"
 - **Watch the next-hop interface** — pointing a static at an interface (`ip route 10.0.0.0/24 Ethernet1`) instead of an IP behaves differently for ARP — usually want IP for routed paths.
-- **Floating statics over dynamic protocols** — set AD above the protocol's. For OSPF, ≥110. For iBGP, ≥200. For "above everything", ≥255 (effectively "never use unless I tell you").
-- **Don't use AD 255** for floating statics — at 255 the route is treated as "unreachable forever" and will never enter the FIB.
+- **Floating statics over dynamic protocols** — set AD above the protocol's. For OSPF, ≥111. For iBGP, ≥201. Pick a value comfortably above the protocol you want to override, but leave headroom below 255.
+- **The AD-255 caveat is vendor-dependent.** On Cisco IOS, a static with AD 255 is treated as "unreachable" and never enters the FIB — so it's a poison-distance, not a floating distance. On Arista EOS, `ip route` accepts the full **1–255** range with no special-casing of 255 for static routes (the "distance 255 = not in the table" rule applies only to BGP). To stay portable and unambiguous, prefer a high-but-not-255 value (e.g. 250) for floating statics. This lab uses **AD 200** — chosen simply as "comfortably above the AD-1 primary"; any value 2–254 floats above the primary here.
 
 ## What's missing (deliberately)
 

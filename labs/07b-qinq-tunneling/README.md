@@ -1,14 +1,14 @@
 # Lab 07b — QinQ / 802.1ad Tunneling
 
-> **Format:** Hands-on. Two provider switches and two customer switches. Customer-side VLAN structure travels across the provider transparently. Reference answer in [`solutions/`](solutions/).
+> **Format:** Hands-on configuration pattern + concept-heavy. Two provider switches and two customer switches. Customer-side VLAN structure travels across the provider transparently. **cEOS limitation:** `dot1q-tunnel` (QinQ) is a data-plane tag-stacking feature — the switch must push an outer S-tag on ingress and pop it on egress in the forwarding ASIC. cEOS containers run a software/limited data plane and do **not** perform QinQ encapsulation, so the syntax is accepted but **not enforced**: the end-to-end pings will *not* pass and a capture on the pe1↔pe2 link will *not* show genuine double-tagged frames. The config, the model, and the frame-walk are the learning goal — production hardware (7280R / 7500R / 7800R) enforces. See the note at the top of [Verification](#verification). Reference answer in [`solutions/`](solutions/).
 >
-> **Story chapter:** Phase 2 · Junior+ · Month 6. A new customer onboards: "CompanyX". They have their own internal VLAN structure (VLANs 10, 20, 30) at two of their offices and want connectivity between the offices through The Company's network — *while keeping their own VLAN IDs unchanged*. You can't reassign their VLAN IDs because VLAN 10 is already used by three other customers in your network. Solution: QinQ. See [`STORY.md`](../../STORY.md).
+> **Story chapter:** Phase 2 · Junior+ · Month 6. A new customer onboards: "CompanyX". They have their own internal VLAN structure (VLANs 10, 20) at two of their offices and want connectivity between the offices through The Company's network — *while keeping their own VLAN IDs unchanged*. You can't reassign their VLAN IDs because VLAN 10 is already used by three other customers in your network. Solution: QinQ. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
 
-CompanyX is opening a second office. They use VLANs 10/20/30 internally for user/server/management. They want their existing infrastructure to extend to the second office as if it were one network.
+CompanyX is opening a second office. They use VLANs 10 (users) and 20 (servers) internally. They want their existing infrastructure to extend to the second office as if it were one network.
 
-The naive approach: "just put their traffic on VLANs 10/20/30 in our fabric." Problems:
+The naive approach: "just put their traffic on VLANs 10/20 in our fabric." Problems:
 - You also have CustomerY using VLAN 10 for a different subnet. They'd merge.
 - You'd run out of the 4094-VLAN space fast as customers multiply.
 - Every customer onboarding requires VLAN renumbering on their side. They'll refuse.
@@ -103,23 +103,34 @@ In practice most provider deployments use `0x8100` for both (works fine for tran
 - Some platforms can detect/distinguish provider vs customer tags by TPID
 - Compliance with IEEE 802.1ad strictly
 
-On Arista:
+On Arista, the TPID is set on the **provider backbone / NNI port** (not the tunnel port):
 
 ```
 interface Ethernet1   ! provider backbone port
    switchport dot1q ethertype 0x88a8
 ```
 
-This lab uses default 0x8100 to keep it simple.
+> **Platform note:** Per the EOS User Guide v4.36.0F §13.3.2.2.3 / §13.3.3.2.3, the `switchport dot1q ethertype` (configurable TPID) feature is available **only on 7280E and 7500E platforms** — and once `dot1q-tunnel` is enabled on an interface, a configured TPID becomes irrelevant. On cEOS this command is likely **rejected** with no equivalent, so don't be surprised if it doesn't take. This lab uses the default `0x8100` to keep it simple and portable.
 
 ### MTU on the provider backbone
 
-Adding an outer 802.1Q tag adds **4 bytes** to the frame. A standard 1500-byte payload frame is 1518 bytes on the wire (1500 + 14 Eth header + 4 FCS). With QinQ:
+Adding an outer 802.1Q tag adds **4 bytes** to the frame. Two different numbers matter here, and it's easy to conflate them:
 
-- Standard frame: 1500 + 14 + 4 (C-tag) + 4 (FCS) = 1522 bytes
-- QinQ-wrapped: 1500 + 14 + 4 (C-tag) + 4 (S-tag) + 4 (FCS) = **1526 bytes**
+**Frame size on the wire** (the total bytes physically transmitted, including Ethernet header, VLAN tags and FCS):
 
-If the provider's transit MTU is exactly 1518, your QinQ frames get fragmented or dropped. Fix: **set provider transit MTU to 1526 or higher** (1600+ is conventional). For modern jumbo-capable transit (9000+), no issue.
+- Single C-tagged frame: 1500 payload + 14 Eth header + 4 (C-tag) + 4 (FCS) = 1522 bytes
+- QinQ-wrapped frame: 1500 payload + 14 Eth header + 4 (C-tag) + 4 (S-tag) + 4 (FCS) = **1526 bytes**
+
+**The configurable interface `mtu`** is a *different* value. On Arista (and essentially all platforms) the interface `mtu` is the **L3/payload MTU** (default 1500) and **excludes** the Ethernet header, VLAN tags and FCS. So you do *not* configure `mtu 1526`. To carry a customer's 1500-byte payload with one extra S-tag, bump the provider transit payload MTU from 1500 to at least **1504** (1500 payload + the 4-byte outer tag the platform now accounts for), e.g.:
+
+```
+interface Ethernet1
+   mtu 1504        ! or a generous jumbo value such as 9214
+```
+
+If the provider's transit MTU is left at 1500, your QinQ frames can be dropped as oversized once the S-tag is added. Fix: **set provider transit payload MTU to at least 1504** (jumbo, e.g. 9214, is conventional and avoids the whole problem). For modern jumbo-capable transit, no issue.
+
+> Rule of thumb: think "**1526 bytes on the wire** ⇒ **≥1504 payload MTU configured**." Don't type the wire figure into the `mtu` command.
 
 ### QinQ vs more modern alternatives
 
@@ -139,10 +150,12 @@ For a small provider doing point-to-point connections, QinQ is a fine, low-compl
    - Make **Et2** (the customer-facing port) a **dot1q-tunnel** port with access VLAN 500 (the S-VLAN).
    - Make **Et1** (the provider backbone trunk) a regular trunk allowing VLAN 500.
 2. Leave **ce1** and **ce2** alone — they're just running ordinary trunks to "their uplink". They don't know QinQ is happening.
-3. Verify end-to-end:
-   - h1 ↔ h2 (both in CompanyX's VLAN 10) should ping
-   - h3 ↔ h4 (both in CompanyX's VLAN 20) should also ping (proves both customer VLANs traverse)
-   - h1 ↔ h4 should **NOT** ping (different VLANs, different subnets, no inter-VLAN routing in CompanyX's network)
+3. Verify the configuration is accepted and the control-plane state is correct (`show interfaces Ethernet2 switchport` reports `dot1q-tunnel`, `show vlan 500` shows the right members). On **production hardware** the goal state would then be:
+   - h1 ↔ h2 (both in CompanyX's VLAN 10) ping
+   - h3 ↔ h4 (both in CompanyX's VLAN 20) ping (proves both customer VLANs traverse)
+   - h1 ↔ h4 do **NOT** ping (different VLANs, different subnets, no inter-VLAN routing in CompanyX's network)
+
+   On **cEOS** the data-plane tunnel push/pop is not enforced, so the first two pings will fail even with a correct config — see the limitation note in [Verification](#verification). The learning goal here is the config + the model, not the cEOS ping result.
 
 ## Hints
 
@@ -161,13 +174,13 @@ show vlan
 show interfaces <intf> switchport
 ```
 
-For inspecting frames on the wire (the satisfying part):
+For inspecting frames on the wire (the satisfying part — *on production hardware*):
 
 ```bash
 sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' clab-qinq-tunneling-pe1) -n tcpdump -i eth1 -nn -e vlan
 ```
 
-The capture will show **double-tagged frames** with both the outer S-tag (500) and the inner C-tag (10 or 20).
+On real hardware the capture shows **double-tagged frames** with both the outer S-tag (500) and the inner C-tag (10 or 20). On cEOS the tunnel data plane is not enforced, so you won't see stacked tags here — see the limitation note at the top of [Verification](#verification).
 
 ## Deploy
 
@@ -178,15 +191,22 @@ sudo containerlab deploy
 
 ## Verification
 
-### 1. Before QinQ — no end-to-end
+> **⚠️ cEOS limitation — read before you ping.** `dot1q-tunnel` is a data-plane push/pop feature implemented in the forwarding ASIC on production hardware. cEOS containers run a software/limited data plane and **do not** perform QinQ encapsulation. The config below is **accepted** (it parses, and the control-plane / `show` state looks right), but it is **not enforced** in the container data plane. Concretely:
+>
+> - The end-to-end pings in step 3 will **not** pass on cEOS — there is no working tunnel push/pop, so CompanyX's frames are not actually carried.
+> - The capture in step 5 will **not** show genuine double-tagged (S-tag 500 + C-tag 10/20) frames on the pe1↔pe2 link.
+>
+> This is the same class of limitation flagged in lab 06 (storm-control), lab 43 (LLDP-MED) and lab 47 (PFC/ETS): the **syntax, the model, and the frame-walk are the learning goal**, and production hardware (7280R / 7500R / 7800R) enforces. Steps 1, 2 and 4 below *do* work on cEOS (config acceptance, `show` state, and the cross-VLAN negative case). Steps 3, 5 and 6 describe what production hardware does and explicitly note what you'll actually see on cEOS.
+
+### 1. Before QinQ — no end-to-end (works on cEOS)
 
 ```bash
 docker exec clab-qinq-tunneling-h1 ping -c 2 10.10.10.20
 ```
 
-❌ Fails — pe1 doesn't know what to do with CompanyX's tagged traffic on a port that isn't configured as a tunnel.
+❌ Fails — pe1's customer-facing port isn't configured as a tunnel yet, so CompanyX's tagged traffic has nowhere to go.
 
-### 2. Apply dot1q-tunnel configuration
+### 2. Apply dot1q-tunnel configuration and check control-plane state (works on cEOS)
 
 After applying the config on pe1 and pe2:
 
@@ -195,7 +215,7 @@ docker exec -it clab-qinq-tunneling-pe1 Cli
 show interfaces Ethernet2 switchport
 ```
 
-Should show `Switchport: Enabled`, `Operational Mode: dot1q-tunnel`, `Access Mode VLAN: 500`.
+Should show `Switchport: Enabled`, `Operational Mode: dot1q-tunnel`, `Access Mode VLAN: 500`. **This is the part cEOS does give you** — the configuration is accepted and the port reports tunnel mode, even though the data-plane encapsulation won't actually happen.
 
 ```
 show vlan 500
@@ -203,16 +223,20 @@ show vlan 500
 
 VLAN 500 should be active with Et1 (trunk) and Et2 (tunnel) as members.
 
-### 3. End-to-end pings
+### 3. End-to-end pings (production hardware; will NOT pass on cEOS)
+
+On real hardware:
 
 ```bash
 docker exec clab-qinq-tunneling-h1 ping -c 3 10.10.10.20   # h1 → h2, VLAN 10
 docker exec clab-qinq-tunneling-h3 ping -c 3 10.20.20.20   # h3 → h4, VLAN 20
 ```
 
-Both ✅. CompanyX's two offices are now L2-connected on both VLANs through the provider.
+On production gear both succeed — CompanyX's two offices are L2-connected on both VLANs through the provider, because the PE pushes/pops the S-tag in the forwarding ASIC.
 
-### 4. Cross-VLAN should still NOT work
+**On cEOS these pings fail** (`100% packet loss`) because the container data plane does not perform the QinQ push/pop. That's expected — it does **not** mean your config is wrong. Confirm your config matches `solutions/` and move on; the encapsulation behaviour can only be validated on hardware.
+
+### 4. Cross-VLAN should still NOT work (works on cEOS)
 
 ```bash
 docker exec clab-qinq-tunneling-h1 ping -c 2 10.20.20.20
@@ -223,27 +247,33 @@ docker exec clab-qinq-tunneling-h1 ping -c 2 10.20.20.20
 - Different VLANs — CompanyX hasn't deployed inter-VLAN routing
 - QinQ doesn't bridge customer VLANs together; it only tunnels them transparently
 
-### 5. Capture the double-tagged frame
+(This one fails on cEOS too — but for the *right* reason, regardless of whether the tunnel data plane works.)
+
+### 5. The double-tagged frame (production hardware; not visible on cEOS)
+
+On production hardware you'd capture the pe1↔pe2 backbone link:
 
 ```bash
 sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' clab-qinq-tunneling-pe1) -n tcpdump -i eth1 -nn -e vlan
 ```
 
-Run a ping from h1 → h2 in another terminal. The capture should show:
+…run a ping from h1 → h2, and see a genuinely double-tagged frame:
 
 ```
 ... vlan 500, p 0, ethertype 802.1Q, vlan 10, p 0, ethertype IPv4, ...
 ```
 
-**Two VLAN tags in one frame.** The outer 500 is what pe1↔pe2 forwarding uses. The inner 10 is CompanyX's tag, completely untouched in the transit.
+**Two VLAN tags in one frame.** The outer 500 is what pe1↔pe2 forwarding uses; the inner 10 is CompanyX's tag, completely untouched in transit.
 
-### 6. Observe the strip-and-restore on the customer side
+**On cEOS you will not see this** — because the container data plane never pushes the outer S-tag, there are no stacked frames to capture. The frame-walk in the Theory primer above is the takeaway; the wire-level proof requires hardware.
+
+### 6. Strip-and-restore on the customer side (production hardware)
 
 ```bash
 sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' clab-qinq-tunneling-ce1) -n tcpdump -i eth1 -nn -e vlan
 ```
 
-On the link ce1↔pe1 (the customer side), you'll see only **single-tagged** frames (VLAN 10 or 20). The S-tag is added at the dot1q-tunnel port on pe1's side.
+On real hardware, the link ce1↔pe1 (the customer side) shows only **single-tagged** frames (VLAN 10 or 20). The S-tag is added/removed at the dot1q-tunnel port on pe1's side — so the customer never sees the provider's S-VLAN. (Again, the S-tag asymmetry between the two links is a hardware data-plane behaviour, not reproducible on cEOS.)
 
 ## Peek at solution
 
@@ -255,7 +285,7 @@ On the link ce1↔pe1 (the customer side), you'll see only **single-tagged** fra
 - **S-VLAN** — service provider's VLAN tag (outer, added at the tunnel port)
 - **dot1q-tunnel port** — adds the S-tag on ingress, strips on egress; preserves the inner tag transparently
 - **TPID 0x88a8** — IEEE 802.1ad-compliant S-tag identifier (vs default 0x8100)
-- **MTU planning** — the extra S-tag adds 4 bytes; provider transit needs ≥ 1522 bytes (or jumbo)
+- **MTU planning** — the extra S-tag adds 4 bytes; a QinQ frame is **1526 bytes on the wire**, so set the provider transit *payload* `mtu` to **≥ 1504** (default 1500 is too small) — or just use jumbo. Don't confuse the wire figure (1526) with the configured payload MTU (≥1504).
 - **Point-to-point only** — QinQ wraps customer's frames between two tunnel ports; not a multipoint L2 service
 
 ## Production deployment notes

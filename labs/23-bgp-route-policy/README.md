@@ -148,7 +148,8 @@ For a transit provider:
 4. Inbound from ISP2: same but community `65001:102` and local-preference 100.
 5. Outbound to BOTH ISPs: only advertise OUR-PREFIXES. Implicit deny on everything else.
 6. Enable `send-community` on both neighbors so the tags propagate.
-7. Verify: bogons are filtered, your own prefix isn't re-accepted, ISP1 is preferred (lp 200 > 100), and you don't transit between ISPs.
+7. Enable `soft-reconfiguration inbound` on both neighbors so you can inspect the **pre-policy** routes (`received-routes`) and prove the bogons arrived and were filtered — not silently never-sent.
+8. Verify: bogons are filtered, your own prefix isn't re-accepted, ISP1 is preferred (lp 200 > 100), and you don't transit between ISPs.
 
 ## Hints
 
@@ -180,6 +181,7 @@ Apply:
 ```
 neighbor X route-map NAME { in | out }
 neighbor X send-community
+neighbor X soft-reconfiguration inbound all   ! retain pre-policy Adj-RIB-In
 ```
 
 Verification:
@@ -190,10 +192,18 @@ show ip community-list
 show route-map
 show ip bgp                                  ! see filtered RIB
 show ip bgp 1.0.0.0/24                       ! detail (incl. community)
-show ip bgp neighbors X advertised-routes    ! what YOU send
-show ip bgp neighbors X received-routes      ! what THEY send (pre-policy)
+show ip bgp neighbors X advertised-routes    ! what YOU send (post-outbound-policy)
+show ip bgp neighbors X received-routes      ! what THEY send (pre-inbound-policy)
 show ip bgp regexp <pattern>                 ! filter by AS-path regex
 ```
+
+> **`received-routes` needs soft-reconfiguration.** On Arista EOS the
+> pre-inbound-policy view (`received-routes`) only exists if you retain the
+> raw Adj-RIB-In with `neighbor X soft-reconfiguration inbound all`. Without
+> it, EOS discards anything your inbound route-map denied, so `received-routes`
+> comes back empty or misleading — you'd never see the bogons "arrive then get
+> dropped". The reference solution enables it on both neighbors so the
+> before/after comparison in Verification actually works.
 
 ## Deploy
 
@@ -234,6 +244,13 @@ show ip bgp
 ```
 
 Bogons gone. Your own /24 is no longer accepted from either ISP. Each remaining route is tagged with its source community.
+
+Prove the bogons *arrived and were filtered* (not simply never sent) by comparing the pre-policy and post-policy views — this only works because the solution enabled `soft-reconfiguration inbound all`:
+
+```
+show ip bgp neighbors 198.51.100.2 received-routes   ! pre-policy: 0.0.0.0/8, 192.168.0.0/16, 203.0.113.0/24 all present
+show ip bgp                                          ! post-policy: those are gone
+```
 
 ```
 show ip bgp 1.0.0.0/24
@@ -322,7 +339,16 @@ router bgp 65001
    address-family ipv4
       neighbor 198.51.100.2 route-map TO-ISP out
       neighbor 198.51.100.6 route-map TO-ISP out
+
+clear ip bgp 198.51.100.2 soft out
+clear ip bgp 198.51.100.6 soft out
 ```
+
+The `soft out` clear is essential: EOS does **not** automatically re-run
+outbound policy just because you re-attached the route-map. Without it the
+previously-leaked ISP1 prefixes (`1.0.0.0/24`, `8.8.8.0/24`) keep lingering on
+ISP2 and your "I fixed the leak" check still shows them. Re-check ISP2 after
+the clear and confirm only `203.0.113.0/24` remains.
 
 ### 6. Try a community-based action
 
@@ -335,7 +361,15 @@ route-map ADJUST-LP permit 10
 route-map ADJUST-LP permit 100
 ```
 
-Apply somewhere in your processing chain. This shows how communities carry policy intent through the network — you make a decision on one router, others can act on the tag downstream.
+**On this single-router topology this is illustrative only — there's no second
+hop to apply it to.** The whole point of communities is *decouple* the tag
+(set inbound, here) from the action (taken elsewhere). With one router and a
+single inbound point, "match the community I just set in the same inbound
+clause" is circular — `FROM-ISP2` already sets local-preference 100 directly,
+so a separate `ADJUST-LP` adds nothing here. Read the clauses above and
+understand the *match community → set* shape; it becomes genuinely useful once
+you have an iBGP fabric where the ingress router tags and a different egress
+router acts on the tag (labs 24 and 25).
 
 ## Peek at solution
 
@@ -349,7 +383,8 @@ Apply somewhere in your processing chain. This shows how communities carry polic
 - **send-community** — must be explicitly enabled per neighbor; off by default.
 - **Inbound policy (`route-map ... in`)** — filter what you accept.
 - **Outbound policy (`route-map ... out`)** — filter what you advertise.
-- **`clear ip bgp X soft in/out`** — apply policy changes without dropping the TCP session.
+- **`clear ip bgp X soft in/out`** — apply policy changes without dropping the TCP session. A `soft out` clear is also what forces EOS to re-run outbound policy after you re-attach a route-map.
+- **`soft-reconfiguration inbound`** — retains the raw pre-policy Adj-RIB-In so `received-routes` shows what the peer actually sent before your inbound filter ran. Costs memory; off by default.
 - **Implicit deny** — anything not explicitly permitted by a route-map is dropped.
 
 ## Production tips
@@ -360,7 +395,7 @@ Apply somewhere in your processing chain. This shows how communities carry polic
 - **Use community-driven design** — set tags inbound, act on tags everywhere else. Decouples discovery from action.
 - **Use `bgp maximum-routes` and `neighbor X maximum-routes`** to limit how many prefixes a neighbor can advertise — protects against accidental floods.
 - **Use IRR/RPKI validation** for prefix-list generation — see lab 25.
-- **Test policy in staging** — apply soft-clear, verify diff with `show ip bgp neighbors X received-routes`, then production.
+- **Test policy in staging** — apply soft-clear, verify the diff with `show ip bgp neighbors X received-routes` (this requires `soft-reconfiguration inbound`, which keeps the raw Adj-RIB-In in memory), then production. Many shops leave soft-reconfig off to save RAM and instead use BGP route-refresh / `show ... received-routes` only on demand.
 - **Don't `clear ip bgp *`** in production — that resets every session at once. Use targeted clears.
 
 ## What's missing (deliberately)

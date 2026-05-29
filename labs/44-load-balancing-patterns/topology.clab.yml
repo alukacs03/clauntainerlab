@@ -21,8 +21,7 @@ topology:
       binds:
         - configs/backend1-frr.conf:/etc/frr/frr.conf
       exec:
-        - sh -c "echo 'bgpd=yes' >> /etc/frr/daemons"
-        - sh -c "echo 'zebra=yes' >> /etc/frr/daemons"
+        - sh -c "sed -i 's/^bgpd=no/bgpd=yes/; s/^zebra=no/zebra=yes/' /etc/frr/daemons"
         - /usr/lib/frr/frrinit.sh start
         - ip addr add 10.0.1.10/24 dev eth1
         - ip addr add 10.99.99.1/32 dev lo
@@ -34,8 +33,7 @@ topology:
       binds:
         - configs/backend2-frr.conf:/etc/frr/frr.conf
       exec:
-        - sh -c "echo 'bgpd=yes' >> /etc/frr/daemons"
-        - sh -c "echo 'zebra=yes' >> /etc/frr/daemons"
+        - sh -c "sed -i 's/^bgpd=no/bgpd=yes/; s/^zebra=no/zebra=yes/' /etc/frr/daemons"
         - /usr/lib/frr/frrinit.sh start
         - ip addr add 10.0.2.10/24 dev eth1
         - ip addr add 10.99.99.1/32 dev lo
@@ -47,8 +45,7 @@ topology:
       binds:
         - configs/backend3-frr.conf:/etc/frr/frr.conf
       exec:
-        - sh -c "echo 'bgpd=yes' >> /etc/frr/daemons"
-        - sh -c "echo 'zebra=yes' >> /etc/frr/daemons"
+        - sh -c "sed -i 's/^bgpd=no/bgpd=yes/; s/^zebra=no/zebra=yes/' /etc/frr/daemons"
         - /usr/lib/frr/frrinit.sh start
         - ip addr add 10.0.3.10/24 dev eth1
         - ip addr add 10.99.99.1/32 dev lo

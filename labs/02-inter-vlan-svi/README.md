@@ -190,17 +190,17 @@ Re-test the cross-VLAN ping. It will fail even though all interfaces are up. Sam
 sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' clab-inter-vlan-svi-sw1) -n tcpdump -i eth3 -nn -e vlan
 ```
 
-Run `h3 → h2` ping from another terminal: `docker exec clab-inter-vlan-svi-h3 ping 10.20.20.2`.
-
-You'll see frames going **both directions** on the trunk, with **different VLAN tags**:
-- h3 → sw1: tagged VLAN 10 (frame coming up to be routed)
-- sw1 → h2: doesn't cross trunk (h2 is on sw1 directly). But h3 → h4 *would* show both VLAN 10 (request leg) and VLAN 20 (reply leg).
-
-Try `h3 → h4`:
+The clearest "two different tags on one wire" demo is `h3 → h4`, because the request and reply ride the trunk in **different VLANs**:
 ```bash
 docker exec clab-inter-vlan-svi-h3 ping 10.20.20.4
 ```
-Now you see VLAN 10 *and* VLAN 20 frames on the same wire — one hop routed through sw1.
+- h3 → sw1: tagged **VLAN 10** (request coming up to be routed; h3 lives in VLAN 10)
+- sw1 → h4: tagged **VLAN 20** (sw1 routed it into VLAN 20, sends it back across the trunk to reach h4 on sw2)
+
+So you see VLAN 10 *and* VLAN 20 frames on the same wire — one hop routed through sw1.
+
+Now contrast with `h3 → h2`: `docker exec clab-inter-vlan-svi-h3 ping 10.20.20.2`.
+Here you'll see **VLAN 10 in *both* directions** on the trunk, not two different tags. h3 (VLAN 10) is the only endpoint reached across the trunk — h2 sits on sw1 directly — so every trunk-crossing frame (request *and* echo-reply) is tagged VLAN 10. The routing into VLAN 20 happens entirely inside sw1 and never touches the wire you're sniffing.
 
 ## Peek at solution
 

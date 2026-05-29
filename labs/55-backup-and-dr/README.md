@@ -22,7 +22,7 @@ With preparation:
 4. Validation tests run before traffic flows
 5. 25 minutes from "switch installed" to "service restored"
 
-This lab builds the backup half. A source-of-truth system (NetBox or equivalent — deferred to a future dedicated chapter; see `TODO.md`) is the inventory half. Together they make recovery boring.
+This lab builds the backup half. A source-of-truth/inventory system (NetBox or equivalent) is the other half. That dedicated chapter isn't written yet — it's deliberately deferred (tracked in `TODO.md`), not assumed to exist elsewhere in the curriculum. So for *this* lab the **git-backed config is the source of truth**: the runbook's "pull from NetBox" steps describe the eventual workflow, but everything you actually need to recover sw1 lives in the git repo you build here.
 
 ## Goal
 
@@ -30,6 +30,20 @@ This lab builds the backup half. A source-of-truth system (NetBox or equivalent 
 - Diff alerts on unexpected changes (drift detection)
 - ZTP procedure documented
 - Validated recovery playbook
+
+## Topology
+
+A deliberately minimal topology: one switch to back up, and the backup server
+that pulls its config over eAPI and commits it to git.
+
+```mermaid
+graph LR
+    bsrv["backup-server<br/>10.0.0.100/24<br/>(git + cron)"] ---|eth1| sw1["sw1<br/>10.0.0.1/24<br/>(eAPI over HTTPS)"]
+```
+
+The backup server reaches sw1's eAPI at `https://10.0.0.1/command-api`. In a real
+fabric you would back up every leaf and spine; the script loops over a device list,
+so adding devices is just adding lines to that list.
 
 ## Theory primer
 
@@ -92,12 +106,76 @@ Automate. The on-call engineer doesn't remember the checklist at 03:00.
 
 ## Your task
 
-1. Read `solutions/backup-configs.sh`. Understand each step.
-2. Set up a cron job (on the backup server in the lab) to run it daily.
-3. Modify the switch config; rerun backup; observe the git commit.
-4. Sketch your own recovery runbook. Reference the runbook template in `docs/practice/templates/`.
+The goal state: a git repo on the backup server that holds sw1's running-config,
+updated automatically and committing only when something changed.
+
+1. Read `solutions/backup-configs.sh`. Understand each step — where it gets the
+   device list, how it authenticates to eAPI, when it commits.
+2. Make sure the script has an inventory to work from. It reads one eAPI address
+   per line from `/etc/network-backups/devices.txt`. The topology pre-stages this
+   file with sw1's address (`10.0.0.1`); confirm it's there, or create it yourself.
+   (sw1's eAPI listens on its Ethernet1 address — see `configs/sw1.cfg`.)
+3. The script authenticates as the eAPI user `admin`. Export that user's password
+   so the script can read it (`configs/sw1.cfg` sets it). Then run the script once
+   by hand and watch it produce the first git commit.
+4. Set up a cron job (on the backup server) to run it daily.
+5. Modify the switch config; rerun the backup; observe the second git commit and diff.
+6. Sketch your own recovery runbook. Reference the runbook template in `docs/practice/templates/`.
+
+## Hints
+
+- The script refuses to run until `EAPI_PASSWORD` is set — it's an env var.
+  The eAPI user is `admin`; its password is whatever `configs/sw1.cfg` configures
+  (look at the `username admin ... secret` line). Export it before running.
+- Get a shell on the backup server with `docker exec -it <node> sh` (the node name
+  is `clab-backup-and-dr-backup-server`).
+- For the daily run, `crontab -e` on the backup server. Remember cron has a bare
+  environment, so set `EAPI_PASSWORD` inside the crontab line or a wrapper.
+- Inspect what the backup captured with `git -C /backups/configs log --oneline`
+  and `git -C /backups/configs show`.
+
+## Verification
+
+Run on the backup server (`docker exec -it clab-backup-and-dr-backup-server sh`):
+
+```bash
+export EAPI_PASSWORD=admin
+/lab/backup-configs.sh          # or wherever you placed the script
+```
+
+You should see `backing up 10.0.0.1...` then `committed config changes`. Confirm:
+
+```bash
+# A commit exists, authored by the script:
+git -C /backups/configs log --oneline
+#   <hash> automated backup 2026-...Z
+
+# The captured config is sw1's running-config:
+grep -m1 hostname /backups/configs/10.0.0.1.cfg
+#   hostname sw1
+```
+
+Now prove drift detection works. Change something on sw1 and re-run:
+
+```bash
+# on sw1:  Cli -> conf -> interface Ethernet1 -> description BACKUP-TEST
+# back on backup-server:
+/lab/backup-configs.sh
+git -C /backups/configs log --oneline   # now TWO commits
+git -C /backups/configs show            # the diff shows your description line
+```
+
+If you run the script a third time with no change, it prints `no config changes`
+and makes no commit — that's the desired behaviour (commit only on real drift).
+
+> The final `git push origin HEAD` will print `no remote configured` because this
+> lab has no upstream remote — that's expected. In production you'd add a remote so
+> backups land offsite.
 
 ## Recovery procedure (the runbook)
+
+A backup is only half the story — recovery needs a *tested* procedure. This is the
+runbook a junior can follow at 3 AM when a switch dies (also in `solutions/`):
 
 ```
 == Switch Replacement Procedure ==
@@ -134,6 +212,13 @@ ANNOUNCE:
 12. Status update: "service restored"
 13. Schedule postmortem within 48h
 ```
+
+## Peek at solution
+
+The full reference backup script lives at [`solutions/backup-configs.sh`](solutions/backup-configs.sh).
+There's no per-device "answer" config to reveal here — the deliverable is the
+*automation* (the script + cron + git repo) and the *runbook* above, not a target
+switch config. `configs/sw1.cfg` is just the device-under-backup.
 
 ## What's missing (deliberately)
 

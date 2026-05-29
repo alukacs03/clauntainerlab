@@ -17,6 +17,19 @@ Unlike cEOS, MikroTik's CHR (Cloud Hosted Router) image is not freely redistribu
 
 If you can't get CHR running, you can substitute with VyOS or a Linux box running strongSwan/WireGuard — the concepts transfer.
 
+### Confirm the clab → RouterOS interface mapping first
+
+This lab's topology and configs assume `ether1` = WAN and `ether2` = LAN. How containerlab's `mikrotik_ros` kind maps each clab link to a RouterOS `etherN` is **version-dependent** — depending on the containerlab/RouterOS build, the management network can consume `ether1` and shift your data links by one. If the mapping differs, every `/ip address ... interface=etherN`, the WireGuard endpoint reachability, and the `interface=ether1` sniffer in Verification will silently land on the wrong port and the tunnel will never converge.
+
+Before configuring anything, deploy once and confirm the names from inside the CHR:
+
+```bash
+sudo containerlab deploy
+docker exec -it clab-vpn-on-mikrotik-rtr-a /interface print   # or console in
+```
+
+Match each `ether*` to the clab endpoint (WAN link vs LAN link) and, if it differs from `ether1`/`ether2`, adjust the `interface=` values in `configs/*.rsc` (and the `interface=ether1` in the Verification sniffer) to suit. Once verified for your containerlab + RouterOS versions, the mapping is stable — note it here for next time.
+
 ## Real-world scenario
 
 The partner ("Vendor X") needs encrypted reachability between their internal `10.20.20.0/24` and yours `10.10.10.0/24` for an API integration. Options:
@@ -42,6 +55,17 @@ For new builds, default to **WireGuard**. For partner integrations where they sa
 - Route the LAN subnets across the tunnel
 - (Reference) Recognize the IPsec equivalent for partner interop
 
+## Topology
+
+```mermaid
+graph LR
+    hostA["host-a<br/>10.10.10.10/24"] ---|"eth1 — ether2"| rtrA["rtr-a (MikroTik)<br/>LAN 10.10.10.1/24<br/>WAN 198.51.100.1/30<br/>wg-to-b 172.16.0.1/30"]
+    rtrA ===|"ether1 — ether1<br/>WAN · WireGuard UDP 51820"| rtrB["rtr-b (MikroTik)<br/>LAN 10.20.20.1/24<br/>WAN 198.51.100.2/30<br/>wg-to-a 172.16.0.2/30"]
+    rtrB ---|"ether2 — eth1"| hostB["host-b<br/>10.20.20.10/24"]
+```
+
+Double line = the WAN segment that the encrypted WireGuard tunnel rides over. The two LANs (`10.10.10.0/24` and `10.20.20.0/24`) reach each other only through the tunnel; clear-text never crosses the WAN.
+
 ## Theory primer
 
 ### WireGuard fundamentals
@@ -64,7 +88,7 @@ Key concepts:
 - **Public/private keypair per peer**. No PSK (well, optional pre-shared key for post-quantum).
 - **AllowedIPs** is *the routing table for the tunnel*. Anything destined to those prefixes goes into the tunnel.
 - **Endpoint** is the public IP/port of the other side. Dynamic; can move (roaming).
-- **Persistent keepalive** keeps NAT mappings alive for hosts behind NAT (set to 25s for behind-NAT, 0 for both-public).
+- **Persistent keepalive** keeps NAT mappings alive for hosts behind NAT (set to 25s for behind-NAT, 0 — i.e. disabled — for both-public). In *this* lab both ends are public, so the reference solution leaves it off; it is shown commented-out so you can see where it would go if one side were behind NAT.
 - **No "tunnel up/down"** in the IPsec sense — it's stateless. If the keys match and packets arrive, it works.
 
 Versus IPsec:
@@ -99,6 +123,19 @@ In this lab both sides have direct WAN IPs — easy case.
 5. Route the remote LAN via the tunnel.
 6. Verify reachability: `host-a` pings `host-b`.
 
+## Hints
+
+RouterOS verbs you'll need (commands, not the full answer — figure out the arguments):
+
+- `/interface wireguard add` — creates the tunnel interface; RouterOS auto-generates a keypair if you don't supply `private-key`.
+- `/interface wireguard print` — read your own **public** key to hand to the other side.
+- `/interface wireguard peers add` — register the remote peer: `public-key`, `endpoint-address`, `endpoint-port`, and `allowed-address`.
+- `/ip address add` — put the `/30` transport address on the `wg-*` interface (and confirm the LAN/WAN addresses from the starter).
+- `/ip route add` — point the remote LAN prefix at the tunnel.
+- `/ip firewall filter add` — let inbound UDP/51820 reach the `input` chain on the WAN interface.
+
+Remember: `allowed-address` is *both* the crypto-routing filter and what RouterOS will accept from the peer — it must list the transport `/30` **and** the remote LAN, on both sides.
+
 ## Verification
 
 ### Tunnel state
@@ -107,6 +144,8 @@ In this lab both sides have direct WAN IPs — easy case.
 /interface wireguard peers print
 /interface wireguard peers monitor 0
 ```
+
+`monitor 0` watches the peer at index `0` — fine here because each router has exactly one peer. With more than one peer, run `peers print` first and pass the number you want from that list.
 
 Look for: last handshake recent, rx/tx counters incrementing.
 
