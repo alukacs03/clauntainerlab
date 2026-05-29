@@ -148,8 +148,7 @@ For a transit provider:
 4. Inbound from ISP2: same but community `65001:102` and local-preference 100.
 5. Outbound to BOTH ISPs: only advertise OUR-PREFIXES. Implicit deny on everything else.
 6. Enable `send-community` on both neighbors so the tags propagate.
-7. Enable `soft-reconfiguration inbound` on both neighbors so you can inspect the **pre-policy** routes (`received-routes`) and prove the bogons arrived and were filtered — not silently never-sent.
-8. Verify: bogons are filtered, your own prefix isn't re-accepted, ISP1 is preferred (lp 200 > 100), and you don't transit between ISPs.
+7. Verify: bogons are filtered, your own prefix isn't re-accepted, ISP1 is preferred (lp 200 > 100), and you don't transit between ISPs. (Note: EOS has no `soft-reconfiguration inbound`, so you verify filtering from the *post*-policy RIB — the bogons are absent from `show ip bgp` — not from a pre-policy `received-routes` dump.)
 
 ## Hints
 
@@ -181,7 +180,6 @@ Apply:
 ```
 neighbor X route-map NAME { in | out }
 neighbor X send-community
-neighbor X soft-reconfiguration inbound all   ! retain pre-policy Adj-RIB-In
 ```
 
 Verification:
@@ -190,20 +188,20 @@ Verification:
 show ip prefix-list
 show ip community-list
 show route-map
-show ip bgp                                  ! see filtered RIB
+show ip bgp                                  ! post-policy RIB — the bogons are ABSENT (filtered)
 show ip bgp 1.0.0.0/24                       ! detail (incl. community)
 show ip bgp neighbors X advertised-routes    ! what YOU send (post-outbound-policy)
-show ip bgp neighbors X received-routes      ! what THEY send (pre-inbound-policy)
 show ip bgp regexp <pattern>                 ! filter by AS-path regex
 ```
 
-> **`received-routes` needs soft-reconfiguration.** On Arista EOS the
-> pre-inbound-policy view (`received-routes`) only exists if you retain the
-> raw Adj-RIB-In with `neighbor X soft-reconfiguration inbound all`. Without
-> it, EOS discards anything your inbound route-map denied, so `received-routes`
-> comes back empty or misleading — you'd never see the bogons "arrive then get
-> dropped". The reference solution enables it on both neighbors so the
-> before/after comparison in Verification actually works.
+> **No pre-policy `received-routes` view here — and that's an EOS reality, not a gap.**
+> Unlike Cisco IOS, Arista EOS does **not** support `neighbor X soft-reconfiguration
+> inbound` (cEOS rejects the command outright), so there is no retained pre-inbound
+> Adj-RIB-In to dump with `received-routes`. Verify filtering from the *post*-policy
+> side instead: a bogon you filtered is simply **absent** from `show ip bgp`, and your
+> prefix-list/route-map is what dropped it. To prove a bogon genuinely *arrived and was
+> dropped* (rather than never sent), originate it from the ISP side and watch it fail to
+> appear in your RIB.
 
 ## Deploy
 
@@ -245,12 +243,13 @@ show ip bgp
 
 Bogons gone. Your own /24 is no longer accepted from either ISP. Each remaining route is tagged with its source community.
 
-Prove the bogons *arrived and were filtered* (not simply never sent) by comparing the pre-policy and post-policy views — this only works because the solution enabled `soft-reconfiguration inbound all`:
+Prove the bogons were *filtered* from the post-policy RIB (EOS has no pre-policy `received-routes` dump — see the note above). The bogons your inbound route-map denied simply do not appear:
 
 ```
-show ip bgp neighbors 198.51.100.2 received-routes   ! pre-policy: 0.0.0.0/8, 192.168.0.0/16, 203.0.113.0/24 all present
-show ip bgp                                          ! post-policy: those are gone
+show ip bgp                                          ! post-policy: 0.0.0.0/8, 192.168.0.0/16, your own /24 are all GONE
+show ip prefix-list BOGONS                           ! the list that dropped them (add 'detail' on real HW for hit counts)
 ```
+To prove a bogon genuinely *arrived and was dropped* (vs. never sent), originate one from an ISP node and confirm it still never lands in your `show ip bgp`.
 
 ```
 show ip bgp 1.0.0.0/24
@@ -384,7 +383,7 @@ router acts on the tag (labs 24 and 25).
 - **Inbound policy (`route-map ... in`)** — filter what you accept.
 - **Outbound policy (`route-map ... out`)** — filter what you advertise.
 - **`clear ip bgp X soft in/out`** — apply policy changes without dropping the TCP session. A `soft out` clear is also what forces EOS to re-run outbound policy after you re-attach a route-map.
-- **`soft-reconfiguration inbound`** — retains the raw pre-policy Adj-RIB-In so `received-routes` shows what the peer actually sent before your inbound filter ran. Costs memory; off by default.
+- **`soft-reconfiguration inbound` (Cisco IOS only)** — IOS keeps a raw pre-policy Adj-RIB-In so `received-routes` shows what the peer sent before your inbound filter ran. **Arista EOS does not implement this** (cEOS rejects the command); on EOS you verify filtering from the post-policy RIB and use BGP route-refresh (`clear ip bgp X soft in`) to re-pull and re-evaluate.
 - **Implicit deny** — anything not explicitly permitted by a route-map is dropped.
 
 ## Production tips
@@ -395,7 +394,7 @@ router acts on the tag (labs 24 and 25).
 - **Use community-driven design** — set tags inbound, act on tags everywhere else. Decouples discovery from action.
 - **Use `bgp maximum-routes` and `neighbor X maximum-routes`** to limit how many prefixes a neighbor can advertise — protects against accidental floods.
 - **Use IRR/RPKI validation** for prefix-list generation — see lab 25.
-- **Test policy in staging** — apply soft-clear, verify the diff with `show ip bgp neighbors X received-routes` (this requires `soft-reconfiguration inbound`, which keeps the raw Adj-RIB-In in memory), then production. Many shops leave soft-reconfig off to save RAM and instead use BGP route-refresh / `show ... received-routes` only on demand.
+- **Test policy in staging** — change the route-map, `clear ip bgp X soft in` (route-refresh re-pulls the peer's routes and re-runs your inbound policy without dropping the session), then confirm the resulting `show ip bgp` matches intent before doing it in production. (On IOS you'd compare pre/post via `received-routes` + `soft-reconfiguration inbound`; EOS relies on route-refresh instead.)
 - **Don't `clear ip bgp *`** in production — that resets every session at once. Use targeted clears.
 
 ## What's missing (deliberately)
