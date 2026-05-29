@@ -122,7 +122,6 @@ interface Vlan<id>
   vrrp <vrid> ip <virtual-ip>
   vrrp <vrid> priority-level <n>
   vrrp <vrid> preempt
-  vrrp <vrid> description <text>
 ```
 
 Apply the same shape twice — once on `Vlan10` (VRID 10) and once on `Vlan20` (VRID 20) — on each switch. Convention: match the VRID to the VLAN ID.

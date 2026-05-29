@@ -104,10 +104,11 @@ On all three switches:
 
 ## Hints
 
-Global BFD timers:
+BFD timers — set them **per routed interface** (in EOS this is an interface-level command, not global). Optional: `bfd default` under OSPF already uses the 300ms × 3 EOS defaults, so you only need this if you want to tune:
 
 ```
-bfd interval <ms> min-rx <ms> multiplier <n>
+interface Ethernet<n>
+  bfd interval <ms> min-rx <ms> multiplier <n>
 ```
 
 OSPF BFD integration (subscribes all OSPF interfaces to BFD):
@@ -201,10 +202,13 @@ Remove the ACL.
 
 ### 4. Tune more aggressively
 
-If you want to play with the timers, set them lower:
+If you want to play with the timers, set them lower **on the routed interfaces** (Ethernet2/Ethernet3 toward the neighbours):
 
 ```
-bfd interval 50 min-rx 50 multiplier 3
+interface Ethernet2
+  bfd interval 50 min-rx 50 multiplier 3
+interface Ethernet3
+  bfd interval 50 min-rx 50 multiplier 3
 ```
 
 The negotiated Detection Time in `show bfd peers` should now read ~150ms. On real hardware that translates to ~150ms of loss; on cEOS the *configured/negotiated* timer changes as expected, but software timing jitter means you won't reliably measure a clean 150ms — the point is to see the timers (and detection-time field) drop, not to clock it precisely.

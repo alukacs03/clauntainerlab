@@ -154,7 +154,7 @@ neighbor X fall-over bfd           ! Cisco-style; EOS uses `neighbor X bfd`
 
 On both sw1 and sw2:
 
-1. Configure global BFD with non-default timers (e.g. `bfd interval 100 min-rx 100 multiplier 3`).
+1. Configure BFD timers with non-default values **on the routed interface toward the peer** (in EOS `bfd interval … min-rx … multiplier …` is an interface-level command, e.g. `bfd interval 100 min-rx 100 multiplier 3` under `interface EthernetN`).
 2. On the BGP neighbor:
    - `password 0 LabSharedSecret123` (must match on both sides).
    - `ttl maximum-hops 1` (directly connected eBGP).
@@ -167,7 +167,8 @@ On both sw1 and sw2:
 ## Hints
 
 ```
-bfd interval <ms> min-rx <ms> multiplier <n>
+interface Ethernet<n>
+   bfd interval <ms> min-rx <ms> multiplier <n>
 
 router bgp <asn>
    graceful-restart stalepath-time <s>
