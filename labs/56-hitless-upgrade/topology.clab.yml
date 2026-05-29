@@ -8,7 +8,11 @@ topology:
       image: ghcr.io/srl-labs/network-multitool
 
   nodes:
-    # MLAG pair — upgrade one at a time without losing traffic
+    # Redundant leaf pair — upgrade one at a time without losing traffic.
+    # Shared gateway 10.10.10.1 is provided by VARP on BOTH leaves; VLAN 10
+    # is stretched across the peer-link so the two host-facing ports are one
+    # L2 domain. (Not a full MLAG — that's lab 14. This is the minimal
+    # redundancy needed to make the drain/undrain demo actually hitless.)
     leaf1:
       kind: arista_ceos
       startup-config: configs/leaf1.cfg
@@ -23,17 +27,22 @@ topology:
 
     host:
       kind: linux
+      # The host bonds its two NICs (active-backup) so it presents ONE
+      # logical interface / MAC / IP and survives losing either uplink.
+      # active-backup needs no switch-side LACP — it just uses whichever
+      # member link is up, which is what lets the ping survive a leaf drain.
+      binds:
+        - bond-setup.sh:/tmp/bond-setup.sh:ro
       exec:
-        - ip addr add 10.10.10.10/24 dev eth1
-        - ip addr add 10.10.10.11/24 dev eth2
-        - ip route add default via 10.10.10.1
+        - bash /tmp/bond-setup.sh
 
   links:
-    # MLAG peer-link between the two leaves
+    # Peer-link between the two leaves — 802.1Q trunk carrying VLAN 10 so
+    # both host segments are in ONE broadcast domain.
     - endpoints: ["leaf1:eth1", "leaf2:eth1"]
-    # Spine uplinks
+    # Spine uplinks (eBGP underlay)
     - endpoints: ["leaf1:eth2", "spine:eth1"]
     - endpoints: ["leaf2:eth2", "spine:eth2"]
-    # Host dual-homed to the MLAG pair
+    # Host dual-homed to the leaf pair (bond0 = eth1 + eth2)
     - endpoints: ["host:eth1", "leaf1:eth3"]
     - endpoints: ["host:eth2", "leaf2:eth3"]

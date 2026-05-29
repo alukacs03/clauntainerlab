@@ -78,7 +78,7 @@ Most platforms support it; not always enabled by default. For modern designs, ec
 
 Once a BFD session is up, routing protocols **subscribe** to it. Examples:
 
-- **OSPF**: `router ospf 1` → `bfd all-interfaces` (or per-interface `ip ospf bfd`).
+- **OSPF**: `router ospf 1` → `bfd default` (enables BFD on all OSPF interfaces), or per-interface `ip ospf neighbor bfd`.
 - **BGP**: `neighbor X.X.X.X fall-over bfd`.
 - **Static route tracking**: more complex; uses BFD sessions independently.
 - **HSRP/VRRP**: can use BFD to detect peer failure faster.
@@ -95,10 +95,12 @@ When BFD declares "session down", every subscribed protocol immediately treats i
 
 On all three switches:
 
-1. Set BFD timers globally: `bfd interval 300 min-rx 300 multiplier 3`.
-2. Under OSPF process, enable BFD on all interfaces: `bfd all-interfaces`.
+1. Set BFD timers globally: `bfd interval 300 min-rx 300 multiplier 3`. (These happen to be the EOS defaults, so the line documents intent rather than changing behavior — see the note below.)
+2. Under the OSPF process, subscribe OSPF to BFD on all its interfaces: `bfd default`.
 3. Verify BFD sessions come up on each transit interface.
-4. Compare failure detection time: without BFD vs with BFD.
+4. Compare failure detection time: OSPF-only vs OSPF+BFD.
+
+> **Note:** `300 min-rx 300 multiplier 3` are the EOS default BFD parameters, so step 1 is effectively a no-op that makes the intended timers explicit. The behavioral change in this lab comes from step 2 (`bfd default`), which makes OSPF react to BFD session-down events instead of waiting for its own 40-second dead timer. If you want to actually change timing, drop to `interval 50 min-rx 50 multiplier 3` as in the aggressive-tuning step.
 
 ## Hints
 
@@ -108,18 +110,18 @@ Global BFD timers:
 bfd interval <ms> min-rx <ms> multiplier <n>
 ```
 
-OSPF BFD integration:
+OSPF BFD integration (subscribes all OSPF interfaces to BFD):
 
 ```
 router ospf 1
-   bfd all-interfaces
+   bfd default
 ```
 
 Per-interface override (if needed):
 
 ```
 interface Ethernet2
-   ip ospf bfd
+   ip ospf neighbor bfd
    bfd interval 50 min-rx 50 multiplier 3
 ```
 
@@ -139,6 +141,8 @@ sudo containerlab deploy
 ```
 
 ## Verification
+
+> **cEOS note (read before you reach for a stopwatch):** cEOS is a containerized control-plane image with **no forwarding ASIC and no hardware BFD offload** — BFD here is pure software. The session state machine works (you can expect `show bfd peers` to reach `Up` and OSPF to subscribe), so this lab is a faithful exercise in the *config and control-plane behavior* of BFD. What is **not** faithful on cEOS is the exact sub-second timing: the ~900ms and ~150ms detection numbers below are real-hardware figures. Under container scheduling jitter and software timers, your measured loss may be larger, noisier, or occasionally miss a session bring-up entirely. Treat the timing numbers as "what this would do on real hardware" and treat the cEOS run as "did BFD come Up, did OSPF react to it faster than its 40s dead timer" — not a precise measurement. If a session won't come up at all, bounce the interface (`shutdown` / `no shutdown`) or redeploy.
 
 ### 1. Baseline OSPF without BFD — slow failure detection
 
@@ -179,7 +183,7 @@ docker exec -it clab-bfd-sw1 Cli
 show bfd peers
 ```
 
-You should see two BFD sessions (to sw2 and sw3), both `Up`. State should show **Detection Time** of ~900ms.
+You should see two BFD sessions (to sw2 and sw3), both `Up`. The **Detection Time** field should read ~900ms (negotiated 300ms × multiplier 3). On real hardware that 900ms is also roughly how fast a failure is caught; on cEOS the field reflects the negotiated timers but the measured loss in step 3 will be jitterier (see the cEOS note above).
 
 ```
 show bfd peers detail
@@ -191,7 +195,7 @@ More info: local/remote discriminators, packets sent/received, timer details.
 
 Run ping again, then apply the ACL on sw2 Et3.
 
-Watch the ping. With BFD, you should lose **~1 second** of packets at most — BFD detects in ~900ms, OSPF reconverges immediately.
+Watch the ping. With BFD, on real hardware you lose **~1 second** of packets at most — BFD detects in ~900ms, OSPF reconverges immediately. The key contrast is qualitative and holds even on cEOS: with BFD you lose around a second instead of the ~40 seconds you saw in step 1. (On cEOS the exact count of lost pings will vary run-to-run; don't read too much into a precise number.)
 
 Remove the ACL.
 
@@ -203,7 +207,7 @@ If you want to play with the timers, set them lower:
 bfd interval 50 min-rx 50 multiplier 3
 ```
 
-Now detection time should be ~150ms.
+The negotiated Detection Time in `show bfd peers` should now read ~150ms. On real hardware that translates to ~150ms of loss; on cEOS the *configured/negotiated* timer changes as expected, but software timing jitter means you won't reliably measure a clean 150ms — the point is to see the timers (and detection-time field) drop, not to clock it precisely.
 
 **Don't go too low in real deployments** — packet loss from legitimate causes (microbursts, queue overflow) can falsely trigger BFD. 300ms × 3 is a common safe default; sub-100ms is for highly tuned datacenter fabrics with strict packet loss SLAs.
 
@@ -213,7 +217,7 @@ Now detection time should be ~150ms.
 show bfd peers
 ```
 
-Note: BFD sessions are between **directly connected** routers on point-to-point or LAN segments. It's not a hop-by-hop end-to-end check. For multi-hop BFD (e.g., between iBGP peers across multiple physical hops), use **`bfd multihop`** — works the same but is a different config.
+Note: BFD sessions are between **directly connected** routers on point-to-point or LAN segments. It's not a hop-by-hop end-to-end check. For **multi-hop BFD** (between peers several physical hops apart, such as iBGP loopback peers), EOS uses a separate multi-hop BFD configuration — the session is anchored to the peer addresses rather than an interface. Same idea, different config; not covered here.
 
 ## Peek at solution
 
@@ -227,7 +231,7 @@ Note: BFD sessions are between **directly connected** routers on point-to-point 
 - **Async vs Demand** — async is the default and the one you'll use.
 - **Echo function** — bounces packets through peer's data plane; tests forwarding, not just control.
 - **Subscription** — routing protocols (OSPF, BGP, etc.) subscribe to BFD session state and react to "session down" immediately.
-- **`bfd multihop`** — for BFD between routers not directly connected (e.g., iBGP across the fabric).
+- **Multi-hop BFD** — a separate BFD configuration for peers not directly connected (e.g., iBGP loopback peers across the fabric); the session tracks peer addresses instead of a single interface.
 
 ## Production deployment notes
 

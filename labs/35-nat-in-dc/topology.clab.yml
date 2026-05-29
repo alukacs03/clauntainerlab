@@ -13,14 +13,17 @@ topology:
       kind: arista_ceos
       startup-config: configs/edge.cfg
 
-    # The internet (just a Linux box advertising 0.0.0.0/0 to edge)
+    # The internet: a Linux box that the edge default-routes toward
+    # (no dynamic routing — just a static default back to the edge).
+    # The /29 on the outside link is wide enough to also contain the
+    # 1:1 NAT public IP (203.0.113.5), so replies to it can return.
     internet:
       kind: linux
       exec:
-        - ip addr add 203.0.113.1/30 dev eth1
+        - ip addr add 203.0.113.1/29 dev eth1
         - ip route add default via 203.0.113.2
 
-    # Inside hosts (RFC 1918)
+    # Inside hosts (RFC 1918) — two separate inside subnets
     h-inside1:
       kind: linux
       exec:
@@ -29,8 +32,8 @@ topology:
     h-inside2:
       kind: linux
       exec:
-        - ip addr add 10.10.10.20/24 dev eth1
-        - ip route add default via 10.10.10.1
+        - ip addr add 10.10.20.20/24 dev eth1
+        - ip route add default via 10.10.20.1
 
   links:
     - endpoints: ["edge:eth1", "internet:eth1"]

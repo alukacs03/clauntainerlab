@@ -233,19 +233,30 @@ Note: the actual **data plane** goes through sw-rr because it's also a transit r
 
 ### 6. Failure modes
 
-**RR session down**: shut sw1's link to sw-rr.
+We want to demonstrate that **the route reflector is what carries the host-LAN data plane** — and only the RR. To do that cleanly, isolate the *BGP* failure without touching the underlay.
+
+Don't shut sw1's physical uplink (`Ethernet2`): in this single-uplink star that would also tear down OSPF and isolate sw1 entirely, so you couldn't tell whether reachability was lost because of BGP or just because the box fell off the fabric. Instead, administratively shut **only the iBGP session**, leaving OSPF up:
 
 ```
+docker exec -it clab-ibgp-rr-sw1 Cli
 configure terminal
-  interface Ethernet2
-    shutdown
+  router bgp 65001
+    neighbor 10.10.10.10 shutdown
 ```
 
-OSPF reconverges (no path to 10.10.10.10), iBGP session drops, sw1 loses all reflected routes. sw1 can't reach sw2 or sw3 anymore (until you restore).
+Now observe:
+
+- `show ip ospf neighbor` on sw1 — still **Full**. The underlay is untouched.
+- `show ip route 10.10.10.10` — the RR's loopback is still reachable via OSPF.
+- `show ip bgp summary` — the session to `10.10.10.10` is now `Idle (Admin)`, PfxRcd drops to 0.
+- `show ip bgp` — the reflected `10.2.0.0/24` and `10.3.0.0/24` are **gone**. Only sw1's own `10.1.0.0/24` remains.
+- `docker exec clab-ibgp-rr-h1 ping -c 3 10.2.0.10` — now **fails**.
+
+Because the host LANs are advertised *only* over iBGP (OSPF carries loopbacks and transit links, not the host subnets), losing the reflection is exactly what breaks h1↔h2/h3 — while sw1 still has full IGP reachability to the RR's loopback. That's the RR dependency, demonstrated in isolation.
 
 In real production, you'd have **two RRs** — each client peers with both. Lose one RR, the other keeps things going.
 
-Restore: `no shutdown`.
+Restore: `no neighbor 10.10.10.10 shutdown`.
 
 **Loopback used as router-id mismatch**: the router-id must be unique within an AS. If two routers had the same router-id, BGP rejects the session. We picked unique loopbacks to avoid this.
 

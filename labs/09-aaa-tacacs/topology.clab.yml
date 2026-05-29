@@ -16,12 +16,13 @@ topology:
       kind: arista_ceos
       startup-config: configs/sw2.cfg
 
-    # Centralized TACACS+ server
+    # Centralized TACACS+ server (Marc Huber's tac_plus —
+    # the lfkeitel/tacacs_plus image reads /etc/tac_plus/tac_plus.cfg)
     tacacs:
       kind: linux
       image: lfkeitel/tacacs_plus:latest
       binds:
-        - tacacs/tac_plus.conf:/etc/tac_plus/tac_plus.conf
+        - tacacs/tac_plus.cfg:/etc/tac_plus/tac_plus.cfg
       exec:
         - ip addr add 10.99.0.10/24 dev eth1
 
@@ -31,7 +32,20 @@ topology:
       exec:
         - ip addr add 10.99.0.5/24 dev eth1
 
+    # Shared management segment. A plain Linux container does NOT bridge
+    # between its own interfaces, so we glue sw1, sw2, tacacs and h-admin
+    # onto one L2 broadcast domain (the flat 10.99.0.0/24) with a Linux
+    # bridge. The node name MUST match a real host bridge of the same name.
+    # containerlab does NOT create the host bridge for you — create it once
+    # on the VM before deploy (see README "Deploy"):
+    #   sudo ip link add name brmgmt99 type bridge && sudo ip link set brmgmt99 up
+    brmgmt99:
+      kind: bridge
+
   links:
-    - endpoints: ["sw1:eth1", "tacacs:eth1"]
-    - endpoints: ["sw2:eth1", "tacacs:eth2"]
-    - endpoints: ["h-admin:eth1", "tacacs:eth3"]
+    # For a bridge node the endpoint is <bridge-node>:<host-side-veth-name>.
+    # The veth names below are arbitrary but must be unique on the host.
+    - endpoints: ["sw1:eth1", "brmgmt99:sw1-mgmt"]
+    - endpoints: ["sw2:eth1", "brmgmt99:sw2-mgmt"]
+    - endpoints: ["tacacs:eth1", "brmgmt99:tac-mgmt"]
+    - endpoints: ["h-admin:eth1", "brmgmt99:adm-mgmt"]

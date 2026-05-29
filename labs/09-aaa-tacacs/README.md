@@ -34,25 +34,28 @@ By the end you should be able to answer:
 ## Topology
 
 ```mermaid
-graph LR
-    hadm[h-admin<br/>10.99.0.5<br/>operator workstation] --> tac
-    tac[tacacs<br/>10.99.0.10<br/>tac_plus daemon]
-    sw1[sw1<br/>10.99.0.1] --> tac
-    sw2[sw2<br/>10.99.0.2] --> tac
+graph TB
+    br[brmgmt99<br/>shared Linux bridge<br/>flat 10.99.0.0/24 segment]
+    sw1[sw1<br/>10.99.0.1] --- br
+    sw2[sw2<br/>10.99.0.2] --- br
+    tac[tacacs<br/>10.99.0.10<br/>tac_plus daemon] --- br
+    hadm[h-admin<br/>10.99.0.5<br/>operator workstation] --- br
 ```
 
-The TACACS+ container acts as a "switch" too — everyone connects via its eth interfaces. In a real deployment the TACACS server sits in the OOB management network.
+All four nodes share one L2 broadcast domain — the flat `10.99.0.0/24` — via a Linux bridge (`brmgmt99`). This stands in for the OOB management network where a TACACS server normally lives. (A plain Linux container can't bridge between its own interfaces, so we use a real bridge node; see the Deploy step for the one-time host setup.)
 
 ## Pre-configured server-side state
 
-The TACACS+ server already has two users (see [`tacacs/tac_plus.conf`](tacacs/tac_plus.conf)):
+The TACACS+ server already has two users (see [`tacacs/tac_plus.cfg`](tacacs/tac_plus.cfg)):
 
 | User | Password    | Group       | Permissions |
 |------|-------------|-------------|-------------|
 | alice | `AlicePass!` | netadmins | Privilege 15, all commands |
 | bob   | `BobPass!`   | readonly  | Privilege 1, only `show *` and `enable` |
 
-Shared key between switches and server: `labkey123`.
+> The server runs Marc Huber's `tac_plus` (the `lfkeitel/tacacs_plus` image). Its config syntax differs from the older Shrubbery daemon — users/groups live inside an `id = tac_plus { ... }` block, the shared key sits in a `host = world { key = ... }` block, and passwords use `password = clear ...`. The daemon reads `/etc/tac_plus/tac_plus.cfg`, which is where the topology binds the file.
+
+Shared key between switches and server: `labkey123`. Enable password (priv-15, served by TACACS): `enablepass`.
 
 ## Theory primer
 
@@ -117,7 +120,7 @@ On **both** sw1 and sw2:
 ## Hints
 
 ```
-tacacs-server host <ip> key 0 <shared-key>
+tacacs-server host <ip> key <shared-key>
 
 aaa authentication login default group tacacs+ local
 aaa authentication enable default group tacacs+ local
@@ -131,12 +134,21 @@ Verification commands:
 
 ```
 show aaa
+show aaa counters
 show tacacs
 show users detail
-show logging | include AAA
 ```
 
 ## Deploy
+
+This lab puts all four nodes on one shared L2 segment using a Linux bridge node (`brmgmt99`). containerlab does **not** create the host bridge for you, so create it once on the VM first:
+
+```bash
+sudo ip link add name brmgmt99 type bridge
+sudo ip link set brmgmt99 up
+```
+
+Then deploy:
 
 ```bash
 cd ~/containerlab/labs/09-aaa-tacacs
@@ -144,6 +156,12 @@ sudo containerlab deploy
 ```
 
 Wait ~30 seconds for tac_plus to start and read its config.
+
+> Sanity check the segment before testing AAA — from the TACACS container, both switches should answer:
+> ```bash
+> docker exec clab-aaa-tacacs-tacacs ping -c2 10.99.0.1
+> docker exec clab-aaa-tacacs-tacacs ping -c2 10.99.0.2
+> ```
 
 ## Verification
 
@@ -167,14 +185,14 @@ docker exec -it clab-aaa-tacacs-h-admin ssh alice@10.99.0.1
 Once in:
 
 ```
-enable
+enable                       ! enable password (from TACACS): enablepass
 configure terminal
 hostname sw1-test
 no hostname
 end
 ```
 
-Should work. Now check accounting on the TACACS server:
+Should work. (alice is also dropped straight to privilege 15 on login via exec authorization, so `enable` is really just confirming the enable-auth path.) Now check accounting on the TACACS server:
 
 ```bash
 docker exec clab-aaa-tacacs-tacacs cat /var/log/tac_plus.acct
@@ -191,10 +209,13 @@ docker exec -it clab-aaa-tacacs-h-admin ssh bob@10.99.0.1
 
 ```
 show running-config           ! ✅ should work
+show version                  ! ✅ should work
 configure terminal            ! ❌ should be denied
 ```
 
-The deny is per-command — bob can read everything but can't change anything.
+The deny is per-command — bob can run `show` commands but can't change anything.
+
+> The `readonly` group on the TACACS server permits only `show` and `enable` (`default command = deny`). That's deliberately tight: it also blocks benign diagnostics like `ping`, `traceroute` and `terminal length` for bob. If your NOC needs those, widen the readonly group in [`tacacs/tac_plus.cfg`](tacacs/tac_plus.cfg) by adding `cmd = ping`, `cmd = traceroute`, etc. — that's exactly the centrally-managed, per-command control TACACS+ buys you.
 
 ### 4. Fallback works when TACACS is down
 
@@ -227,20 +248,29 @@ Restart TACACS:
 docker start clab-aaa-tacacs-tacacs
 ```
 
-### 5. Watch a live authentication flow
+### 5. Confirm AAA traffic locally, and find the real audit trail
 
-While someone logs in, on sw1:
+EOS does **not** echo a syslog line for every per-command authn/authz/acct decision into local `show logging` — so don't go looking there (`show logging | include AAA` will show little or nothing, which trips people up). The per-command audit trail lives on the **TACACS server** (the accounting log from step 2). What you *can* see locally are the request/response counters, which prove the switch is actually talking to TACACS:
+
+On sw1:
 
 ```
-show logging | include AAA
+show tacacs            ! per-server request/response/failure counters — should climb after each login
+show aaa counters      ! AAA transaction counts (authn/authz/acct) on this switch
 ```
 
-Each step (authn, authz, acct) is logged. You can correlate these with the TACACS server's log to see the full round-trip.
+Then correlate those counters with the server-side accounting log to see the full round-trip:
+
+```bash
+docker exec clab-aaa-tacacs-tacacs cat /var/log/tac_plus.acct
+```
+
+The switch counters tell you *that* TACACS was consulted; the server's accounting log tells you *what* each user did. The authoritative forensic trail is always on the server.
 
 ## Peek at solution
 
 - [`solutions/sw1.cfg`](solutions/sw1.cfg), [`solutions/sw2.cfg`](solutions/sw2.cfg)
-- TACACS server config (already in place): [`tacacs/tac_plus.conf`](tacacs/tac_plus.conf)
+- TACACS server config (already in place): [`tacacs/tac_plus.cfg`](tacacs/tac_plus.cfg)
 
 ## Concepts cheat-sheet
 

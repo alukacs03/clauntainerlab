@@ -1,0 +1,11 @@
+---
+# Nornir SimpleInventory defaults file — credentials common to all hosts.
+# napalm's EOS driver talks eAPI over HTTPS, same transport Ansible uses here.
+username: admin
+password: admin
+platform: eos
+connection_options:
+  napalm:
+    extras:
+      optional_args:
+        transport: https

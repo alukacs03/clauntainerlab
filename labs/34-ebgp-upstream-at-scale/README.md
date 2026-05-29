@@ -34,8 +34,8 @@ By the end you should be able to answer:
 graph LR
     customer[customer<br/>AS65001<br/>203.0.113.0/24] --- ixp[IXP fabric<br/>L2 only]
     rs[Route Server<br/>AS65535] --- ixp
-    peer1[peer1<br/>AS64512<br/>192.0.2.0/24] --- ixp
-    peer2[peer2<br/>AS64513<br/>198.18.0.0/16<br/>8.8.8.0/24] --- ixp
+    peer1[peer1<br/>AS64512<br/>185.1.1.0/24] --- ixp
+    peer2[peer2<br/>AS64513<br/>185.2.0.0/16<br/>8.8.8.0/24<br/>192.168.0.0/16 bogon] --- ixp
 ```
 
 All four BGP speakers share one L2 segment (`198.51.100.0/24` for the IXP LAN). Only one BGP session needed per participant (to the RS).
@@ -52,6 +52,8 @@ Real-world route servers run **BIRD** or **OpenBGPD**, both of which have explic
 - Implements per-peer policy (often via BGP communities)
 
 cEOS doesn't have a dedicated RS mode, so this lab uses standard BGP. Mechanically close enough for learning purposes.
+
+> **cEOS approximation — what's different from a real RS:** Because the RS here is plain eBGP, it does *both* of the things a real route server is specifically designed *not* to do. It prepends its own AS (65535) to the AS-path, and it rewrites the next-hop to **itself** (`198.51.100.250`) on routes it re-advertises. So in `show ip bgp` on `customer` you'll see every learned route with AS-path `65535 64512 …` and next-hop `198.51.100.250`, not the originating peer. A real BIRD/OpenBGPD RS in route-server mode is invisible in *both* the AS-path and the next-hop — the peer→peer data-plane optimization is exactly the part a standard BGP container cannot reproduce. Everything else (multilateral session reduction, the filters, communities) models faithfully.
 
 ### Multilateral vs bilateral
 
@@ -97,7 +99,7 @@ On `customer`:
    - Tags accepted routes with community `65001:200` for visibility
 4. Apply an **outbound route-map** that announces only your own prefix.
 5. Set `maximum-routes 10000` on the RS neighbor.
-6. Verify: you receive peer1's `192.0.2.0/24` and peer2's `198.18.0.0/16` + `8.8.8.0/24` via the RS, but NOT each other directly.
+6. Verify: you receive peer1's `185.1.1.0/24` and peer2's `185.2.0.0/16` + `8.8.8.0/24` via the RS — even though you have zero direct sessions to either. peer2 also (mis)announces `192.168.0.0/16`, which your bogon filter must drop.
 
 ## Hints
 
@@ -136,17 +138,17 @@ One Established session — to `198.51.100.250` (the RS).
 show ip bgp
 ```
 
-You should see peer1's `192.0.2.0/24` AND peer2's `198.18.0.0/16` and `8.8.8.0/24`. Despite having ZERO sessions to peer1 or peer2 directly.
+You should see peer1's `185.1.1.0/24` AND peer2's `185.2.0.0/16` and `8.8.8.0/24` — three legitimate, public-looking prefixes. Despite having ZERO sessions to peer1 or peer2 directly. (You'll see the RS `198.51.100.250` as the next-hop on all of them — see the next note.)
 
 ### 3. Inbound filter caught the bogon
 
-peer2 also announces `198.18.0.0/16` — which is a bogon (RFC 2544 reserved). After your inbound filter applies:
+peer2 also (mis)announces `192.168.0.0/16` — a private RFC 1918 range, i.e. a bogon that must never appear on an IXP. After your inbound filter applies:
 
 ```
-show ip bgp 198.18.0.0/16
+show ip bgp 192.168.0.0/16
 ```
 
-Should NOT show up in your RIB. The BOGONS prefix-list dropped it. Good.
+Should NOT show up in your RIB. The `BOGONS` prefix-list (`192.168.0.0/16 le 32` at seq 80) matched it under `route-map IXP-IN deny 10` (which matches the whole `BOGONS` list), so it was dropped before reaching the table. Good — this is exactly what ingress hygiene is for.
 
 ### 4. Your prefix being advertised correctly
 

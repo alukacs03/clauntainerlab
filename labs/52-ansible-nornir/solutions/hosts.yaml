@@ -1,0 +1,24 @@
+---
+# Nornir SimpleInventory hosts file — mirrors inventory.yml.
+# Each switch is on its own /24 link to the automation host; mgmt_server is the
+# automation host's address on that link (syslog/NTP target).
+sw1:
+  hostname: 10.0.0.1
+  groups:
+    - leaf
+  data:
+    mgmt_server: 10.0.0.100
+
+sw2:
+  hostname: 10.0.1.2
+  groups:
+    - leaf
+  data:
+    mgmt_server: 10.0.1.100
+
+sw3:
+  hostname: 10.0.2.3
+  groups:
+    - leaf
+  data:
+    mgmt_server: 10.0.2.100

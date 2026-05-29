@@ -28,7 +28,7 @@ By the end you should be able to answer:
 
 - What's a **NET (Network Entity Title)**, and how does it encode area + system-ID?
 - What's the difference between **Level-1**, **Level-2**, and **L1/L2** in IS-IS?
-- Why is **`is-type level-2-only`** the typical DC underlay choice?
+- Why is **`is-type level-2`** the typical DC underlay choice?
 - How does IS-IS LSP flooding compare to OSPF LSA flooding?
 - Why is IS-IS sometimes called "the protocol that runs without IP"?
 
@@ -53,15 +53,17 @@ Identical to lab 27 (spine-leaf with eBGP underlay) — same number of devices, 
 Every IS-IS speaker has a **NET** that encodes:
 - **AFI** (Address Family Identifier) — usually `49` for "private use", like RFC 1918 for IS-IS area numbers
 - **Area** — variable length, conventionally 2 bytes: `0001`
-- **System ID** — exactly 6 bytes (12 hex digits): a unique identifier per device, often derived from the loopback IP. Convention: encode the loopback as `0010.0100.0001` for `100.100.100.1`.
+- **System ID** — exactly 6 bytes (12 hex digits): a unique identifier per device. There's no mandatory derivation rule — any allocation works as long as it's **unique** across the IS-IS domain. Some shops derive it from the loopback IP (3-digit-pad each octet and regroup 4-4-4, so `100.100.100.1` → `1001.0010.0001`); others just hand out flat sequence numbers and document them in IPAM.
 - **NSEL (NSAP Selector)** — `00` indicates "router" (vs end-system)
 
 Format: `<AFI>.<Area>.<SystemID>.<NSEL>`
 
-Example: `49.0001.0010.0100.0001.00`
+This lab uses a **flat sequential allocation** under one area (`49.0001`): spines are `...0001` / `...0002`, leaves are `...1001` / `...1002`.
+
+Example (spine1): `49.0001.0010.0100.0001.00`
 - AFI: `49`
 - Area: `0001`
-- System ID: `0010.0100.0001` (matches loopback `100.100.100.1`)
+- System ID: `0010.0100.0001` (the spine's allocated sequence number, not derived from its loopback)
 - NSEL: `00`
 
 Pick a convention and stick with it across the network. The system-ID **must be unique** across the IS-IS domain.
@@ -75,8 +77,10 @@ IS-IS has a built-in two-level hierarchy:
 
 In modern DC underlay designs, **everything runs in L2 only**:
 ```
-is-type level-2-only
+is-type level-2
 ```
+
+> **Syntax note:** Arista EOS spells this `is-type level-2` (the accepted values are `level-1`, `level-1-2`, `level-2`). Cisco IOS/IOS-XR uses `level-2-only` for the same idea — if you paste a Cisco config into EOS the parser rejects it.
 
 Why: with all loopbacks and transit subnets in one logical L2 backbone, every router sees every other router directly. There's no operational reason to introduce area boundaries in a DC underlay. The OSPF "area 0" equivalent is "L2-only IS-IS".
 
@@ -121,8 +125,8 @@ interface Ethernet3
 
 On all four devices:
 
-1. Enable IS-IS process `CORE` with the appropriate NET (system-ID convention: derived from the loopback IP).
-2. Set `is-type level-2-only`.
+1. Enable IS-IS process `CORE` with the appropriate NET (flat sequential system-IDs under area `49.0001`: spines `...0001`/`...0002`, leaves `...1001`/`...1002`).
+2. Set `is-type level-2` (Arista syntax — not Cisco's `level-2-only`).
 3. Activate IPv4 unicast address-family.
 4. Enable `isis enable CORE` on every interface that should participate (loopback + transit links + host-facing).
 5. Set transit links to `isis network point-to-point`.
@@ -135,9 +139,9 @@ On all four devices:
 ```
 router isis <tag>
    net <NET>
-   is-type level-2-only
-   maximum-paths 64
+   is-type level-2
    address-family ipv4 unicast
+      maximum-paths 64           ! ECMP lives under the IPv4 address-family
 
 interface <name>
    isis enable <tag>
@@ -249,7 +253,7 @@ no shutdown
 ## Concepts cheat-sheet
 
 - **NET** — Network Entity Title; encodes AFI + Area + System-ID + NSEL.
-- **System ID** — 6 bytes (12 hex), unique per device. Convention: derive from loopback.
+- **System ID** — 6 bytes (12 hex), unique per device. No mandatory derivation; this lab uses a flat sequential allocation (spines `...0001`/`...0002`, leaves `...1001`/`...1002`).
 - **L1 / L2 / L1-L2** — IS-IS levels. Modern DC underlay = L2 only.
 - **LSP / TLV** — IS-IS's analog of OSPF LSAs. Single LSP type, extensible via TLVs.
 - **`isis network point-to-point`** — same as OSPF P2P; for transit links.
