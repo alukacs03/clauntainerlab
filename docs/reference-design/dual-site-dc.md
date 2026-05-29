@@ -15,7 +15,7 @@ The fabric needs to support:
 - **Public IPv4 + IPv6** at customer edge, RFC 6598 CGN for residential broadband
 - **DDoS posture** with RTBH and upstream scrubbing integration
 - **Observability** end-to-end (streaming telemetry, central logging)
-- **Automation** end-to-end (NetBox as source of truth, CI/CD pipeline)
+- **Automation** end-to-end (NetBox as the intended source of truth, CI/CD pipeline) — note: the hands-on NetBox lab is deferred (it was lab 54, since removed), so treat this source-of-truth layer as **design-only** for now (see [`TODO.md`](../../TODO.md))
 
 Non-goals (deliberately):
 - Hyperscaler-tier scale (we're operating in the hundreds of devices, not thousands)
@@ -70,7 +70,7 @@ Non-goals (deliberately):
 
 ### Layer 2 — Overlay (EVPN-VXLAN)
 
-- **iBGP EVPN address-family** between all leaves via route reflectors (lab 21).
+- **eBGP-EVPN fabric** — every leaf and spine runs its own private ASN (per-device, not a single shared AS). The EVPN address-family is carried over the *same* eBGP sessions as the underlay (lab 27/30). Spines are **not** route reflectors and **not** VTEPs: they relay EVPN routes between leaves with `neighbor … next-hop-unchanged` so the originating leaf's VTEP IP survives as the next-hop. (The classic alternative — iBGP-EVPN with the spines as route reflectors over an IGP underlay, the lab 21 pattern — is noted under "What's deliberately NOT in this reference"; the labs deliberately chose eBGP-EVPN.)
 - **VXLAN data plane** (lab 29) for tenant traffic.
 - **EVPN Type 2 routes** for MAC/IP learning (lab 30).
 - **EVPN Type 5 routes** for L3 services (lab 31), with VRFs per tenant.
@@ -88,7 +88,7 @@ Non-goals (deliberately):
   - Outbound RTBH (lab 40) signaling for DDoS response
   - Per-customer floating-static last-resort for transit-failure cases
 - **NAT layer** on edge for private-IP customers (lab 35), CGNAT for residential (lab 36).
-- **IPv6** dual-stack everywhere; native IPv6 to customers (lab 37); NAT64 architecturally available (lab 38).
+- **IPv6** dual-stack everywhere; native IPv6 to customers (lab 37). For IPv6-only customer segments reaching IPv4-only services, **NAT64/DNS64 runs on a dedicated translator** (Jool/Tayga on Linux, or a vendor NAT64 appliance) — it is **not** an EOS data-plane feature, and cEOS has no NAT64 implementation (lab 38 is conceptual on cEOS).
 
 ### Layer 4 — Services
 
@@ -103,7 +103,7 @@ Non-goals (deliberately):
 - **L2 hardening**: STP protections (lab 05), port security, DHCP snooping + DAI + IPSG (lab 06, 07).
 - **Mgmt-plane**: separate VRF (lab 08), TACACS+ AAA (lab 09), syslog + NTP baseline (lab 10), OOB (lab 11).
 - **L3 edge**: mgmt-plane ACL + CoPP (lab 41).
-- **Edge filtering**: per-tenant ACL, rate-limit (lab 48 pattern).
+- **Edge filtering**: per-tenant rate-limit (policer pattern from lab 48); per-tenant ACLs and prefix filtering built from the route-policy/ACL constructs in lab 23 (route-policy) and lab 41 (mgmt-plane ACL).
 - **DDoS posture**: RTBH (lab 40), upstream scrubbing integration.
 - **Customer perimeter**: optional VPN (lab 45) for partner connections.
 
@@ -118,7 +118,7 @@ Non-goals (deliberately):
 
 ### Layer 7 — Operations
 
-- **Source of truth**: NetBox (or equivalent IPAM/CMDB). Sites, racks, devices, interfaces, IPs, VLANs, VRFs, cables, circuits. _A dedicated curriculum chapter on this is deferred — see [`TODO.md`](../../TODO.md)._
+- **Source of truth**: NetBox (or equivalent IPAM/CMDB). Sites, racks, devices, interfaces, IPs, VLANs, VRFs, cables, circuits. _**No hands-on lab yet — design-only.** The dedicated curriculum chapter is deferred (it was lab 54, since removed); see [`TODO.md`](../../TODO.md). Until it lands, NetBox is an architectural intent here, not a taught/validated component, even though the Address Plan above assumes such a system manages allocations._
 - **Config management**: Ansible drives configs from the source-of-truth (lab 52).
 - **CI/CD**: every change goes through a pipeline (lab 53). Lint → validate → stage-deploy → stage-test → prod-deploy (manual gate) → smoke-test.
 - **Backup & DR**: daily backup to git (lab 55); ZTP-driven replacement procedure.
@@ -138,22 +138,29 @@ Non-goals (deliberately):
 
 100.64.0.0/10     — RFC 6598 CGN shared address space
 
-198.51.100.0/24   — Public IPv4 (our /22 — example only)
+198.51.100.0/24   — Public IPv4 (example only; one /24 out of our RIR-assigned /22)
                     Subdivided into customer-facing /29s, /28s
 
 2001:db8:1::/48   — Public IPv6 customer allocations (example)
-2001:db8:F::/48   — Infrastructure (loopbacks, link-local)
+2001:db8:f::/48   — Infrastructure (loopbacks, link-local)
 ```
+
+> Both /48s are carved from the `2001:db8::/32` documentation prefix (RFC 3849) and are example-only; real deployments use RIR-assigned space. IPv6 text follows RFC 5952 (lowercase hex, no leading zeros).
 
 ## ASN Layout
 
+eBGP-EVPN means **one private ASN per device** — there is no single shared spine AS. The labs build it like this (lab 27 README, lab 30/33 solutions), and the ranges below keep spines and leaves in non-overlapping bands so they never collide:
+
 ```
-65000   — Spine BGP AS (private, intra-fabric)
-65001-65999  — Per-leaf private AS (eBGP underlay; lab 27, 28)
-64xxx   — Reserved per-tenant private AS
+65100, 65200    — Spines, one ASN per spine (Site A: 65100 / 65200; lab 27/30/33)
+65001-65099     — Leaves, one private ASN per leaf (eBGP underlay; lab 27, 28)
+                  (e.g. leaf1 = 65001, leaf2 = 65002, …)
+64512-64999     — Reserved per-tenant private AS (RFC 6996 private range)
 
 [Public AS for transit/peering] — assigned by RIR (lab 25)
 ```
+
+> Note: this is the **per-device** eBGP-EVPN scheme the labs actually use. Don't reuse a single number for "all spines" — that's the iBGP-RR model (lab 21), which this fabric does not adopt. Also keep these internal private ASNs distinct from any AS number that appears in *example community values* elsewhere in the curriculum (e.g. lab 40's RTBH community `65000:666`, where `65000` stands in for the **upstream provider's** AS, not The Company's).
 
 ## Tenant Service Tiers
 
@@ -179,13 +186,14 @@ QoS tier maps to:
 | Whole spine | Reduced capacity; multi-leaf reconvergence | Hardware replacement |
 | Single transit ISP | Path failure; alternate ISP carries | Auto-failover via BGP |
 | Border-leaf | Edge capacity halved | Hardware replacement |
-| Whole site | 50% capacity (Site B carries Gold-tier) | DCI/active-active failover; manual or automated |
+| Whole site (Site A loss) | Gold survives via stretched DCI on Site B; Silver down unless it opted into a Site-B replica; Bronze (site-A-only) down entirely. Aggregate capacity reduced ~50%. | DCI/active-active failover for Gold; Silver replicas promoted where configured; Bronze recovered by rebuild at the surviving site (manual or automated) |
 | DCI link | Stretched subnets fragmented | Backup path or service downgrade |
 
 Each row corresponds to a section in the failure playbook (lab 58).
 
 ## What's deliberately NOT in this reference
 
+- **iBGP-EVPN with spines as route reflectors over an IGP underlay** (the lab 21 pattern). It's the most common alternative to eBGP-EVPN and a perfectly valid design — but the labs deliberately chose the eBGP-EVPN model (per-device ASNs, spine `next-hop-unchanged` relay; see Layer 2), so this reference follows that. If you ever migrate to iBGP-RR, that's a whole-layer change worthy of an ADR.
 - **Specific vendor models** (we describe the role, not the SKU). NetBox tracks actuals.
 - **Pricing** (the architecture is independent of which vendor wins the RFP)
 - **Detailed capacity numbers** (workload-specific; comes from lab 59 analysis per project)

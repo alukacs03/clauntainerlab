@@ -143,7 +143,7 @@ Use VARP (Arista anycast gateway) on every MLAG peer pair.
   discipline. Cross-vendor migration (if we ever leave Arista) would need
   reconfiguration.
 - This decision applies only to MLAG-paired switches. Non-MLAG L3 redundancy
-  continues to use VRRP (cleanly handled by ADR-0002).
+  continues to use VRRP.
 
 ## References
 - Lab 15 demonstrates VARP on MLAG.

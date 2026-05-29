@@ -35,7 +35,7 @@ If you encounter STP in production today, it's either misconfigured ("we set bri
 
 Rapid STP. Same tree concept, dramatically faster convergence via **proposal/agreement handshakes** on point-to-point links. Designated ports propose, peers agree, the port goes to forwarding within ~1 second instead of 30s.
 
-This is the **modern default** on most switches (cEOS included). One spanning tree across all VLANs; if you need per-VLAN trees you go to MSTP or PVST.
+This is the **common default** on many switches (Juniper, and historically a lot of vendors). One spanning tree across all VLANs; if you need per-VLAN trees you go to MSTP or PVST. Note Arista EOS/cEOS is an exception — it defaults to **MSTP**, not RSTP (see "What runs by default where?" below).
 
 Port roles in RSTP: **Root, Designated, Alternate, Backup**. Port states: **Discarding, Learning, Forwarding** (the old Listening/Blocking are merged into Discarding).
 
@@ -47,7 +47,7 @@ Multiple Spanning Tree. The standard answer to "I want trees per VLAN, but not 4
 
 You define **MST instances**. Each instance is its own spanning tree. You map VLANs to instances. Example:
 
-- MSTI 0 (the "default" / CIST): no VLANs by default; can be the catch-all.
+- MSTI 0 (the CIST/IST): **ALL VLANs map here by default**. You move VLANs *out* of it into other instances; anything you don't explicitly map stays in MSTI 0 (so it's the natural catch-all).
 - MSTI 1: VLANs 10, 11, 12 (low-priority traffic, one tree).
 - MSTI 2: VLANs 20, 21, 22 (high-priority traffic, different tree, different root).
 
@@ -81,7 +81,7 @@ Cons: still one BPDU per VLAN per 2 seconds. At 500 VLANs, that's significant CP
 ## What runs by default where?
 
 - **Cisco**: RPVST+ is the default on most Catalyst and Nexus platforms.
-- **Arista**: RSTP is the default. Per-VLAN behavior is achieved via MSTP if needed.
+- **Arista**: **MSTP is the default** (cEOS included — `show spanning-tree` reports `protocol mstp` out of the box). Switch to `rapid-pvst` or `rstp` explicitly if you want per-VLAN trees or classic single-instance RSTP behavior. (This is why labs 04/05 issue `spanning-tree mode rapid-pvst`.)
 - **Juniper**: RSTP default.
 - **HP / Aruba**: RSTP or MSTP, varies.
 

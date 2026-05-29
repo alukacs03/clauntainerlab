@@ -165,7 +165,7 @@ Even rough runbooks are vastly better than re-deriving from scratch.
 ---
 
 **Story-arc references**:
-- Phase 3 (`lab 11`, `lab 10`): after the worst-of-year outage, you write your first runbook for "data plane down, OOB still up — recovery procedure".
+- Phase 3 (`lab 10`, `lab 11`): after the worst-of-year outage, you write your first runbook for "data plane down, OOB still up — recovery procedure".
 - Phase 4-5: as the network gets bigger, runbook count grows. Most on-call incidents now resolve from a runbook.
 - Phase 7 (tech lead): you mandate runbook coverage for every alert. New hires onboard from runbooks. Runbook reviews are part of the team's quarterly rhythm.
 

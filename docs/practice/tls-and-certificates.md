@@ -218,6 +218,8 @@ A private key has the same security value as a root password. Backup, but secure
 
 ## TLS in specific network contexts
 
+> **Syntax is illustrative, not copy-paste.** The EOS config snippets below show the *shape* of each feature so you recognize it in the wild. Exact tokens are version-sensitive (verify against your EOS version / the EOS User Guide before deploying). In particular, modern EOS binds TLS to an **SSL profile** — the profile carries the certificate, private key, and trust chain — and protocols reference that profile rather than naming a trustpoint inline. The gNMI block below is the canonical example; the NETCONF and syslog blocks are simplified to keep the focus on "this protocol gets TLS", not on exact wiring.
+
 ### NETCONF over TLS (RFC 7589)
 Replaces NETCONF over SSH for environments wanting cert-based mutual auth instead of password/key.
 
@@ -253,8 +255,11 @@ Newer TACACS+ standard adds TLS as transport. Modern Arista, Cisco, Juniper supp
 Encrypted log shipping. Useful where logs go cross-network or contain sensitive info.
 
 ```
-logging vrf MGMT host 10.99.0.50 protocol tls trustpoint MyCA
+! TLS material lives in an SSL profile (cert + key + trust chain), as with gNMI above
+logging vrf MGMT host 10.99.0.50 protocol tls ssl profile <profile-name>
 ```
+
+(Older docs show a bare `trustpoint <name>` token on the logging line; current EOS references an SSL profile instead — verify against your version.)
 
 ### sFlow / IPFIX over TLS
 Some platforms support encrypted flow export. Useful when flows traverse untrusted networks.
@@ -296,5 +301,5 @@ That's an MVP. It will need to grow (HA, audit logging, key ceremony, revocation
 **Story-arc references**:
 - Phase 3 (lab 10): you set up NTP. Without accurate time, TLS breaks instantly. The link between these is real.
 - Phase 5 (BGP operations, lab 26): TCP-AO is an option for BGP session auth — uses keying material similar to TLS in spirit. Not commonly deployed yet, but coming.
-- Phase 6 (DC fabric): gNMI streaming telemetry to a collector — TLS-required in any production deployment. Lab 46 / lab 50 in the roadmap touch this.
+- Phase 6 (DC fabric): gNMI streaming telemetry to a collector — TLS-required in any production deployment. Lab 49 / lab 50 touch this.
 - Phase 7-9 (planned ops chapter): TACACS+ over TLS, syslog over TLS, RadSec — all moving from "interesting" to "expected".

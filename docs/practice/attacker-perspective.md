@@ -50,7 +50,7 @@ What an attacker tries to learn before doing anything noisy.
 ### What defends against recon
 
 - **Banner sanitization** — don't expose vendor/version in default banners
-- **Mgmt-plane ACLs** — restrict who can reach management services (covered in lab 41, planned)
+- **Mgmt-plane ACLs** — restrict who can reach management services (covered in lab 41)
 - **DNS hygiene** — don't allow zone transfers; minimize reverse-DNS leaks
 - **No public mgmt interfaces** — OOB management network (lab 11)
 - **Operational awareness** — accept that recon is mostly unblockable; focus on detection (alert on excessive scan patterns)
@@ -182,7 +182,7 @@ DES, RC4, MD5 HMACs. Crackable. Some legacy gear still defaults to these.
 ### TACACS/RADIUS shared secret theft
 If the secret is weak or shared insecurely, attacker can impersonate the AAA server or decrypt accounting data.
 
-**Defense**: Strong shared secrets (long, random). Per-device unique secrets if possible. Moving to TLS-protected AAA (lab 09 covers basics; lab 41 — planned — covers control-plane protection).
+**Defense**: Strong shared secrets (long, random). Per-device unique secrets if possible. Moving to TLS-protected AAA (lab 09 covers basics; lab 41 covers control-plane protection).
 
 ### Console port physical attack
 Someone with a serial cable + the right password can configure anything via console. No network attack needed.
@@ -230,7 +230,7 @@ If the attacker's goal is disruption.
 ### Volume-based DDoS
 SYN flood, UDP flood, ICMP flood. Saturates links or exhausts state on edge devices.
 
-**Defense**: RTBH (Remote Triggered Black Hole), BGP Flowspec, upstream scrubbing services — lab 40, planned.
+**Defense**: RTBH (Remote Triggered Black Hole), BGP Flowspec, upstream scrubbing services — lab 40.
 
 ### Application-layer DoS
 Slowloris, HTTP request floods. Looks legitimate, exhausts server resources.
@@ -240,7 +240,7 @@ Slowloris, HTTP request floods. Looks legitimate, exhausts server resources.
 ### Control-plane DoS
 Flood the management plane with packets that punt to CPU (BGP, ICMP, ARP storms targeted at the router itself). Router CPU saturates; routing destabilizes.
 
-**Defense**: Control-plane policing (CoPP) — lab 41, planned. Mgmt-plane ACLs.
+**Defense**: Control-plane policing (CoPP) — lab 41. Mgmt-plane ACLs.
 
 ### Misconfiguration as a weapon
 An insider deliberately misconfigures something — wrong route, broken ACL, disabled monitoring — to cause delayed damage. Often the hardest to detect because it looks like a mistake.
@@ -258,7 +258,7 @@ Defenses change:
 - **Privileged access management** — TACACS+ with command authorization (lab 09); session recording for tier-1 access.
 - **Zero trust principles** — assume nothing is trusted, even internal. Every connection authenticated and authorized.
 
-Your monitoring stack (lab 50 planned, monitoring-and-alerting doc) is where you detect insider activity. Configuration drift, unusual access patterns, unexpected route announcements — these are insider-attack signals.
+Your monitoring stack (lab 50, monitoring-and-alerting doc) is where you detect insider activity. Configuration drift, unusual access patterns, unexpected route announcements — these are insider-attack signals.
 
 ## What this maps to in the curriculum
 
@@ -272,8 +272,8 @@ A defender's map of which labs / docs address which attack phase:
 | L3/routing attacks | 23 (BGP route policy), 25 (Gao-Rexford), 26 (BGP operations + auth) |
 | Mgmt plane | 08 (mgmt VRF), 09 (AAA), 10 (logging), 11 (OOB), tls-and-certificates.md |
 | Tenant isolation | 14/15 (MLAG/VARP), 31/32 (EVPN VRFs + anycast gateway) |
-| DDoS / impact | 40 (planned: DDoS mitigation), 41 (control-plane protection) |
-| Detection | monitoring-and-alerting.md, tcpdump-fluency.md, lab 49 (telemetry), lab 51 (failure playbook) |
+| DDoS / impact | 40 (DDoS mitigation), 41 (control-plane protection) |
+| Detection | monitoring-and-alerting.md, tcpdump-fluency.md, lab 49 (telemetry), lab 58 (failure playbook) |
 
 A network with most of these in place forces attackers into much narrower options. The remaining gaps (zero-day vendor CVEs, insider with privileged access, advanced persistent threats) require defenses at other layers (security team, app layer, SIEM).
 
@@ -318,7 +318,7 @@ If you want depth: OWASP for application security, MITRE ATT&CK for adversary ta
 **Story-arc references**:
 - Phase 2 (labs 06-07): the first time you see attacker thinking explicitly applied to the access layer.
 - Phase 5 (labs 23-25): BGP route policy is where you defend against route leak / hijack — entire categories of high-impact attacks.
-- Phase 7+ (planned ch 8): DDoS mitigation, CoPP, RPKI deployment — large-scale defender work.
+- Phase 7+ (labs 40-41): DDoS mitigation and CoPP — large-scale defender work. Full RPKI deployment (beyond the IRR/RPKI hygiene introduced in lab 25) is planned future content.
 
 ## TL;DR
 

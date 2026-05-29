@@ -214,16 +214,21 @@ test MTU end-to-end:
 docker exec clab-capacity-mtu-planning-host1 ping -c2 -M do -s 1472 10.10.20.10
 #   1472 payload + 8 ICMP + 20 IP = 1500 → goes through
 
-# jumbo ping exceeds the default 1500 MTU → fails
+# jumbo ping exceeds the host NIC's 1500 MTU → fails before it even leaves host1
 docker exec clab-capacity-mtu-planning-host1 ping -c2 -M do -s 8972 10.10.20.10
-#   8972 + 28 = 9000 → "Frag needed" / 100% loss, because every interface is MTU 1500
+#   8972 + 28 = 9000 > 1500 → with -M do (don't-fragment) the kernel refuses to send
+#   and reports "Message too long" locally, because host1's own eth1 is MTU 1500
 ```
 
-The first ping succeeds (path is up, frame fits). The second fails with a
-fragmentation-needed error — that is the MTU lesson: a path with a 1500-byte link
-silently kills full-size jumbo frames. To make the jumbo ping succeed you would set
-`mtu 9214` on every leaf↔spine and leaf↔host interface and raise the host NIC MTU to
-9000 — that is the jumbo-frame deployment checklist in action.
+The first ping succeeds (path is up, frame fits). The second fails immediately on the
+sender: with `-M do` (don't-fragment) set and host1's NIC at the default 1500, the
+kernel won't build the oversized frame and returns a local *"Message too long"* — the
+packet never reaches the wire. (On a path where only an *intermediate* link is smaller,
+you'd instead get an ICMP *fragmentation-needed* from that router; here the bottleneck
+is the sender's own NIC.) Either way it's the same MTU lesson: a full-size jumbo frame
+needs every hop — **and both end hosts' NICs** — raised. To make this ping succeed you
+would set `mtu 9214` on every leaf↔spine and leaf↔host interface *and* raise both host
+NIC MTUs to 9000 — the jumbo-frame deployment checklist in action.
 
 ## Peek at solution
 

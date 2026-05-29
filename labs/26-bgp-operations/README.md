@@ -322,7 +322,7 @@ Every BGP-speaking router should have:
 - ✅ TTL security (`ttl maximum-hops`)
 - ✅ BFD on the underlying link + `neighbor X bfd` bound to the session
 - ✅ `maximum-routes` per neighbor, sized appropriately
-- ✅ Graceful restart configured + activated per AF
+- ✅ Graceful restart enabled per neighbor (`neighbor X graceful-restart`, under `router bgp`) + stalepath-time set
 - ✅ Inbound + outbound route-maps (labs 23, 24, 25)
 - ✅ Neighbor `description` filled in
 - ✅ `update-source` to a loopback for iBGP

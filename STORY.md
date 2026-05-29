@@ -25,6 +25,7 @@ The previous engineer left a working but undocumented mess. The office is mid-re
 | **01 — VLAN basics** | Your first real task: split the new office floor into two VLANs (office team / dev team) so they can't see each other's traffic. You learn what "L2 separation" means. |
 | **02 — Inter-VLAN routing (SVI)** | A week later: "Marketing can't reach the dev portal — fix it." You discover that VLAN isolation is *too good* — you need controlled L3 between them. You turn the access switch into an L3 switch. |
 | **03 — Trunk deep-dive** | The auditor visits. They flag your inter-switch trunk for "allowing all VLANs" and "using VLAN 1 native." You learn that defaults are dangerous in production and harden the trunks. |
+| **03b — LLDP & operational link discovery** | The previous engineer's documentation is a two-year-old Visio diagram that doesn't match the patch panel. Before you can trust any topology, you need to know what's *actually* on the other end of each cable. You make `show lldp neighbors` a daily reflex — the operational tool you'll reach for in every lab after this. |
 | **04 — STP / RSTP** | The office added a second uplink for redundancy. The network died for 4 minutes — broadcast storm. STP saved it (and you), but you didn't even know it was running. Time to actually understand the spanning tree. |
 | **05 — STP protections** | An intern plugged a $20 SOHO switch into a wall jack. It tried to become root bridge. Half the office lost network for 30 seconds. You install PortFast + BPDU Guard on every access port. |
 
@@ -141,6 +142,7 @@ The growth keeps coming. The colo-rack-and-a-couple-of-servers era is over — T
 | **31 — EVPN Type 5** | Customers want multiple subnets per tenant with controlled inter-subnet routing. You implement L3 overlay via Type 5 routes and tenant VRFs. Symmetric IRB. |
 | **32 — EVPN anycast gateway** | VM mobility started mattering. A customer's load balancer moves between leaves and you don't want the gateway to change. You deploy distributed anycast gateway — every leaf is the local gateway for hosted subnets. |
 | **33 — EVPN multi-site DCI** | The big one: a customer (and your CTO) want a /24 that works in both DCs simultaneously. You design the multi-site EVPN extension: back-to-back EVPN for now, with a plan to migrate to Border Gateway pattern as you scale. |
+| **33b — EVPN Multi-Homing (ESI)** | You're standing up a new pod and the old MLAG dual-homing (lab 14) feels dated: peer-link cabling, orphan ports, split-brain worries. You go EVPN-native instead — shared Ethernet Segment + LACP system-id, Type 1/4 routes, DF election, no peer-link. The mechanism every modern EVPN build now chooses for dual-homing servers. |
 
 **Where you are by end of Phase 6**: You operate (and largely designed) a modern multi-site EVPN fabric. You can have a substantive conversation about VXLAN encapsulation, RD/RT semantics, anycast gateway, and DCI patterns. Your CTO trusts you with the architecture decisions.
 
@@ -169,6 +171,8 @@ The Company joined an IXP, has its own /22 of IPv4 (and it's filling up), and st
 | **40 — DDoS mitigation** | 3 AM: customer at `198.51.100.10` is under a 50 Gbps DDoS. Your 10 Gbps transit is saturated. You announce a /32 to the upstream tagged with their RTBH community `65000:666`. The upstream blackholes the victim at their edge; your pipe is free; the rest of your /24 stays online. Tactical sacrifice. |
 | **41 — Control-plane protection** | Last week an attacker brute-forced SSH from the internet against an edge router. Passwords held, but 100k attempts/sec cooked the CPU and BGP started flapping. You apply mgmt-plane ACLs (no SSH from anywhere but the mgmt network) and CoPP to rate-limit anything CPU-bound. |
 
+**Where you are by end of Phase 7**: You run a real internet edge — IXP peering, your own address space, NAT/CGNAT for IPv4 scarcity, a dual-stack and IPv6-only story, anycast services, and a blackhole reflex when the DDoS calls come at 3 AM. You're no longer "the DC network engineer"; you're an internet operator who happens to also run DCs.
+
 ## Phase 8 — Application & Traffic Management (Labs 42–48)
 
 > Year 4-5. Senior+. Customers stop being "VMs" and start being "applications" that need network behavior.
@@ -185,6 +189,8 @@ A long-time customer adds a VoIP service — their one-way audio is now your pro
 | **47 — Lossless ethernet: DCB / PFC / ETS** | iSCSI works but plateaus at 60% line rate, and one customer complains of "IOPS spikes". Ethernet drops packets when congested; storage hates retransmits. You learn PFC (per-class PAUSE) and ETS (bandwidth guarantees) — the difference between "works" and "works under load". |
 | **48 — Storage QoS and tenant isolation** | The noisy-neighbor incident: Tenant B's backup at 02:00 starves Tenant A's database. You build per-tenant policing + DSCP marking + per-class bandwidth allocation, and the SLA breach goes away. |
 
+**Where you are by end of Phase 8**: Your network is application-aware. You can reason about voice, storage, and per-tenant fairness in terms of classification, marking, queueing, and policing — not just "is the link up". You speak QoS and SLA fluently with both customers and your own product teams. (Note: several of these features are config/control-plane only in cEOS-lab and enforced on hardware — the labs flag this.)
+
 ## Phase 9 — Operations & Day-2 (Labs 49–59)
 
 > Year 5+. Tech lead. There's a NOC. You have a team. You write standards, not configs. But you still get pulled into the gnarliest incidents.
@@ -199,10 +205,12 @@ The Company now has 100+ devices, 4 sites, real on-call. The tools you choose no
 | **52 — Ansible & Nornir for network automation** | 100+ devices. Click-ops doesn't scale. You build idempotent, inventory-driven config workflows. |
 | **53 — Network CI/CD pipeline** | Configs in git, linting in CI, staged validation, automated rollback. Junior engineers can ship changes safely. |
 | **55 — Network device backup & disaster recovery** | "A switch died overnight" — walk-through of config backup, ZTP for the replacement, restoring state from a source-of-truth, validating before traffic flows. |
-| **56 — Hitless upgrade / rolling EOS upgrade** | Upgrade the fabric without taking customers down. Drain/undrain dance, MLAG and EVPN-MH pair upgrades, validation between steps. |
+| **56 — Hitless upgrade / rolling EOS upgrade** | Upgrade the fabric without taking customers down. The drain/undrain dance on a redundant pair — the lab demonstrates it on a VARP + ECMP leaf pair, and the same technique carries over to MLAG and EVPN-MH pairs — with validation between steps. |
 | **57 — Production packet capture: SPAN + traffic generation** | How to capture from production without melting the switch CPU (port mirroring). Pairs with traffic generation (iperf3, scapy) for validation. |
 | **58 — Failure scenario playbook** | A new junior joined the team. You write failure playbooks (link, switch, gateway, BGP session, EVPN VTEP) they can follow at 3 AM. |
 | **59 — Capacity & MTU planning** | After several near-misses with saturation and MTU mismatches, you build quantitative planning models. Pixel-precise bandwidth math, jumbo-in-VXLAN gotchas, oversubscription. |
+
+**Where you are by end of Phase 9**: You operate Day-2, not just Day-0. Telemetry pushes instead of polls, configs live in git behind CI, automation is inventory-driven, and there are playbooks a three-week junior can follow at 3 AM. You write standards and review changes more than you type configs. You're a tech lead — the person the org trusts to decide *how* the network is run, not just *what* is configured.
 
 **Skills earned beyond the labs in Phases 7–9**:
 - You no longer write configs directly. You **review** configs, **mentor** writers, and **own standards**.

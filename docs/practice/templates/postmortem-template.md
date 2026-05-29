@@ -9,7 +9,7 @@
 
 - **Incident ID**: `[INC-YYYY-NNN]`
 - **Date / time of incident**: `[YYYY-MM-DD HH:MM TZ start – HH:MM TZ end]`
-- **Severity**: `[Sev1 / Sev2 / Sev3]`
+- **Severity**: `[Sev1 / Sev2 / Sev3 / Sev4]` (postmortems are normally run for Sev1 — and ideally Sev2; see [`../incident-response.md`](../incident-response.md))
 - **Duration of impact**: `[NN minutes]`
 - **Incident Commander**: `[name]`
 - **Scribe**: `[name]`

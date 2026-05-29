@@ -2,7 +2,7 @@
 
 > **Format:** Hands-on. Lock down management services to trusted networks; apply CoPP to rate-limit traffic to the device CPU. Reference answer in [`solutions/`](solutions/).
 >
-> **Story chapter:** Phase 7 · Senior · Year 4. Last week an attacker tried to brute-force SSH on edge routers from the public internet. The brute-force itself failed (good passwords + AAA), but the CPU load from processing 100k SSH attempts/sec made the route processor sluggish — BGP started flapping. You realize: the mgmt plane needs to be unreachable from untrusted networks, AND the CPU itself needs DoS protection. See [`STORY.md`](../../STORY.md).
+> **Story chapter:** Phase 7 · Senior+ · Year 4. Last week an attacker tried to brute-force SSH on edge routers from the public internet. The brute-force itself failed (good passwords + AAA), but the CPU load from processing 100k SSH attempts/sec made the route processor sluggish — BGP started flapping. You realize: the mgmt plane needs to be unreachable from untrusted networks, AND the CPU itself needs DoS protection. See [`STORY.md`](../../STORY.md).
 >
 > **Syntax verification:** CoPP syntax varies by platform. cEOS has limited CoPP; production hardware (DCS-7280/7500/7800) has richer per-class policing. Verify against EOS User Manual v4.36.0F.
 

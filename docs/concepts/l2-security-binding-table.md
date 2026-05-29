@@ -2,13 +2,15 @@
 
 > One table, three features. Understanding the DHCP snooping binding table makes DHCP snooping, Dynamic ARP Inspection, and IP Source Guard click as a single mechanism rather than three separate ones.
 
+> **Platform & cEOS note (read first):** This page is deliberately **vendor-neutral** about the *concept*. The illustrative CLI shown below (`ip source binding <mac> ...`, `ip dhcp snooping database flash:...`) is **Cisco-IOS-flavored** and is here only to make the idea concrete — **Arista EOS syntax differs** (EOS uses `ip verify source` for IPSG, `ip arp inspection` for DAI, has **no** `ip dhcp snooping trust` port command, and orders `ip source binding <IP> <MAC-dotted> vlan <id> interface <intf>` IP-first). See **[lab 07](../../labs/07-l2-security-trifecta/README.md)** for the exact Arista commands. More importantly: DHCP snooping, DAI and IPSG are all **ASIC-enforced data-plane** features. On **cEOS containers (no forwarding chip)** the commands are *config-accepted but not fully enforced* — the binding table may not populate dynamically, rogue offers are not actually blocked, and spoofed ARPs / source IPs still pass. You learn the config and the model in cEOS; **real hardware does the dropping.** This is the same class of limitation flagged in labs 05/06/07/38/47.
+
 ## What the binding table is
 
 The **DHCP snooping binding table** is a list of entries the switch maintains by watching DHCP traffic on each access port. Each entry records:
 
 ```
 MAC address     IP address      VLAN    Port           Lease expiry
-aa:bb:cc:11:22  10.10.10.123    10      Et3            2024-08-15 14:32:00
+aa:bb:cc:11:22:33  10.10.10.123    10      Et3            2024-08-15 14:32:00
 ```
 
 The table is built passively — the switch doesn't grant or deny leases, it just **observes** the legitimate DHCP exchange between client and server and records the outcome.
@@ -35,9 +37,9 @@ Each feature adds a filter on a different traffic class (DHCP server msgs, ARPs,
 
 ## How an entry appears
 
-1. **DHCPDISCOVER** — client (MAC `aa:bb:cc:11:22`) on port Et3 broadcasts request. Switch sees the source MAC + ingress port + VLAN.
+1. **DHCPDISCOVER** — client (MAC `aa:bb:cc:11:22:33`) on port Et3 broadcasts request. Switch sees the source MAC + ingress port + VLAN.
 2. **DHCPOFFER** — server (on trusted port, e.g. Et1) replies with `10.10.10.123` lease for 12 hours. Switch sees the IP being offered.
-3. **DHCPREQUEST → DHCPACK** — exchange completes. **Now the switch installs the binding**: `MAC=aa:bb:cc:11:22, IP=10.10.10.123, VLAN=10, Port=Et3, Expires=12h`.
+3. **DHCPREQUEST → DHCPACK** — exchange completes. **Now the switch installs the binding**: `MAC=aa:bb:cc:11:22:33, IP=10.10.10.123, VLAN=10, Port=Et3, Expires=12h`.
 
 The binding remains while the lease is valid. Renewals reset the timer. DHCPRELEASE removes the entry.
 
@@ -86,6 +88,8 @@ ip source binding aa:bb:cc:99:88:77 vlan 10 10.10.10.250 interface Ethernet5
 
 This tells the switch "trust this MAC/IP/port combination as if it came from DHCP". DAI accepts the host's ARPs and IPSG accepts its traffic.
 
+> Syntax is platform-specific. The form above is Cisco-IOS-flavored (MAC first). **Arista EOS puts the IP first and uses dotted MAC:** `ip source binding 10.10.10.250 aabb.cc99.8877 vlan 10 interface Ethernet5`. See [lab 07](../../labs/07-l2-security-trifecta/README.md).
+
 Best practice: maintain manual bindings in your config-management system, not ad-hoc.
 
 ## Persistence — surviving reboots
@@ -98,7 +102,7 @@ Mitigations:
   ```
   ip dhcp snooping database flash:dhcp-snooping.db
   ```
-  The switch saves the binding table to local storage every few minutes. After a reboot, it's reloaded.
+  The switch saves the binding table to local storage every few minutes. After a reboot, it's reloaded. (The `flash:` path above is Cisco-IOS-flavored; exact storage URI and command vary by platform — and on cEOS this is moot since dynamic bindings aren't reliably created in the first place.)
 
 - **TFTP/FTP backup** — for redundancy, save the binding DB to a network location.
 
@@ -118,7 +122,7 @@ IPv6 has the same problem (rogue RAs, ND spoofing, IP source spoofing), solved b
 - **DHCPv6 snooping** — same idea as DHCP snooping.
 - **IPv6 ND inspection** — equivalent of DAI but for IPv6's NDP.
 - **IPv6 Source Guard** — equivalent of IPSG.
-- **RA Guard** — blocks rogue Router Advertisements (no v4 equivalent because there's no RA in v4).
+- **RA Guard** — blocks rogue Router Advertisements. The IPv4 analogue (ICMP Router Discovery, RFC 1256) exists but is almost never deployed, so RA Guard is effectively a v6-specific concern.
 
 Same trust model, same binding-table foundation. Configure both v4 and v6 in modern dual-stack environments.
 
@@ -134,5 +138,5 @@ Same trust model, same binding-table foundation. Configure both v4 and v6 in mod
 ## Where this matters in the lab series
 
 - **Lab 07** — the trifecta in action.
-- **IPv6 deployment lab (Ch 8)** — DHCPv6 snooping + ND inspection + IPv6 Source Guard + RA Guard.
+- **Lab 37** (IPv6 dual-stack) — DHCPv6 snooping + ND inspection + IPv6 Source Guard + RA Guard.
 - **802.1X / NAC** (future) — replaces the DHCP-based identity assumption with explicit per-port authentication.
