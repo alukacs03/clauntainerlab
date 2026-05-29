@@ -33,16 +33,18 @@ By the end you should be able to answer:
 
 ```mermaid
 graph TB
-    h1[h1] --> sw1
-    h2[h2] --> sw2
-    h3[h3] --> sw3
-    sw1 ---|\1| sw2
-    sw2 ---|\1| sw3
-    sw1 ---|\1| sw3
+    h1[h1] --- sw1
+    h2[h2] --- sw2
+    h3[h3] --- sw3
+    sw1 ---|trunk| sw2
+    sw2 ---|trunk| sw3
+    sw1 ---|trunk| sw3
     rogue[sw-rogue<br/>priority 0<br/>plugged into wall jack] -.Et4 access port.- sw1
 ```
 
 Lab 04's triangle (sw1 = root @ priority 4096, sw2 = secondary @ 8192, sw3 = default) + a **rogue switch** wired into sw1's Et4. The rogue is configured with **priority 0** — it desperately wants to be root and is broadcasting BPDUs every 2 seconds.
+
+> **Mode note:** As in lab 04, the starter configs put every switch into **Rapid-PVST** (`spanning-tree mode rapid-pvst`). cEOS defaults to MSTP, where `spanning-tree vlan-id <id> priority <val>` is silently ignored — so without this line the carefully-picked root design (sw1 @ 4096, sw2 @ 8192, rogue @ 0) would *not* take effect and root election would fall back to lowest MAC. The starters already include it; if you reconfigure a switch live from scratch, set the mode first.
 
 ## Theory primer
 
@@ -89,7 +91,7 @@ We won't configure these in this lab but they exist; a dedicated concept doc on 
    - sw3: Et1 (h3)
 2. Add **Root Guard** to sw1's Et3 (trunk to sw3) so sw3 can never claim root via that link.
 3. Observe sw1 Et4 immediately err-disable when your config touches it (sw-rogue's BPDUs are already arriving — the guard fires the moment it's enabled).
-4. As a bonus, force a root-guard event: set sw3's priority to 0 and watch sw1 Et3 go root-inconsistent.
+4. As a bonus, force a root-guard event: set sw3's priority to 0 and watch sw1 Et3 go root-inconsistent. (This relies on Rapid-PVST being active — the starters already set it; see the Mode note under Topology.)
 
 ## Hints
 
@@ -204,10 +206,10 @@ Back on sw1:
 ```
 show spanning-tree
 show spanning-tree blockedports
-show spanning-tree detail | include inconsistent
+show interfaces Ethernet3 status
 ```
 
-> cEOS doesn't have Cisco's `show spanning-tree inconsistentports`. Use `show spanning-tree blockedports` (the guarded port shows up as blocked) plus `show spanning-tree detail | include inconsistent` to confirm the root-inconsistent state.
+> cEOS doesn't have Cisco's `show spanning-tree inconsistentports`. The reliable check is **`show spanning-tree blockedports`** — the root-guarded port shows up there as blocked once sw3's superior BPDU is rejected. (If you want a per-port detail view, `show spanning-tree detail` reports the port as discarding/blocked; note EOS spells the state `Inconsistent` with a capital I and the `| include` filter is case-sensitive, so filter on `Inconsistent` — or just read the blockedports list, which is the dependable signal.)
 
 sw1 Et3 should now be **root-inconsistent** — the port is blocked because sw3's superior BPDU was rejected. **sw1 stays root**, sw3's BPDUs are ignored on that link.
 
@@ -253,7 +255,7 @@ For every access switch you ever touch:
 
 ## What's missing (deliberately)
 
-- **MSTP / per-VLAN priority** — covered in MSTP-specific labs later
+- **MSTP multi-instance load-balancing** — mapping VLANs to instances and balancing traffic across them is an MSTP-specific design topic, deferred to a later lab. (This lab *does* use per-VLAN priority via Rapid-PVST — see the Mode note above.)
 - **STP load-balancing across multiple instances** — design topic, not protection
 - **Storm control** — lab 06
 - **DHCP snooping / DAI / IPSG** — lab 07

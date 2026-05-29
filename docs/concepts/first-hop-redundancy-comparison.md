@@ -35,7 +35,7 @@ Each successor either **standardizes** the previous, or moves from **active/stan
 | **Failover model** | Active/standby | Active/standby | Active/active, AVF election | True active/active | Distributed; nearest-leaf serves host |
 | **Requires** | Nothing | Nothing | Nothing | MLAG pair | EVPN-capable fabric (VXLAN+BGP-EVPN) |
 | **Virtual MAC** | Vendor (00:00:0c:07:ac:XX) | RFC (00:00:5e:00:01:VRID) | Multiple (one per AVF) | Operator-chosen | Operator-chosen |
-| **Failover time** | ~3s default, tunable | ~3s default, sub-second tunable | ~3s | Instant (no master concept) | Instant |
+| **Failover time** | ~3s default, tunable | ~3s default, sub-second tunable | ~10s default (hello 3s / hold 10s), tunable | Instant (no master concept) | Instant |
 | **Vendor lock-in** | Cisco-only | Multi-vendor | Cisco-only | Arista-style; other vendors have equivalents | Open standard |
 | **Scale beyond 2 boxes** | Yes (3+ in group, only one active) | Yes (3+ in group, only one active) | Yes (4 AVFs) | Limited to MLAG pair (2) | Unlimited — every leaf in fabric |
 | **Active sites** | One | One | One but spreads load across N gateways | One pair | All sites if EVPN multi-site |
@@ -92,7 +92,7 @@ This is the modern hyperscaler / large-DC default.
 - **VRRP authentication** — plaintext-only; doesn't really secure anything. Treat it as misconfiguration prevention, not security.
 - **MAC table churn during failover** — when master changes, the virtual MAC moves between ports on upstream switches. Switches issue gratuitous ARP / MAC moves. Brief blip. Watch for storms if you have many groups failing over together.
 
-## Choosing in 2024+
+## Choosing for a new design (today)
 
 For a **new design**:
 
@@ -106,4 +106,4 @@ For **legacy maintenance**: keep what's there until you have a reason to migrate
 
 - **Lab 13** — VRRP basics (active/standby).
 - **Lab 15** — Anycast gateway via VARP on top of MLAG (lab 14). Active/active.
-- **Lab 32** (planned) — EVPN distributed anycast gateway. Fabric-wide active/active.
+- **Lab 32** — EVPN distributed anycast gateway. Fabric-wide active/active.

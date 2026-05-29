@@ -2,6 +2,8 @@
 
 > **Format:** Hands-on. Per-tenant rate-limit (policer) on ingress, DSCP marking by tenant, queue bandwidth allocation on the shared egress. Reference answer in [`solutions/`](solutions/).
 >
+> **cEOS limitation:** ingress policing and egress tx-queue bandwidth scheduling are **dataplane/ASIC** features. cEOS is a container with no forwarding ASIC: it *accepts* the syntax (the config commits, `show policy-map` / `show qos interface` reflect it) but does **not** enforce rate-limiting or bandwidth allocation. The point of this lab is the *config pattern* and the trust-boundary model — production hardware (DCS-7050X / 7280R / 7500R) enforces; cEOS does not. The throughput numbers in Verification describe what production hardware would produce, not what you will measure in this lab. Same caveat as lab 42 (QoS varies by chipset) and lab 47 (DCB enforcement is partial on cEOS).
+>
 > **Story chapter:** Phase 8 · Senior+ · Year 5. Multi-tenant storage. Tenant B's backup job at 02:00 is starving Tenant A's database I/O — same SAN, same network. Tenant A pays for "premium IOPS." Tenant B doesn't. The network has to enforce the difference. See [`STORY.md`](../../STORY.md).
 
 ## Real-world scenario
@@ -22,6 +24,17 @@ Combined effect: Tenant B can use up to 100 Mbit. Beyond that, dropped at ingres
 - Per-tenant DSCP marking
 - Ingress policer for the lower tier
 - Per-class bandwidth allocation on the contested egress
+
+## Topology
+
+```mermaid
+graph LR
+    A["tenant-a (premium)<br/>10.50.1.10"] -- "Et1 · VLAN 51<br/>mark AF31" --> SW1
+    B["tenant-b (standard)<br/>10.50.2.10"] -- "Et2 · VLAN 52<br/>mark CS1 + police 100M" --> SW1
+    SW1["sw1 (cEOS)"] -- "Et3 · VLAN 99<br/>trust DSCP · 80/20 egress" --> T["target / SAN<br/>10.50.99.10"]
+```
+
+The contested resource is the egress port to the SAN (Et3). Tenant ports (Et1, Et2) are the trust boundary where marking and policing happen.
 
 ## Theory primer
 
@@ -54,6 +67,19 @@ When the egress link is congested (i.e., total demand > link capacity), the sche
 
 This is what implements the "premium gets bandwidth guarantee" promise.
 
+#### DSCP → traffic-class → tx-queue
+
+A DSCP value doesn't go straight to a queue — EOS maps it through a *traffic class*, then the traffic class to a *tx-queue*. With the EOS default maps:
+
+| DSCP | name | traffic-class | tx-queue |
+|------|------|---------------|----------|
+| 26   | AF31 | 3             | 3        |
+| 8    | CS1  | 0             | 0        |
+
+So the 80% reservation belongs on **tx-queue 3** (where AF31 lands), and 20% on **tx-queue 0** (CS1) — not on tx-queue 4. Always confirm the live map with `show qos maps` before you assume a queue number.
+
+One more subtlety: on Arad/Jericho-class platforms a tx-queue defaults to **strict priority**, and `bandwidth percent` only takes effect after you move the queue to round-robin with `no priority`. On Trident/Trident-II there is no `bandwidth percent` on tx-queues at all — the minimum-bandwidth knob is `bandwidth guaranteed <rate> kbps`. The reference answer uses the Arad/Jericho round-robin pattern.
+
 ### The trust boundary
 
 Tenants can mark their own packets. You can't trust that — they'll mark everything as the premium tier. Therefore:
@@ -75,16 +101,35 @@ The network's role: don't let one tenant's storage traffic starve another's at t
 3. Apply marking and policer at each tenant's ingress port.
 4. On the shared egress (to target): trust DSCP, allocate 80%/20% to AF31/CS1 traffic classes.
 
+## Hints
+
+CLI verbs you'll need (not the full answer — work out the structure yourself):
+
+- `policy-map type qos <name>` / `class class-default` — build a QoS policy
+- `set dscp af31` / `set dscp cs1` — mark
+- `police rate 100 mbps burst-size 64 kbytes` — token-bucket policer (drop on exceed is the default)
+- An interface takes **one** qos input policy — combine marking + policing for tenant-b into a single policy-map
+- `service-policy type qos input <name>` — attach a policy to an ingress interface
+- `qos trust dscp` — trust the marking arriving on an internal/egress interface
+- `tx-queue <n>` / `no priority` / `bandwidth percent <pct>` — weighted egress scheduling (Arad/Jericho); pick the queue that AF31/CS1 actually land in (see the DSCP→TC→queue table above)
+- `show policy-map interface ethernet <n> input`, `show qos interface ethernet <n>`, `show qos maps` — verify
+
 ## Verification
 
-### Check policies are applied
+> **Read the cEOS-limitation callout at the top first.** The config commits and the *show* commands below reflect it, but cEOS does **not** enforce the policer or the egress 80/20 split. The iperf3 results below are what production hardware produces; on cEOS you will not see the cap or the contention isolation. Verify the *config and counters*, not the throughput.
+
+### Check the policies are applied (this is the real cEOS verification)
 ```bash
 docker exec -it clab-storage-qos-isolation-sw1 Cli
 show policy-map interface ethernet 2 input
 show qos interface ethernet 3
+show qos maps
 ```
+Expected on cEOS: Ethernet2 shows the `MARK-SCAVENGER` policy with `set dscp cs1` + `police rate 100 mbps`; Ethernet3 shows `qos trust dscp` and the tx-queue 3/0 bandwidth shares; `show qos maps` confirms DSCP 26 → TC3 and DSCP 8 → TC0. If all three are present, you've built the pattern correctly.
 
-### Test policing
+### Test policing (production-hardware behaviour — will NOT cap on cEOS)
+> The `iperf3` commands require `iperf3` in the host image (the `network-multitool` image ships it). Throughput over containerlab veth pairs depends on host CPU, not a real ASIC, so even the "near 1 Gbps" framing is environment-dependent.
+
 On target, listen:
 ```bash
 docker exec -d clab-storage-qos-isolation-target iperf3 -s
@@ -95,17 +140,21 @@ From tenant-b, attempt 1 Gbps:
 docker exec clab-storage-qos-isolation-tenant-b iperf3 -c 10.50.99.10 -b 1G -t 10
 ```
 
-Expected: throughput caps at ~100 Mbit/s, "lost" packet count is high (the policer is dropping).
+- **On production hardware:** throughput caps at ~100 Mbit/s, retransmit/loss count is high (the policer is dropping).
+- **On cEOS (this lab):** no cap — tenant-b reaches roughly the same throughput as tenant-a, because the policer is config-accepted but not enforced.
 
 From tenant-a, attempt same:
 ```bash
 docker exec clab-storage-qos-isolation-tenant-a iperf3 -c 10.50.99.10 -b 1G -t 10
 ```
 
-Expected: throughput is near link rate (no policer on tenant-a).
+Expected (both platforms): tenant-a is not policed, so it runs at link/veth rate.
 
-### Test bandwidth allocation under contention
-Run both tenants simultaneously. Tenant A should retain near-full link share even when Tenant B is hammering — because Tenant B is policed first, and the egress bandwidth allocation backs it up if needed.
+### Test bandwidth allocation under contention (production-hardware behaviour)
+Run both tenants simultaneously.
+
+- **On production hardware:** Tenant A retains near-full link share even when Tenant B is hammering — Tenant B is policed first, and the egress 80/20 allocation backs it up under congestion.
+- **On cEOS (this lab):** with no egress scheduler enforcement, the two flows share the link roughly by TCP fairness, not 80/20. To *see* the isolation behaviour you need the ASIC; what this lab teaches is the config that produces it on real gear.
 
 ## What's missing (deliberately)
 

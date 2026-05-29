@@ -26,8 +26,8 @@ By the end you should be able to answer:
 - What's the difference between **anycast gateway (VARP)** and **VRRP**?
 - Why does anycast gateway require a **shared virtual MAC**?
 - Why is anycast gateway only safe inside an **MLAG pair** (or EVPN fabric)?
-- What does "shortest path to the gateway" mean here, and how does the switch decide?
-- How is anycast gateway in EVPN (chapter 5+) different from VARP?
+- In this 2-switch MLAG pair, which peer ends up routing a given flow, and what decides it?
+- How is anycast gateway in EVPN (lab 32, Phase 6) different from VARP?
 
 ## Topology
 
@@ -49,7 +49,9 @@ graph TB
 
 In an anycast deployment, the same IP exists on multiple devices. Whoever you reach is *whoever's closest*. The network's routing/switching layer delivers your packet to the nearest instance.
 
-For gateways: every host's L2 frames to the virtual MAC are delivered to whichever MLAG peer is closer (i.e., the one its MAC learning happened to populate first via the LACP hash). Both peers happily route the traffic. Return traffic comes back via the same or the other peer — doesn't matter, both work.
+For gateways: sw-leaf reaches the virtual MAC via the MLAG bundle (Port-Channel1). Its LACP load-balancing hash selects which physical member — toward sw1 or toward sw2 — each *flow* egresses on. Whichever peer the frame lands on routes it; both are configured to accept the virtual MAC, so both happily route the traffic. Return traffic comes back via the same or the other peer — doesn't matter, both work.
+
+A note on "nearest instance": in this flat 2-switch MLAG pair there is no real topological distance — both peers are equidistant behind the same bundle, so "nearest" is simply *whichever peer the downstream LACP hash happened to select* for that flow. The distance metaphor only becomes literal in an EVPN fabric (lab 32), where a host's *local* leaf is genuinely the closest instance of the anycast gateway.
 
 ### Why a shared virtual MAC
 
@@ -85,7 +87,7 @@ For a modern MLAG-based DC: always anycast gateway. VRRP is fine for non-MLAG L3
 
 ### Anycast gateway in EVPN (preview)
 
-In an EVPN fabric (lab 30+), **every leaf** that participates in a tenant VLAN has the same anycast gateway IP+MAC. A host moves between racks → its first-hop is the local leaf, regardless of where it is. No more "gateway lives on these two switches"; the gateway is distributed everywhere. VARP is the MLAG-era predecessor; EVPN anycast gateway is the routed-fabric generalization.
+In an EVPN fabric (lab 32, Phase 6), **every leaf** that participates in a tenant VLAN has the same anycast gateway IP+MAC. A host moves between racks → its first-hop is the local leaf, regardless of where it is. No more "gateway lives on these two switches"; the gateway is distributed everywhere. VARP is the MLAG-era predecessor; EVPN anycast gateway is the routed-fabric generalization.
 
 ## Your task
 
@@ -175,7 +177,7 @@ Kill sw1:
 sudo docker stop clab-anycast-gateway-sw1
 ```
 
-The ping should miss at most 1–2 packets (LACP failover within Po20 on sw-leaf). The host doesn't re-ARP — the virtual MAC is still owned by sw2.
+The ping should miss at most 1–2 packets (LACP failover within Po1 on sw-leaf). The host doesn't re-ARP — the virtual MAC is still owned by sw2.
 
 Restart sw1:
 
@@ -195,7 +197,11 @@ docker exec -it clab-anycast-gateway-sw-leaf Cli
 show mac address-table dynamic
 ```
 
-You should see the gateway MAC `aabb.cc00.0001` learned on Port-Channel1. Just one entry — sw-leaf sees it as "behind the MLAG bundle", whichever member that resolves to.
+You will **not** see the virtual MAC `aabb.cc00.0001` here — and that's the point. A switch MAC table is populated by **source**-MAC learning, but the virtual MAC is **receive-only**: the Arista EOS User Guide (v4.36.0F) states the virtual MAC "is only for inbound packets and never used in the source field of outbound packets." The peers answer ARP *with* it and accept frames *to* it, but they never *source* a frame from it. So sw-leaf has nothing to learn it from.
+
+What you **do** see on `Port-Channel1` are the individual **system/SVI MACs of sw1 and sw2** — those are the real source MACs on the routed return traffic. (Both appear on Po1 because MLAG synchronizes MAC learning and the bundle spans both peers.)
+
+To observe the virtual MAC actively, go back to `show ip virtual-router` on sw1/sw2 (step 1) — that's where it lives. This receive-only behavior is exactly why a host only ever learns *one* gateway MAC no matter which peer answers (step 2).
 
 ### 6. Compare to VRRP
 
@@ -227,11 +233,11 @@ Here, both sw1 and sw2 show identical `show ip virtual-router` output. There's n
 - **MTU consistency** — both peers' SVIs must have the same MTU for the virtual IP to behave consistently.
 - **First-hop ACLs apply identically on both peers** — otherwise traffic landing on one peer is treated differently from traffic landing on the other. Synchronize SVI configs religiously.
 - **Don't mix VRRP and VARP** on the same VLAN — pick one. If you migrate from VRRP to VARP, do it during a maintenance window.
-- **EVPN supersedes** — when you build a fabric with EVPN multi-homing (lab 30+), you don't need MLAG anymore, and anycast gateway becomes a property of every leaf in the fabric instead of just an MLAG pair.
+- **EVPN supersedes** — when you build a fabric with EVPN multi-homing (lab 32, Phase 6), you don't need MLAG anymore, and anycast gateway becomes a property of every leaf in the fabric instead of just an MLAG pair.
 
 ## What's missing (deliberately)
 
-- **EVPN anycast gateway** — chapter 7. Same concept at fabric scale.
+- **EVPN anycast gateway** — lab 32 (Phase 6). Same concept at fabric scale.
 - **First-hop redundancy with both VRRP and anycast** — not idiomatic; skip.
 - **IPv6 anycast gateway** — same approach, `ipv6 virtual-router` style commands. Add in IPv6 lab.
 - **Anycast gateway for L3 services like DHCP relay or HSRP-as-anycast** — not a real thing; mention.

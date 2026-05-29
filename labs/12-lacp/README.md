@@ -59,7 +59,7 @@ When a frame enters the Port-Channel, the switch hashes some fields of the frame
 
 Why hash and not round-robin: round-robin would deliver frames out of order at L4, breaking TCP. Hashing keeps each flow on a single path so order is preserved.
 
-Hash inputs vary by platform (Arista default: src/dst MAC + src/dst IP + L4 ports for IP traffic). You can tune `port-channel load-balance` to add fields.
+Hash inputs vary by platform and EOS version (typical Arista hash inputs: src/dst MAC + src/dst IP + L4 ports for IP traffic). The exact default field set differs across hardware platforms, and cEOS software forwarding need not match any hardware profile. You can tune `port-channel load-balance` to add fields.
 
 **Consequence**: one big flow uses *one* member's bandwidth, not the whole bundle. A 1G + 1G bundle does NOT give 2G for a single TCP stream. It gives 2G for many parallel flows balanced across members. If you have few elephant flows, LACP doesn't help much — you need real 2G/10G/etc. ports.
 
@@ -176,22 +176,33 @@ no shutdown
 
 ### 5. Observe hashing
 
-LACP picks a member per-flow. Try parallel flows from different source ports to see distribution:
+> ⚠️ **cEOS limitation:** This step is **illustrative of the concept, not a hard verification.** cEOS is a containerized control plane with no forwarding ASIC, so per-member egress hashing and per-interface data-plane counters do not reliably reflect how real hardware would distribute flows. With only a handful of short flows you may see all of them land on one member, or no per-member spread at all. The theory primer above is correct regardless of what the counters show here — don't be alarmed if the distribution looks lopsided or inconclusive. On real hardware with many concurrent flows you would see the load spread across members.
+
+LACP picks a member per-flow. The hash inputs include the L4 source port, so opening several TCP connections (each from a fresh ephemeral source port) is what would exercise different members.
+
+Start a single iperf3 server on h2:
 
 ```bash
-docker exec clab-lacp-h1 sh -c 'for i in $(seq 1 5); do ping -c 1 -W 1 10.10.10.2 > /dev/null; iperf3 -c 10.10.10.2 -p 520$i -t 1 2>/dev/null; done'
+docker exec -d clab-lacp-h2 iperf3 -s
 ```
 
-(May need iperf3 server on h2 — `docker exec -d clab-lacp-h2 iperf3 -s`)
+Then run several short back-to-back flows from h1. iperf3 opens a distinct ephemeral source port for each run, which is what varies the hash:
 
-Then on sw1:
+```bash
+docker exec clab-lacp-h1 sh -c 'for i in $(seq 1 5); do iperf3 -c 10.10.10.2 -t 1 2>/dev/null; done'
+```
+
+Then on sw1, look at the per-member state:
 
 ```
 show port-channel detail | begin "Member ports"
-show interfaces Port-Channel1 counters
+show interfaces Ethernet2 counters
+show interfaces Ethernet3 counters
 ```
 
-Different flows ride different members. The exact distribution depends on the hash inputs.
+(`show interfaces Port-Channel1 counters` reports the **aggregate** across the bundle, so to see distribution you have to read the **member** interface counters individually.)
+
+On hardware, different flows would ride different members and you'd see both members' counters climb. In cEOS, as noted above, the distribution is often not observable — that's expected.
 
 ## Peek at solution
 

@@ -16,16 +16,31 @@ topology:
       kind: arista_ceos
       startup-config: configs/sw2.cfg
 
-    # Combined NTP + syslog server
+    # Combined NTP + syslog server.
+    # network-multitool is Alpine-based, so we use apk (not apt-get) and
+    # start the daemons directly (no Debian-style `service` wrapper exists).
+    # Both switch links land here; we bridge eth1+eth2 into br0 so that a
+    # single server IP (10.99.0.10) is reachable from BOTH sw1 and sw2.
     services:
       kind: linux
       binds:
         - syslog/rsyslog.conf:/etc/rsyslog.d/99-network.conf
       exec:
-        - ip addr add 10.99.0.10/24 dev eth1
-        - sh -c "apt-get update -qq && apt-get install -y -qq chrony rsyslog || true"
-        - sh -c "echo 'allow 10.99.0.0/24' >> /etc/chrony/chrony.conf && echo 'local stratum 10' >> /etc/chrony/chrony.conf"
-        - sh -c "service rsyslog restart && service chrony restart"
+        # Bridge both switch-facing interfaces into one L2 segment.
+        - ip link add name br0 type bridge
+        - ip link set eth1 master br0
+        - ip link set eth2 master br0
+        - ip link set br0 up
+        - ip addr add 10.99.0.10/24 dev br0
+        # Install chrony (NTP) + rsyslog (syslog) via Alpine's package manager.
+        - sh -c "apk add --no-cache chrony rsyslog"
+        # Minimal chrony server config: serve our subnet, act as a local stratum-10
+        # source so clients sync even without upstream internet in the lab.
+        - sh -c "mkdir -p /etc/chrony && printf 'allow 10.99.0.0/24\nlocal stratum 10\n' > /etc/chrony/chrony.conf"
+        # Start both daemons directly (no init system in the container).
+        # chronyd needs an explicit config path; rsyslogd reads /etc/rsyslog.conf
+        # plus our drop-in under /etc/rsyslog.d/.
+        - sh -c "chronyd -f /etc/chrony/chrony.conf && rsyslogd"
 
   links:
     - endpoints: ["sw1:eth1", "services:eth1"]

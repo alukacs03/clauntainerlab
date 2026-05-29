@@ -60,7 +60,7 @@ A more sophisticated pattern (RFC 9014): designate **Border Gateways** at each s
 - Inter-site DCI is its own routing domain.
 - Failure isolation: a problem in Site A's EVPN doesn't bleed into Site B.
 
-cEOS supports EVPN Multi-Site with specific config (`evpn multicast` block, MS-PEs, etc.). Beyond the scope of this lab; mentioned for context.
+EOS supports EVPN Multi-Site with per-site **domain isolation** config (`domain identifier <x:y>` / `domain identifier <x:y> remote`, `neighbor <peer> domain remote`, `evpn ethernet-segment domain local|remote`, plus RCF functions for IMET/BUM filtering). Beyond the scope of this lab; mentioned for context. (Syntax per EOS User Guide v4.36.0F.)
 
 ### What flows across the DCI
 
@@ -197,7 +197,15 @@ configure terminal
     shutdown
 ```
 
-h1 ↔ h2 stops working (no cross-site path), but each site continues working internally. Hosts in Site A can still reach their gateway; hosts in Site B same. The fabric tolerates DCI failure for intra-site traffic.
+h1 ↔ h2 stops working (no cross-site path). With only **one host per site**, the surviving behavior you can actually observe is limited: each host still resolves and reaches its **local anycast gateway** `10.10.10.254` (the gateway lives on the local leaf, not across the DCI):
+
+```bash
+docker exec clab-evpn-multisite-h1 ping -c 2 10.10.10.254   # still works
+docker exec clab-evpn-multisite-h2 ping -c 2 10.10.10.254   # still works
+docker exec clab-evpn-multisite-h1 ping -c 2 10.10.10.20    # now fails (DCI down)
+```
+
+The fabric tolerates DCI failure for intra-site traffic. To *see* intra-site host-to-host forwarding survive the DCI cut you'd need 2+ hosts in the same site — out of scope for this minimal two-host demo, but the principle is the same: the local leaf keeps switching/routing for its own site regardless of the DCI.
 
 Restore: `no shutdown`.
 

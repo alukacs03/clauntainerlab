@@ -78,7 +78,7 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 52 | [ansible-nornir](labs/52-ansible-nornir) | Idempotent baseline playbook across N devices | Ready | — |
 | 53 | [network-cicd](labs/53-network-cicd) | Lint→validate→stage→prod pipeline + smoke tests | Ready | — |
 | 55 | [backup-and-dr](labs/55-backup-and-dr) | Automated config backup + recovery procedure | Ready | — |
-| 56 | [hitless-upgrade](labs/56-hitless-upgrade) | Rolling EOS upgrade across an MLAG/ESI pair | Ready | — |
+| 56 | [hitless-upgrade](labs/56-hitless-upgrade) | Rolling EOS upgrade — drain/undrain a redundant leaf pair (VARP + ECMP) | Ready | — |
 | 57 | [span-capture](labs/57-span-capture) | Port mirroring + scapy/iperf3 traffic generation | Ready | — |
 | 58 | [failure-playbook](labs/58-failure-playbook) | Chaos-experiments + scripted response | Ready | — |
 | 59 | [capacity-mtu-planning](labs/59-capacity-mtu-planning) | Oversubscription math + end-to-end MTU budget | Ready | — |
@@ -216,7 +216,7 @@ The labs in chapters 1-8 cover *transport*. This chapter covers what runs *on* t
 | ~~53~~ | ~~Network CI/CD pipeline~~ | Lint → validate → stage-deploy → stage-test → prod-deploy → smoke |
 | 54 | _Source of truth & IPAM (NetBox)_ — **deferred** | Removed from the curriculum; needs a deeper treatment (likely its own chapter). See [`TODO.md`](TODO.md). |
 | ~~55~~ | ~~Network device backup & disaster recovery~~ | Daily backup to git + ZTP-driven replacement procedure |
-| ~~56~~ | ~~Hitless upgrade / rolling EOS upgrade~~ | MLAG-pair drain/upgrade/undrain dance; reload-fast |
+| ~~56~~ | ~~Hitless upgrade / rolling EOS upgrade~~ | Leaf-pair drain/upgrade/undrain dance (demo uses VARP + ECMP; same technique for MLAG/EVPN-MH pairs) |
 | ~~57~~ | ~~Production packet capture: SPAN + traffic generation~~ | Port mirroring + scapy/iperf3 |
 | ~~58~~ | ~~Failure scenario playbook~~ | Chaos-experiments + scripted on-call response |
 | ~~59~~ | ~~Capacity & MTU planning~~ | Oversubscription math + end-to-end MTU budget |

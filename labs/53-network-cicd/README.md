@@ -30,6 +30,28 @@ This lab gives you the blueprint. You'll combine: git (source of truth), Ansible
 - Read the example `.gitlab-ci.yml` and example test
 - (Optional) Wire up to a local runner and execute against the lab switches
 
+## Topology
+
+The `ci-runner` (a plain Linux container that plays the part of your CI worker)
+has one link to each switch, each in its own /30 so the runner has a distinct
+connected route per device. eAPI (HTTPS) is enabled on both switches.
+
+```mermaid
+graph LR
+    runner["ci-runner<br/>(linux)<br/>eth1 10.0.0.2/30<br/>eth2 10.0.1.2/30"]
+    staging["staging-sw<br/>(cEOS)<br/>Eth1 10.0.0.1/30"]
+    prod["prod-sw<br/>(cEOS)<br/>Eth1 10.0.1.1/30"]
+    runner -- "eth1 — 10.0.0.0/30" --> staging
+    runner -- "eth2 — 10.0.1.0/30" --> prod
+```
+
+| Node | Interface | IP | Role |
+|------|-----------|----|----|
+| ci-runner | eth1 | 10.0.0.2/30 | faces staging-sw |
+| ci-runner | eth2 | 10.0.1.2/30 | faces prod-sw |
+| staging-sw | Ethernet1 | 10.0.0.1/30 | staging eAPI target |
+| prod-sw | Ethernet1 | 10.0.1.1/30 | prod eAPI target |
+
 ## Theory primer
 
 ### The standard network pipeline shape
@@ -99,16 +121,45 @@ Optional: set up a local GitLab runner or run `gitlab-runner exec` against the t
 
 The bigger task is understanding the *workflow*, not the syntax.
 
+## Hints
+
+This is a reference/blueprint lab, so the "answer" is mostly *reading* the
+files in `solutions/`. A few pointers for the optional hands-on part:
+
+- Run pytest from inside the runner container; the eAPI tests just need
+  `requests` and network reachability to each switch (`10.0.0.1`, `10.0.1.1`).
+- To run a single CI job locally without a full GitLab server, look at
+  `gitlab-runner exec docker <job-name>` (deprecated but still illustrative)
+  or replicate the job's `script:` block by hand.
+- eAPI auth here is `admin`/`admin` over HTTPS with a self-signed cert —
+  that's why the test sets `verify=False` and calls `urllib3.disable_warnings()`.
+- The interesting verbs for a real test suite: `show ip bgp summary`,
+  `show ip route`, `show interfaces status`, all via the eAPI `runCmds` method.
+
 ## Verification
 
-If you have a CI runner available, run a stage manually:
+If you have a CI runner available, run the example test from inside the runner:
 
 ```bash
 docker exec -it clab-network-cicd-ci-runner bash
 pip install pytest requests
-# Run the smoke test against staging
+# Runs against both switches: 10.0.0.1 (staging) and 10.0.1.1 (prod)
 pytest /lab/solutions/test-bgp-up.py -v
 ```
+
+Expected result: **all tests pass.** Note *why* they pass:
+
+- `test_bgp_peers_established` passes **vacuously** — the lab switches run no
+  BGP and `EXPECTED_PEERS` is empty, so there is nothing to assert. This is
+  intentional: the test demonstrates the eAPI *pattern* you would use against a
+  real fabric, where `EXPECTED_PEERS` comes from your source of truth (NetBox,
+  YAML inventory, etc.) and the test fails loudly if a peer is down.
+- `test_no_critical_errors` actually queries each switch's log buffer over
+  eAPI and asserts there are no `%CRITICAL`/`EMERG` entries — a real check.
+
+Before this fix the runner could not reach the prod switch at all (both links
+shared one /24, so the prod IP was unreachable and the test timed out). With
+the two /30 links above, both devices are reachable and the suite runs clean.
 
 ## What's missing (deliberately)
 

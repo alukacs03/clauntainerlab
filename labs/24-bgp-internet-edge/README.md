@@ -70,7 +70,7 @@ You can't force what other ASes do, only suggest. Two main mechanisms:
 - **AS-path prepend** — make your prefix look "longer" when advertised to the less-preferred upstream. Other ASes consider longer AS-path as "worse" in step 4 of decision process.
 - **Communities** — many ISPs publish community values you can tag with to influence their internal decisions (e.g., "tag with 64512:50 to set local-pref 50 inside our network"). More precise than prepending.
 
-We use AS-prepend in this lab. ISP2's view of your /24 has AS-path `[65001 65001 65001 65001]` (your AS twice prepended + the real one), ISP1's view has `[65001]`. The rest of the internet sees ISP1's path as shorter → returns traffic via ISP1.
+We use AS-prepend in this lab. ISP2's view of your /24 has AS-path `[65001 65001 65001]` (your AS twice prepended + the real one), ISP1's view has `[65001]`. The rest of the internet sees ISP1's path as shorter → returns traffic via ISP1.
 
 ### Floating static default
 
@@ -88,16 +88,16 @@ edge1 and edge2 are in the same AS. They peer via iBGP. Why?
 - They both originate `203.0.113.0/24`. Without iBGP, neither would know the other is also announcing it — making failover broken.
 - If edge1 disappears, edge2 still announces `203.0.113.0/24` to ISP2 — inbound traffic continues via ISP2.
 
-`next-hop-self` is essential: when edge1 learns ISP1's default (next-hop = ISP1's interface IP `198.51.100.2`) and sends it to edge2 via iBGP, edge2 wouldn't know how to reach `198.51.100.2` unless it had a route to that subnet. `next-hop-self` makes edge1 rewrite the next-hop to its own loopback when reflecting via iBGP. edge2 has OSPF reachability to edge1's loopback. ✅
+`next-hop-self` is essential: when edge1 learns ISP1's default (next-hop = ISP1's interface IP `198.51.100.2`) and sends it to edge2 via iBGP, edge2 wouldn't know how to reach `198.51.100.2` unless it had a route to that subnet. `next-hop-self` makes edge1 rewrite the next-hop to its own loopback when advertising the route to edge2 over iBGP. edge2 has OSPF reachability to edge1's loopback. ✅
 
 ## Your task
 
 1. On edge1:
-   - **Inbound from ISP1**: accept ONLY `0.0.0.0/0`, tag with community `65001:101`.
+   - **Inbound from ISP1**: accept ONLY `0.0.0.0/0`, tag with community `65001:101`, and **set local-preference 200** so the whole AS prefers ISP1 outbound.
    - **Outbound to ISP1**: advertise ONLY your `203.0.113.0/24`.
    - Add a **floating static default** via ISP1's next-hop with AD 250.
 2. On edge2:
-   - **Inbound from ISP2**: accept ONLY `0.0.0.0/0`, tag with community `65001:102`.
+   - **Inbound from ISP2**: accept ONLY `0.0.0.0/0`, tag with community `65001:102`, and **set local-preference 100** (lower than ISP1's 200, so ISP2's default is the backup).
    - **Outbound to ISP2**: advertise your `/24` BUT **prepend AS-path twice** so external ASes prefer your ISP1 path inbound.
    - Add a similar floating static default via ISP2's next-hop.
 3. Verify h1 can reach external prefixes via ISP1 normally; via ISP2 when ISP1 is dead.
@@ -111,6 +111,7 @@ ip prefix-list OWN-PREFIXES seq 10 permit 203.0.113.0/24
 
 route-map FROM-ISPx permit 10
    match ip address prefix-list DEFAULT-ONLY
+   set local-preference <higher on the preferred ISP, lower on the other>
    set community <community>
 route-map FROM-ISPx deny 99      ! drop everything else
 
@@ -155,7 +156,16 @@ Should show only `0.0.0.0/0` learned from 198.51.100.2 (ISP1). Other prefixes fr
 show ip bgp 0.0.0.0/0
 ```
 
-Community: `65001:101`. Tagged appropriately.
+Community: `65001:101`. Local-preference: `200`. Tagged and preferred appropriately.
+
+On edge2, the same command shows the iBGP-learned default from edge1 (lp 200, next-hop = edge1's loopback `10.0.0.1`) winning over edge2's own eBGP default from ISP2 (lp 100). That's what makes the **whole AS** egress via ISP1 — not just h1's flow. Confirm with:
+
+```
+docker exec -it clab-bgp-internet-edge-edge2 Cli
+show ip route 0.0.0.0/0
+```
+
+The active default on edge2 points at `10.0.0.1` (edge1), not at ISP2.
 
 ### 2. Outbound is only OWN /24
 
@@ -176,12 +186,16 @@ AS-path: `65001 65001 65001` (your prepend × 2 + the original). ISP1's view of 
 
 ### 4. End-to-end test
 
+`1.1.1.1` is a Loopback1 on each simulated ISP (a reachable target), so this ping actually succeeds:
+
 ```bash
 docker exec clab-bgp-internet-edge-h1 ping -c 3 1.1.1.1
 docker exec clab-bgp-internet-edge-h1 traceroute -n 1.1.1.1
 ```
 
 Outbound path: h1 → edge1 → ISP1 (because lp 200 wins). ✅
+
+> **Note on the simulated ISPs:** only `1.1.1.1` is pingable — it lives on `Loopback1` of each ISP. The other "internet" prefixes (`8.8.8.0/24`, `142.250.0.0/16`, `17.0.0.0/8`, `9.9.9.0/24`) point at `Null0` on the ISPs: they exist to fill the BGP table but **silently drop** any packet sent to them. Pinging those addresses will time out — that's expected, they're control-plane fill, not real hosts.
 
 ### 5. ISP1 failover demo
 
@@ -201,30 +215,40 @@ Wait a few seconds. Traffic should now follow:
 show ip route 0.0.0.0/0
 ```
 
-Should show default via iBGP next-hop (edge2's loopback), pointing to ISP2.
+Should show default via iBGP next-hop (`10.0.0.2`, edge2's loopback), pointing to ISP2.
 
 ```bash
 docker exec clab-bgp-internet-edge-h1 ping -c 3 1.1.1.1
 ```
 
-Still ✅. Failover worked.
+Still ✅ — `1.1.1.1` is also a Loopback1 on ISP2, and ISP2 still has a BGP route back to `203.0.113.0/24` (edge2 originates it), so the return path works too. Failover succeeded.
 
 Restore: `no shutdown` on Et3.
 
-### 6. Both ISPs gone — floating static kicks in
+### 6. Both BGP sessions gone — floating static kicks in
+
+This step demonstrates the doomsday case: BGP is down but the physical links are still up (e.g. a control-plane bug, or both ISPs withdrawing during a mis-sequenced maintenance window). We reproduce it by **shutting the BGP sessions, not the interfaces** — which is also the more realistic failure mode.
+
+> **Why not `shutdown` the interface?** The floating static is a *recursive* static — `ip route 0.0.0.0/0 198.51.100.2 250`. If you shut `Ethernet3`, the connected `198.51.100.0/30` is withdrawn, so the next-hop `198.51.100.2` becomes unresolvable and EOS will **not** install the static at all — you'd see no default route, not the floating static. To see the floating static actually take over, the next-hop subnet must stay reachable, so we drop BGP at the session level and leave the link up.
+
+On edge1, administratively shut the eBGP and iBGP sessions:
 
 ```
+docker exec -it clab-bgp-internet-edge-edge1 Cli
 configure terminal
-  interface Ethernet3
-    shutdown
+  router bgp 65001
+    neighbor 198.51.100.2 shutdown
+    neighbor 10.0.0.2 shutdown
 ```
 
-On edge2:
+On edge2, do the same:
 
 ```
+docker exec -it clab-bgp-internet-edge-edge2 Cli
 configure terminal
-  interface Ethernet3
-    shutdown
+  router bgp 65001
+    neighbor 198.51.100.6 shutdown
+    neighbor 10.0.0.1 shutdown
 ```
 
 Both BGP defaults are gone:
@@ -234,15 +258,17 @@ docker exec -it clab-bgp-internet-edge-edge1 Cli
 show ip bgp 0.0.0.0/0
 ```
 
-No BGP entry. But the routing table:
+No BGP entry. But the routing table now shows the **floating static** — because `Ethernet3` is still up, `198.51.100.2` is still resolvable, and with no BGP default the AD-250 static finally wins:
 
 ```
 show ip route 0.0.0.0/0
 ```
 
-Shows the **floating static** via 198.51.100.2 (AD 250). Won't actually work (Ethernet3 is shut), but in a real scenario where BGP was simply mis-negotiating, the floating static keeps traffic flowing.
+Shows `0.0.0.0/0 [250/0] via 198.51.100.2` (the floating static). This is exactly the belt-and-suspenders behaviour you want: BGP fell over, but the edge still has a default route in its FIB, so it keeps forwarding outbound instead of going dark.
 
-Restore: `no shutdown` on both edges.
+> **Why the ping still won't complete here:** in *this lab* the simulated ISP1 only learned `203.0.113.0/24` over the BGP session we just shut, so ISP1 no longer has a return route — `ping 1.1.1.1` will time out even though the floating static is installed and forwarding correctly outbound. That's an artefact of the simulated ISP, not the floating static. In the real world your upstream keeps a static/default toward your `/24` independent of BGP, so the floating static genuinely keeps you online while BGP recovers. The point of this step is the **routing-table behaviour** (`show ip route 0.0.0.0/0` proves the AD-250 static takes over only when every BGP default is gone), not an end-to-end ping.
+
+Restore: `no neighbor ... shutdown` for each peer on both edges (or just redeploy).
 
 ## Peek at solution
 

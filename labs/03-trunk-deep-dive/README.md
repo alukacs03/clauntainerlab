@@ -59,7 +59,7 @@ Why this exists: legacy compatibility with non-VLAN-aware devices that drop tagg
 
 Why VLAN 1 is a bad choice for it:
 - VLAN 1 is the default for *everything* — any unconfigured access port often defaults to VLAN 1.
-- Many control-plane protocols (CDP, VTP, PAgP, DTP on Cisco; LLDP frames don't tag but still) default to VLAN 1.
+- Many Cisco L2 control-plane protocols (CDP, VTP, PAgP, DTP) historically default to VLAN 1. (LLDP frames are sent untagged regardless, so they're not native-VLAN-dependent.)
 - An attacker on an access port in VLAN 1 sits in the same broadcast domain as the trunk's native VLAN by default.
 
 ### VLAN hopping (double-tag attack)
@@ -124,6 +124,8 @@ sudo containerlab deploy
 
 ## Verification
 
+> **cEOS note (this one's real):** Unlike the hardware-only features some later labs cover (storm-control, HW QoS/policing, port-security — config-accepted but *not* enforced in cEOS), the primitives in this lab — `switchport trunk allowed vlan` and `switchport trunk native vlan tag` — are L2 trunk forwarding/tagging behaviors handled by the cEOS software forwarding agent. They **are** enforced in the container, so the verification below produces real, observable behavior. The `eth4` ↔ `Ethernet4` interface mapping in the step-5 capture is standard containerlab.
+
 ### 1. All three tenants work end-to-end
 
 ```bash
@@ -157,25 +159,24 @@ show interfaces Ethernet4 switchport | include Native
 
 You should see `Administrative Native VLAN tagging: enabled`. With this on, untagged frames arriving on the trunk are dropped.
 
-### 4. Asymmetric tagging demo (break it on purpose)
+### 4. Asymmetric tagging — why both ends must agree (thought-experiment + config check)
 
-On sw1 only, turn tagging back off:
+On sw1 only, turn tagging back off, then re-check the administrative state:
 
 ```
 interface Ethernet4
    no switchport trunk native vlan tag
-```
-
-Now sw1 will forward untagged frames (mapped to its default native VLAN 1) while sw2 still drops them.
-
-```
+end
 show interfaces Ethernet4 switchport | include Native
-show logging | tail
 ```
 
-The asymmetry is exactly the kind of bug that hides for months: from sw1's side everything looks normal; sw2 silently drops some traffic. This is why **both sides of the trunk must agree** on the tagging mode.
+Note that sw1 now reports `Administrative Native VLAN tagging: disabled` while sw2 still reports `enabled`. The two ends of the trunk are now configured asymmetrically.
 
-Restore: `switchport trunk native vlan tag` on sw1.
+**What you will (and won't) observe on this topology.** Re-run the three tenant pings from step 1 — they all still pass. That's expected, and it's the point worth internalizing: every tenant here rides a *tagged* VLAN (10, 20, 30), and VLAN 1 is not in the allowed-list, so there is no untagged data traffic on this trunk for the asymmetry to affect. You won't see broken pings or dropped frames, and `show logging` won't print anything specific.
+
+So why does this asymmetry matter in production? Imagine a trunk where the **native VLAN carries real, untagged traffic** (a common legacy pattern — e.g. an unmanaged device or a server NIC that sends untagged frames into native VLAN 1, with VLAN 1 in the allowed-list). With sw1 set to "drop untagged off" it would map those untagged frames to native VLAN 1 and forward them tagged; sw2, still in drop-untagged mode, would silently discard them. From sw1's side everything looks normal — which is exactly the kind of bug that hides for months. The defensive takeaway: **both ends of a trunk must agree on the tagging mode**, and you verify that with the `show interfaces ... | include Native` command above on *both* switches, not by waiting for traffic to break.
+
+Restore symmetry: `switchport trunk native vlan tag` on sw1.
 
 ### 5. See native-tagging on the wire
 

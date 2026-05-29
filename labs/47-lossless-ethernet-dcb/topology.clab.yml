@@ -22,11 +22,16 @@ topology:
       kind: linux
       exec:
         - ip addr add 10.50.0.10/24 dev eth1
+        # Match the switch-port jumbo MTU so a real lossless path would be
+        # end-to-end consistent (a host stuck at 1500 vs a 9214 switch port
+        # is exactly the "MTU mismatch breaks PFC" gotcha in the README).
+        - ip link set eth1 mtu 9214
 
     target:
       kind: linux
       exec:
         - ip addr add 10.50.0.20/24 dev eth1
+        - ip link set eth1 mtu 9214
 
   links:
     - endpoints: ["initiator:eth1", "sw1:eth1"]

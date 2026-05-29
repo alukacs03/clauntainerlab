@@ -25,22 +25,31 @@ The reference stack: gnmic + Prometheus + Grafana. Open-source, well-understood,
 
 ## Topology
 
+```mermaid
+flowchart LR
+    leaf1["leaf1<br/>gNMI :6030"]
+    leaf2["leaf2<br/>gNMI :6030"]
+    gnmic["gnmic collector<br/>/metrics :9804"]
+    prom["Prometheus<br/>:9090"]
+    graf["Grafana<br/>:3000"]
+
+    leaf1 -- "gNMI subscribe<br/>10.0.1.0/30" --> gnmic
+    leaf2 -- "gNMI subscribe<br/>10.0.2.0/30" --> gnmic
+    leaf1 <-. "iBGP<br/>10.0.12.0/30" .-> leaf2
+    gnmic -- "scrape gnmic:9804" --> prom
+    prom -- "query http://prometheus:9090" --> graf
 ```
-┌────────┐    ┌────────┐
-│ leaf1  │    │ leaf2  │
-└───┬────┘    └────┬───┘
-    │  gNMI         │  gNMI
-    └────┬──────────┘
-         ▼
-    ┌─────────┐         ┌──────────────┐         ┌──────────┐
-    │  gnmic  ├─/metrics┤  Prometheus  ├─query──►│  Grafana │
-    │collector│   :9804 │     :9090    │         │   :3000  │
-    └─────────┘         └──────────────┘         └──────────┘
-```
+
+Data flow / addressing:
+- The collector reaches **each leaf over its own `/30` point-to-point link** (containerlab links are independent L2 segments, so one shared subnet across two links would only reach whichever link owns the route). leaf1 lives on `10.0.1.0/30`, leaf2 on `10.0.2.0/30`.
+- The two leaves run a small **iBGP** session over `10.0.12.0/30` purely so the BGP telemetry path has live data (see Theory primer).
+- **Prometheus → gnmic** (scrape) and **Grafana → Prometheus** (query) both use the containerlab **management network + Docker DNS** (`gnmic:9804`, `http://prometheus:9090`), so they need no data links.
 
 Ports exposed on the lab VM:
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000 (admin / admin)
+
+> The gnmic collector's `:9804` Prometheus endpoint is **not** published to the VM — it lives only inside the gnmic container (that is why the verification below reaches it via `docker exec`, not `curl` from the VM). Only Prometheus `:9090` and Grafana `:3000` are mapped to the host.
 
 ## Theory primer
 
@@ -59,8 +68,20 @@ For a regional cloud-provider scale (hundreds of devices), this stack is fine. A
 
 ### Metric naming convention
 
-gnmic Prom output translates YANG paths to metric names like:
+gnmic Prom output translates YANG paths to metric names: each `/`-separated YANG
+element becomes an underscore-separated segment, prefixed with the configured
+`metric-prefix` (`gnmic_` here). So the OpenConfig path
+`/interfaces/interface/state/counters/in-octets` becomes:
 - `gnmic_interfaces_interface_state_counters_in_octets`
+
+> **Discover the real name first.** gnmic's exact output depends on the YANG
+> origin/path the device returns, so before writing PromQL, browse the live
+> metric list and confirm the name rather than trusting this README blindly:
+> ```bash
+> docker exec clab-gnmic-prom-grafana-gnmic wget -qO- http://localhost:9804/metrics | grep -i octets
+> ```
+> (or use Prometheus' metric autocomplete in the Graph tab). If your build
+> prepends an origin token, adjust the queries below to match.
 
 Add labels for `source` (device name), `interface_name`, etc. You query with PromQL:
 
@@ -70,6 +91,12 @@ topk(10, rate(gnmic_interfaces_interface_state_counters_in_octets[5m]) * 8 / 1e9
 ```
 
 ### Alerting rules to start with
+
+The two leaves run a live iBGP session (AS 65000, over `10.0.12.0/30`), so the
+BGP neighbor-state subscription in `gnmic.yaml` produces real telemetry you can
+alert on. The other rows below are the patterns you'd add at scale (interface
+errors, utilization, CPU, EVPN) — some of those counters depend on traffic or
+features this minimal lab doesn't generate, so treat them as the template.
 
 | Alert | Condition |
 |---|---|
@@ -93,9 +120,26 @@ The topology auto-launches the full stack. Steps:
 6. Create a dashboard panel with the PromQL: `rate(gnmic_interfaces_interface_state_counters_in_octets[1m]) * 8`
 7. (Optional) Import a community dashboard for gnmic (search Grafana.com)
 
+## Hints
+
+- The stack auto-launches from `solutions/` — your job is to *read*, *verify the data flows*, and *build a panel*, not to author the YAML from scratch.
+- gnmic subscription modes: `sample` (periodic, good for counters) vs `on-change` (event-driven, good for state like BGP). Note which path uses which in `gnmic.yaml` and why.
+- Prometheus health lives under **Status > Targets** — a target stuck `DOWN` almost always means the collector can't reach a device (check the per-link `/30` addressing) or the scrape URL/port is wrong.
+- Confirm the BGP session is actually up before expecting BGP metrics: on either leaf, `show ip bgp summary` should show the peer in `Established`.
+- In Grafana, add a panel → pick the Prometheus datasource → paste a PromQL expression. Start from the metric you discovered in `/metrics`, then wrap it in `rate(...[1m])`.
+
 ## Verification
 
+### Both leaves are reachable (and BGP is up)
+```bash
+# gnmic should show BOTH targets subscribed (not just leaf1)
+docker logs clab-gnmic-prom-grafana-gnmic 2>&1 | grep -i target | tail
+# iBGP session between the leaves should be Established
+docker exec clab-gnmic-prom-grafana-leaf1 Cli -c "show ip bgp summary"
+```
+
 ### gnmic is publishing
+> `:9804` is the collector's Prometheus endpoint **inside the gnmic container** — it is not published to the VM, so reach it with `docker exec`, not `curl` from the host. (`curl http://localhost:9804` on the VM fails by design; only `:9090` and `:3000` are mapped.)
 ```bash
 docker exec clab-gnmic-prom-grafana-gnmic wget -qO- http://localhost:9804/metrics | head -50
 ```

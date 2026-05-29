@@ -23,6 +23,34 @@ This is how:
 - Every CDN edge POP works
 - Root DNS servers work (13 logical, hundreds physical)
 
+## Topology
+
+Two sites (`site-a` AS65001, `site-b` AS65002) each announce the **same** anycast `/32` (`198.51.100.100/32` on `Loopback100`) over eBGP to a single transit (`transit` AS65000). The customer hangs off the transit and reaches the service by whichever path the transit installs as best.
+
+```mermaid
+graph LR
+    subgraph siteA["site-a · AS65001"]
+        A_LO["Loopback100<br/>198.51.100.100/32"]
+    end
+    subgraph siteB["site-b · AS65002"]
+        B_LO["Loopback100<br/>198.51.100.100/32"]
+    end
+    subgraph T["transit · AS65000"]
+        TR["best-path picker"]
+    end
+    CUST["customer<br/>10.50.50.10/24"]
+
+    A_LO ---|"eBGP<br/>10.1.1.0/30"| TR
+    B_LO ---|"eBGP (AS-path prepended)<br/>10.2.2.0/30"| TR
+    TR ---|"10.50.50.0/24"| CUST
+```
+
+| Link | site / iface | transit iface | Subnet |
+|------|--------------|---------------|--------|
+| site-a ↔ transit | `site-a:eth1` (`10.1.1.1`) | `transit:eth1` (`10.1.1.2`) | `10.1.1.0/30` |
+| site-b ↔ transit | `site-b:eth1` (`10.2.2.1`) | `transit:eth2` (`10.2.2.2`) | `10.2.2.0/30` |
+| customer ↔ transit | `customer:eth1` (`10.50.50.10`) | `transit:eth3` (`10.50.50.1`) | `10.50.50.0/24` |
+
 ## Goal
 
 - Understand anycast as a deployment pattern (not a protocol)
@@ -68,7 +96,24 @@ In this lab: site-b prepends its AS-path twice, making site-a's path shorter and
 1. On `site-a`: configure eBGP to the transit, announce `198.51.100.100/32`.
 2. On `site-b`: configure eBGP to the transit, announce the same `/32`, but **prepend AS-path twice** on outbound to make site-b less preferred.
 3. Verify: customer's path to `198.51.100.100` goes via site-a (the shorter AS-path).
-4. Failover test: shut down site-a's BGP — verify traffic now goes to site-b.
+4. Failover test: shut down site-a's link to the transit (its `Ethernet1`, which tears down the eBGP session and withdraws the `/32`) — verify traffic now goes to site-b.
+
+## Hints
+
+You don't need every command spelled out — these are the verbs to reach for:
+
+- Bring up the eBGP session and advertise the anycast prefix from each site:
+  - `router bgp <asn>` / `neighbor <transit-ip> remote-as 65000` / `neighbor <transit-ip> activate`
+  - `network 198.51.100.100/32` (the `/32` must be in the RIB first — it's already on `Loopback100`)
+- Make site-b less preferred on **outbound** advertisements:
+  - `route-map <name> permit 10` then `set as-path prepend <asn> <asn>`
+  - apply it with `neighbor <transit-ip> route-map <name> out`
+- Inspect what the transit sees and installs:
+  - `show ip bgp 198.51.100.100/32` (compare AS-path lengths, look for the `>` best-path marker)
+  - `show ip route 198.51.100.100/32` (which next-hop won)
+- Fail a site over with `interface Ethernet1` / `shutdown`, then re-check the two `show` commands above.
+
+> Prepending is configured on **site-b** (the less-preferred site), not on the transit. The transit applies plain best-path: shorter AS-path wins.
 
 ## Verification
 

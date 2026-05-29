@@ -5,9 +5,11 @@ password: admin
 insecure: true
 
 targets:
-  10.0.0.1:6030:
+  # Each leaf is on its own /30 point-to-point link to the collector:
+  # leaf1 over 10.0.1.0/30, leaf2 over 10.0.2.0/30.
+  10.0.1.1:6030:
     name: leaf1
-  10.0.0.2:6030:
+  10.0.2.1:6030:
     name: leaf2
 
 subscriptions:

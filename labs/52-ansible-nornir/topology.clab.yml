@@ -25,7 +25,13 @@ topology:
       binds:
         - solutions:/lab/solutions:ro
       exec:
+        # Each switch sits on its own point-to-point link, so the automation
+        # host needs one address per link (one connected route per switch).
+        # If all three shared a single /24 here, Linux would install one
+        # connected route out eth1 and traffic to sw2/sw3 would never reach them.
         - ip addr add 10.0.0.100/24 dev eth1
+        - ip addr add 10.0.1.100/24 dev eth2
+        - ip addr add 10.0.2.100/24 dev eth3
 
   links:
     - endpoints: ["automation:eth1", "sw1:eth1"]

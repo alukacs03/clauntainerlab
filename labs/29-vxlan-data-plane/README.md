@@ -33,7 +33,7 @@ graph TB
     leaf1 -.VXLAN tunnel VNI 10100.-> leaf2
 ```
 
-Same routed underlay as labs 27/28 (simplified to 1 spine here). Each leaf has TWO loopbacks: one for router-id/BGP, one for VTEP. The two hosts are in the same /24 — VXLAN makes them L2-adjacent.
+Same routed underlay as labs 27/28 (simplified to 1 spine here). Each leaf has TWO loopbacks: one for router-id/BGP, one for VTEP. The two hosts are in the same /24 — VXLAN makes them L2-adjacent. The leaf↔spine underlay links run at **jumbo MTU (9214)** so the VXLAN overhead doesn't fragment full-size inner frames (see Production notes and verification step 3b).
 
 ## Theory primer
 
@@ -110,8 +110,9 @@ vxlan vlan 100 flood vtep 22.22.22.22
    - `vxlan source-interface Loopback1`
    - `vxlan vlan 100 vni 10100`
    - `vxlan vlan 100 flood vtep <other-leaf-VTEP-IP>`
-5. Verify the VTEP loopbacks reach each other via BGP underlay.
-6. Verify h1 ↔ h2 ping works (over the VXLAN overlay).
+5. Raise the underlay MTU to jumbo on the routed leaf↔spine links so a full-size inner frame survives the VXLAN overhead. (In containerlab this means *both* the EOS interface MTU **and** the veth link MTU — see the topology file; the EOS `mtu` can't exceed the container netdev MTU.)
+6. Verify the VTEP loopbacks reach each other via BGP underlay.
+7. Verify h1 ↔ h2 ping works (over the VXLAN overlay).
 
 ## Hints
 
@@ -119,12 +120,17 @@ vxlan vlan 100 flood vtep 22.22.22.22
 interface Loopback1
    ip address <vtep-ip>/32
 
+interface Ethernet1
+   mtu <jumbo>
+
 interface Vxlan1
    vxlan source-interface Loopback1
    vxlan udp-port 4789
    vxlan vlan <vlan> vni <vni>
    vxlan vlan <vlan> flood vtep <remote-vtep-ip>
 ```
+
+> **Note:** `udp-port 4789` is already the EOS default, so this line is a no-op — it won't even show up as a separate entry in `show running-config`. It's shown explicitly here to make the encapsulation diagram's `UDP dst=4789` concrete. Don't be surprised if your running-config diff against the solution "loses" this line.
 
 Verification:
 
@@ -170,6 +176,30 @@ docker exec clab-vxlan-data-plane-h1 ping -c 3 10.10.10.20
 
 ✅. First ping may be slow (initial ARP via flood-list); subsequent pings fast.
 
+### 3b. Prove why the underlay needs jumbo MTU (optional, but do it once)
+
+The default ping above uses tiny ICMP payloads, so it passes even on a 1500-byte underlay. To *see* the overhead problem the production notes warn about, force a full-size inner frame with "don't fragment" set:
+
+```bash
+# 1472 payload + 8 ICMP + 20 IP = a 1500-byte inner packet, DF set
+docker exec clab-vxlan-data-plane-h1 ping -c 3 -M do -s 1472 10.10.10.20
+```
+
+With the **jumbo underlay** this lab configures (`mtu 9214` on Ethernet1/2 of the leaves and spine, plus `mtu: 9214` on the underlay veth links in the topology), the 1500-byte inner frame + ~50 bytes of VXLAN/UDP/IP overhead (~1550 bytes total) still fits, so this succeeds.
+
+To watch it **fail** the way it would on a default-MTU underlay, temporarily drop the underlay back to 1500 on each VTEP and the spine and retry:
+
+```
+leaf1(config)# interface Ethernet1
+leaf1(config-if-Et1)# mtu 1500
+```
+
+```bash
+docker exec clab-vxlan-data-plane-h1 ping -c 3 -M do -s 1472 10.10.10.20
+```
+
+Now the encapsulated ~1550-byte outer packet exceeds the 1500-byte underlay MTU and, because the inner DF bit is set, it's dropped rather than fragmented — you get `100% packet loss` while the *small* ping from step 3 still works. Restore `mtu 9214` and it recovers. That is exactly why jumbo underlay MTU is non-negotiable for VXLAN in production.
+
 ### 4. Watch the encapsulation on the underlay
 
 ```bash
@@ -211,7 +241,7 @@ Each VLAN with its flood-VTEP list. Adding a third leaf would require updating b
 
 ## Production deployment notes
 
-- **MTU planning**: VXLAN adds ~50 bytes of overhead. Set underlay MTU to **jumbo (9000+)** so inner frames can be standard 1500-byte Ethernet without fragmentation.
+- **MTU planning**: VXLAN adds ~50 bytes of overhead. Set underlay MTU to **jumbo (9000+)** so inner frames can be standard 1500-byte Ethernet without fragmentation. This lab walks the talk: the solution sets `mtu 9214` on the underlay interfaces (Ethernet1/2 of the leaves and spine) and the topology raises the underlay veth links to `mtu: 9214` to match — verification step 3b lets you prove the failure and the fix. (The EOS `mtu` on the interface can't exceed the container netdev MTU, which is why both the config *and* the link MTU have to be raised under containerlab.)
 - **Loopback-as-VTEP**: standard. Different loopback from BGP router-id (more flexibility for anycast VTEP later).
 - **Don't deploy static VXLAN in production at scale** — flood-list management is painful. Use EVPN.
 - **UDP source-port** is hashed by the platform across the underlay for ECMP. Different inner flows produce different outer source ports → uniform ECMP distribution.

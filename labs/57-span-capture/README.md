@@ -20,6 +20,26 @@ The pattern: dedicated **capture box** with a NIC in promiscuous mode, receives 
 - Capture mirrored traffic on a dedicated host
 - Generate test traffic with `iperf3` and `scapy`
 
+## Topology
+
+```mermaid
+graph LR
+    client["client<br/>10.0.0.10/24<br/>VLAN 10"] -- eth1 --- sw1eth1
+    server["server<br/>10.0.0.20/24<br/>VLAN 10"] -- eth1 --- sw1eth2
+
+    subgraph sw1["sw1 (cEOS) — SVI 10.0.0.1/24, VLAN 10"]
+        sw1eth1["Eth1 (SPAN source)"]
+        sw1eth2["Eth2 (SPAN source)"]
+        sw1eth3["Eth3 (SPAN dest)"]
+    end
+
+    sw1eth3 -- eth1 (promisc) --- capture["capture<br/>tcpdump / wireshark"]
+```
+
+`client` and `server` are normal hosts in VLAN 10. The SPAN session mirrors
+Eth1 + Eth2 (both directions) out Eth3, where the `capture` box passively
+records every frame.
+
 ## Theory primer
 
 ### SPAN — port mirroring
@@ -35,6 +55,9 @@ Limits:
 - Destination port bandwidth ≥ sum of source ports' traffic, or you'll drop mirrored frames
 - Mirrored copies don't include switch-internal modifications (some platforms; verify)
 - Doesn't show switch CPU traffic — only data-plane
+- **Session budget**: on real hardware each mirror direction costs a session. On Trident/Trident II platforms, mirroring `rx` or `tx` uses one session and `both` uses **two** sessions per source, against a hard cap (often 4 sessions total). So `source EthX both` on several ports can exhaust the budget fast — aggregate sources or filter with an ACL when mirroring many ports.
+
+> **cEOS note (this lab runs on containerized EOS):** cEOS implements local SPAN in the data plane, so the capture box really does receive mirrored copies and the verification below works as written. What cEOS does **not** model is the hardware *session/ASIC budget* described above — on cEOS you won't hit the Trident 4-session cap, and `both` doesn't consume two real hardware sessions. The config syntax is identical to hardware; only the resource accounting is absent. (Same honesty pattern as labs 38 and 47, where a feature is control-plane / config-only on cEOS.)
 
 ### RSPAN and ERSPAN
 
@@ -73,6 +96,14 @@ For most validation: `iperf3` for throughput, `scapy` for protocol fuzzing.
 2. Generate traffic: `client` → `server` (iperf3 + a few crafted scapy packets).
 3. Capture on `capture` and verify you see both directions.
 
+## Hints
+
+- On the switch, the mirror session is built with `monitor session <name> source ...` and `monitor session <name> destination ...`. Direction keywords are `rx`, `tx`, `both`.
+- Inspect what you built with `show monitor session <name>`.
+- To filter (production), attach an `ip access-list` to the source with the `ip access-group` keyword on the `source` line.
+- On the capture box, record with `tcpdump -i <iface> -w <file>` and read back with `tcpdump -r <file>`. The destination interface needs **promiscuous mode**, not an IP.
+- Generate load with `iperf3 -s` (server) / `iperf3 -c <ip>` (client); craft custom packets with `scapy`.
+
 ## Verification
 
 ### Apply SPAN
@@ -88,8 +119,16 @@ show monitor session DEBUG
 
 ### Set up capture
 ```bash
-docker exec -d clab-span-capture-capture tcpdump -i eth1 -w /tmp/mirror.pcap
+# -U flushes each packet to the file immediately, so reading it back right
+# after a short run isn't blocked by tcpdump's write buffer.
+docker exec -d clab-span-capture-capture tcpdump -i eth1 -U -w /tmp/mirror.pcap
 ```
+
+> The `capture` box's eth1 has IP `10.99.0.10/24`, but that address is **not**
+> load-bearing — a SPAN destination only *emits* mirrored copies and is never
+> addressed by the mirrored flows. What makes the capture work is **promiscuous
+> mode** (`ip link set eth1 promisc on`, set in the topology). The IP is there
+> only so the interface isn't completely unconfigured; you can ignore it.
 
 ### Generate traffic
 ```bash
@@ -99,6 +138,8 @@ docker exec clab-span-capture-client iperf3 -c 10.0.0.20 -t 10
 
 ### Inspect capture
 ```bash
+# Stop the backgrounded tcpdump first so the pcap is fully flushed/closed.
+docker exec clab-span-capture-capture pkill tcpdump
 docker exec clab-span-capture-capture tcpdump -r /tmp/mirror.pcap -nn -c 20
 docker exec clab-span-capture-capture tcpdump -r /tmp/mirror.pcap -nn | head
 ```
@@ -106,15 +147,22 @@ docker exec clab-span-capture-capture tcpdump -r /tmp/mirror.pcap -nn | head
 You should see both client → server and server → client packets.
 
 ### Scapy example (custom packet)
+
+The `client`/`server`/`capture` nodes use the Alpine-based
+`ghcr.io/srl-labs/network-multitool` image, which ships `scapy` (and `tcpdump`,
+`iperf3`) **preinstalled** — there's no `apt`, and you don't need to install
+anything. Just craft and send:
+
 ```bash
-docker exec -it clab-span-capture-client bash
-apt update && apt install -y python3-scapy
-python3 -c "
+docker exec clab-span-capture-client python3 -c "
 from scapy.all import *
 # Send a malformed TCP SYN with weird flags
 send(IP(dst='10.0.0.20')/TCP(dport=80, flags='FSPU', sport=12345), count=5)
 "
 ```
+
+> If your multitool tag is ever missing scapy, install it the Alpine way
+> (`apk add --no-cache py3-scapy`), not with `apt`.
 
 The capture box sees it. Useful for testing IDS rules, ACL behavior, etc.
 

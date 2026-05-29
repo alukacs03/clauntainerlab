@@ -33,8 +33,10 @@ add interface=wg-to-b \
     public-key="REPLACE_WITH_RTR_B_PUBLIC_KEY" \
     endpoint-address=198.51.100.2 \
     endpoint-port=51820 \
-    allowed-address=172.16.0.0/30,10.20.20.0/24 \
-    persistent-keepalive=25s
+    allowed-address=172.16.0.0/30,10.20.20.0/24
+    # Both ends have public WAN IPs in this lab, so no keepalive is needed.
+    # If THIS side sat behind NAT, you'd add `persistent-keepalive=25s` here so
+    # rtr-a periodically re-opens the NAT mapping rtr-b reuses for return traffic.
 
 # Route to remote LAN via the tunnel
 /ip route
@@ -49,6 +51,13 @@ add chain=input action=accept protocol=udp dst-port=51820 in-interface=ether1 co
 # Shown for completeness; comment out Option 1 if using this.
 # ════════════════════════════════════════════════════════════════
 
+# Crypto split: the *profile* governs IKE / phase-1 (aes-256 + sha256 +
+# DH group), the *proposal* governs ESP / phase-2. aes-256-gcm in the
+# proposal is an AEAD cipher — it carries its own integrity, so there is no
+# separate hash on the ESP side. (You could instead use aes-256-cbc +
+# sha256 in the proposal to match the profile's style; GCM is just newer/
+# faster.) Profile and proposal are independent on purpose.
+#
 # /ip ipsec profile
 # add name=site-to-b enc-algorithm=aes-256 hash-algorithm=sha256 dh-group=modp2048
 #

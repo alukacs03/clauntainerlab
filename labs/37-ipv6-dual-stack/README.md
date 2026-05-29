@@ -18,6 +18,24 @@ The migration strategy: **dual-stack**. Run both protocols simultaneously. Exist
 - Understand SLAAC (Stateless Address Autoconfiguration) via Router Advertisements
 - Recognize the differences from IPv4 (NDP not ARP, larger addresses, link-local everywhere)
 
+## Topology
+
+```mermaid
+graph LR
+    h1["h1<br/>10.10.10.10/24<br/>2001:db8:10:10::/64 SLAAC"]
+    sw1["sw1<br/>lo0 1.1.1.1 / 2001:db8::1"]
+    sw2["sw2<br/>lo0 2.2.2.2 / 2001:db8::2"]
+    h2["h2<br/>10.20.20.20/24<br/>2001:db8:20:20::/64 SLAAC"]
+
+    h1 ---|"eth1 — Et2"| sw1
+    sw1 ===|"Et1 — Et1 transit<br/>10.1.12.0/30<br/>2001:db8:1:12::/64<br/>OSPFv2 + OSPFv3 p2p"| sw2
+    sw2 ---|"Et2 — eth1"| h2
+```
+
+Two cEOS switches connected by a dual-stack transit link, each fronting one Linux
+host. IPv4 is OSPFv2; IPv6 is OSPFv3. Hosts get their IPv4 statically (via the
+topology `exec`) and their IPv6 via SLAAC from the switch's Router Advertisements.
+
 ## Theory primer
 
 ### IPv6 address basics
@@ -47,9 +65,16 @@ OSPFv2 carries IPv4 routes; OSPFv3 carries IPv6 routes. Same protocol concepts, 
 
 ## Your task
 
-1. On both switches, enable OSPFv3 on transit + host-facing interfaces (`ipv6 ospf 1 area 0`).
-2. Set transit links to `ip ospf network point-to-point` for both v4 and v6.
-3. Enable Router Advertisements on host-facing interfaces (already in starter for h1).
+1. On both switches, enable OSPFv3 on the transit + host-facing interfaces (`ipv6 ospf 1 area 0`).
+2. Set the transit link to point-to-point network type for **both** address families.
+   This is two separate interface commands — OSPFv2 and OSPFv3 each have their own
+   network-type knob: `ip ospf network point-to-point` (v4) **and**
+   `ospfv3 network point-to-point` (v6). Setting only the v4 one leaves OSPFv3 at its
+   default broadcast type (it still adjacency-forms on a 2-router segment, but that's
+   exactly the v4/v6 asymmetry to avoid).
+3. Verify Router Advertisements are emitted on the host-facing interfaces. RA is
+   already pre-seeded (`ipv6 nd ra interval 4`) on **both** switches' host interfaces
+   in the starter, so there's nothing for you to add here — just confirm it's working.
 4. Verify:
    - Hosts get SLAAC addresses (run `ip -6 addr show eth1` on each host)
    - End-to-end IPv6 connectivity between h1 and h2
@@ -60,7 +85,9 @@ OSPFv2 carries IPv4 routes; OSPFv3 carries IPv6 routes. Same protocol concepts, 
 interface Ethernet<n>
    ipv6 address <prefix>/64
    ipv6 ospf 1 area 0
-   ipv6 nd ra interval 4
+   ip ospf network point-to-point      ! OSPFv2 (v4) network type — transit only
+   ospfv3 network point-to-point       ! OSPFv3 (v6) network type — transit only
+   ipv6 nd ra interval 4               ! host-facing only (already in starter)
 ipv6 router ospf 1
    router-id <id>
 ```
@@ -78,10 +105,14 @@ show ipv6 neighbor
 
 ```bash
 docker exec clab-ipv6-dual-stack-h1 ip -6 addr show eth1
-# Should show a 2001:db8:10:10::xxxx/64 SLAAC address
+# Should show a global 2001:db8:10:10:.../64 SLAAC address. The interface ID
+# (everything after the /64 prefix) is a full 64-bit value — either EUI-64
+# derived from the MAC (…:XXff:feXX:…) or an RFC 7217 / privacy-random suffix
+# on modern kernels — NOT a tiny ::1-style host part.
 
 docker exec clab-ipv6-dual-stack-h1 ping6 -c 3 2001:db8:20:20::1
-# Reaches h2's gateway via IPv6 OSPF routing
+# Reaches h2's gateway via IPv6 OSPF routing.
+# (If the image has no `ping6`, use: ping -6 -c 3 2001:db8:20:20::1)
 
 # h2's SLAAC address
 docker exec clab-ipv6-dual-stack-h2 ip -6 addr show eth1 | grep global
@@ -89,6 +120,26 @@ docker exec clab-ipv6-dual-stack-h2 ip -6 addr show eth1 | grep global
 # h1 to h2 (replace with h2's actual SLAAC address)
 docker exec clab-ipv6-dual-stack-h1 ping6 -c 3 <h2-slaac-address>
 ```
+
+**Stretch (loopback reachability).** The solution also enables `ipv6 ospf 1 area 0`
+on each `Loopback0`, so the v6 loopbacks are reachable fabric-wide, symmetric with
+the IPv4 side. From sw1's CLI you should be able to reach sw2's v6 loopback:
+
+```
+sw1# ping ipv6 2001:db8::2 source 2001:db8::1
+```
+
+> **First-deploy sanity check.** SLAAC end-to-end depends on three runtime
+> behaviours that are worth confirming on the first deploy (none is a config
+> error — the config and topology are internally consistent):
+> 1. cEOS actually emits the periodic RAs. EOS suppresses unsolicited periodic
+>    RAs by default; `ipv6 nd ra interval 4` re-enables them. Confirm with
+>    `show ipv6 nd ra interface Ethernet2` on each switch.
+> 2. The host kernel runs SLAAC. The topology sets
+>    `sysctl -w net.ipv6.conf.eth1.accept_ra=2`, which forces RA acceptance even
+>    though the host has IPv6 forwarding semantics. Confirm the `/64` appears in
+>    `ip -6 addr show eth1`.
+> 3. `ping6` exists in the host image. If not, fall back to `ping -6`.
 
 ## What's missing (deliberately)
 

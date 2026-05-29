@@ -60,7 +60,7 @@ neighbor 192.168.12.2 ttl maximum-hops 1
 
 For a directly-connected eBGP session, the peer is exactly 1 hop away. BGP-OPEN packets sent over multiple hops by an attacker arrive with TTL < 255 (because the attacker doesn't get to set the initial TTL exactly). TTL security drops any packet whose TTL doesn't match the expected hop count.
 
-For directly-connected eBGP: `maximum-hops 1` (only accept packets with TTL = 255, meaning the sender was 1 hop away).
+For directly-connected eBGP: `maximum-hops 1`. EOS accepts packets whose TTL is **≥ 255 − maximum-hops** — so with `maximum-hops 1` it accepts TTL ≥ 254, i.e. the sender was within 1 hop. Anything routed from further away arrives with a lower TTL and is dropped.
 
 For multi-hop eBGP (e.g., between loopbacks): `maximum-hops <N>` where N is the actual hop count.
 
@@ -71,12 +71,14 @@ Cheap, automatic, blocks a class of off-link attacks. Always on.
 ### BFD-driven fall-over
 
 ```
-neighbor 192.168.12.2 fall-over bfd
+neighbor 192.168.12.2 bfd
 ```
 
-When BFD declares the underlying link dead (lab 19 — ~900ms with default tuning), BGP **immediately** tears down the session instead of waiting for the BGP hold timer (default 180s, ≥30s even with tuning). Combined with BFD's sub-second detection, BGP reconvergence becomes sub-2-seconds end-to-end.
+In EOS this is simply `neighbor <id> bfd` — it binds BFD to the BGP session. (Cisco IOS calls the same thing `neighbor X fall-over bfd`; if you came from IOS, that's the equivalent.) When BFD declares the underlying link dead (lab 19 — ~900ms with default tuning), BGP **immediately** tears down the session instead of waiting for the BGP hold timer (default 180s, ≥30s even with tuning). Combined with BFD's sub-second detection, BGP reconvergence becomes sub-2-seconds end-to-end.
 
 Requires BFD to be configured (`bfd interval ... min-rx ... multiplier ...`). Both peers must have BFD configured for the session to come up at BFD-protected speeds.
+
+> **cEOS note:** BFD in cEOS is a software-only implementation over veth links — there is no hardware-accelerated BFD datapath as on a real switch. The session will form and `show bfd peers` will report it, but the sub-second detection-and-fall-over timing (Verification steps 1 and 6) is best-effort under containerlab and will not match the deterministic hardware numbers quoted above. Treat the convergence figures as the *concept*; the syntax and capability negotiation are what you're really learning here.
 
 ### maximum-routes
 
@@ -98,58 +100,69 @@ A modern router has its BGP process and its FIB in different software components
 
 For this to work between neighbors, BOTH sides must support and signal **graceful restart capability** during session OPEN. When a peer goes through a restart:
 
-- **Restarter** — the router going through restart. Tells peer "I'm restarting, please hold on to my routes for X seconds (restart-time)."
+- **Restarter** — the router going through restart. Tells peer "I'm restarting, please hold on to my routes while I come back."
 - **Helper** — the peer. Keeps the routes marked "stale" but still in the FIB. If the restarter comes back within `stalepath-time`, routes are re-validated. If not, they're flushed.
 
 Result: data plane keeps working even during control plane restarts. Critical for hitless software upgrades.
 
+In EOS, you enable graceful restart **per neighbor** with `neighbor X graceful-restart` — issued in Router-BGP configuration mode (under `router bgp`), not under an address-family. The helper's hold-down window is set with `graceful-restart stalepath-time`. (EOS has no `graceful-restart restart-time` command — that's Cisco IOS syntax; the restart timer is signalled automatically by the restarting peer.)
+
 ```
 router bgp 65001
-   graceful-restart restart-time 120
    graceful-restart stalepath-time 360
+   neighbor 192.168.12.2 graceful-restart
 
    address-family ipv4
-      neighbor X graceful-restart
+      neighbor 192.168.12.2 activate
 ```
 
 ### Operational reflex commands
 
 When something's wrong, run these in order. They get you 80% of the way to the answer.
 
+All EOS-native (run as-is on cEOS):
+
 ```
 show ip bgp summary                ! quick state of every session
 show ip bgp neighbors X            ! detailed session info
 show ip bgp                        ! RIB
 show ip route bgp                  ! best paths
-show ip bgp 1.0.0.0/24             ! specific route
+show ip bgp 10.2.0.0/24            ! specific route (use a prefix from this lab)
 show ip bgp neighbors X advertised-routes
 show ip bgp neighbors X received-routes
 show bfd peers                     ! if BFD is in play
-show ip bgp regexp 64512           ! routes whose AS-path matches
+show ip bgp regexp 65002           ! routes whose AS-path matches a regex
 show logging | include BGP         ! recent events
 ```
 
-For changes:
+For changes — EOS-native:
 
 ```
-clear ip bgp X soft in/out         ! re-apply policy without dropping TCP
+clear ip bgp X soft in             ! re-apply inbound policy without dropping TCP
+clear ip bgp X soft out            ! re-send outbound advertisements
 clear ip bgp X                     ! hard reset (drops TCP) — avoid in production
-clear bgp ipv4 unicast X soft in   ! some platforms
+```
+
+Cross-platform variants you may see on Cisco/FRR (NOT the EOS form — don't paste on cEOS):
+
+```
+clear bgp ipv4 unicast X soft in   ! Cisco-style; EOS uses `clear ip bgp X soft in`
+neighbor X fall-over bfd           ! Cisco-style; EOS uses `neighbor X bfd`
 ```
 
 ## Your task
 
 On both sw1 and sw2:
 
-1. Configure global BFD (`bfd interval 300 min-rx 300 multiplier 3`).
+1. Configure global BFD with non-default timers (e.g. `bfd interval 100 min-rx 100 multiplier 3`).
 2. On the BGP neighbor:
    - `password 0 LabSharedSecret123` (must match on both sides).
    - `ttl maximum-hops 1` (directly connected eBGP).
-   - `fall-over bfd`.
+   - bind BFD to the session (the EOS form is `neighbor X bfd`).
    - `maximum-routes 50`.
-3. Under `router bgp`: graceful-restart with restart-time 120, stalepath-time 360.
-4. Under `address-family ipv4`: `neighbor X graceful-restart`.
-5. Verify everything is in effect.
+   - enable graceful restart for the neighbor (`neighbor X graceful-restart`).
+3. Under `router bgp`: set the graceful-restart helper hold time (`graceful-restart stalepath-time 360`).
+4. Verify everything is in effect.
 
 ## Hints
 
@@ -157,15 +170,20 @@ On both sw1 and sw2:
 bfd interval <ms> min-rx <ms> multiplier <n>
 
 router bgp <asn>
-   graceful-restart restart-time <s>
    graceful-restart stalepath-time <s>
    neighbor X password 0 <secret>
    neighbor X ttl maximum-hops <n>
-   neighbor X fall-over bfd
+   neighbor X bfd
    neighbor X maximum-routes <n>
+   neighbor X graceful-restart
    address-family ipv4
-      neighbor X graceful-restart
+      neighbor X activate
 ```
+
+Notes:
+- The BFD bind verb in EOS is just `neighbor X bfd` (Cisco's `fall-over bfd` is not EOS).
+- `neighbor X graceful-restart` lives under `router bgp` (Router-BGP mode), not under the address-family.
+- There is no `graceful-restart restart-time` in EOS — only `graceful-restart stalepath-time`.
 
 ## Deploy
 
@@ -187,11 +205,14 @@ Should show one BFD session, state `Up`.
 
 ### 2. BGP session uses BFD
 
+EOS does not print the Cisco phrase "fall over". Read the neighbor detail and look for the BFD line, or check the BFD peer table directly:
+
 ```
-show ip bgp neighbors 192.168.12.2 | include "fall over"
+show ip bgp neighbors 192.168.12.2 | include BFD
+show bfd peers detail
 ```
 
-Should mention "BFD" as the fall-over mechanism.
+The neighbor output should reference BFD being enabled for the session, and `show bfd peers detail` should list the peer 192.168.12.2 with the application/client tied to BGP.
 
 ### 3. Password is set (mismatch demo)
 
@@ -207,13 +228,14 @@ Within seconds the session drops. Logs show MD5 failure. Restore the matching pa
 
 ### 4. TTL security
 
-Try to send a BGP OPEN from a router 2 hops away (we don't have that topology, but you can verify the config is in place):
+Try to send a BGP OPEN from a router 2 hops away (we don't have that topology, but you can verify the config is in place). Confirm it in the running config and in the neighbor detail:
 
 ```
-show ip bgp neighbors 192.168.12.2 | include TTL
+show running-config section bgp | include ttl
+show ip bgp neighbors 192.168.12.2 | include ttl|TTL|hops
 ```
 
-Should show `Hops: 1`.
+The running-config should show `neighbor 192.168.12.2 ttl maximum-hops 1`. The exact wording in the `show ip bgp neighbors` output varies by EOS build, so if the second filter prints nothing, fall back to reading the full `show ip bgp neighbors 192.168.12.2` and look for the TTL/hop-count line.
 
 ### 5. maximum-routes — induce the limit
 
@@ -246,19 +268,21 @@ configure terminal
     ip access-group BLACKHOLE in
 ```
 
-With BFD + fall-over bfd: ping pause should be ~1s. Without (default BGP hold timer 180s, advert 60s): would be 30–90s. BFD makes BGP nearly as fast as the underlying link state.
+With BFD bound to the session: on real hardware the ping pause is ~1s, versus 30–90s without BFD (you'd be waiting on the BGP hold timer, default 180s, advert 60s). BFD makes BGP nearly as fast as the underlying link state.
+
+> **cEOS note:** as flagged in the Theory primer, cEOS runs software BFD over veth links, so the measured pause here will be best-effort and may not hit the sub-second figure quoted for hardware. What you *can* reliably confirm is the mechanism: with the ACL applied, `show bfd peers` flips the session Down and the BGP session tears down promptly (well before the 180s hold timer would have), rather than waiting out the hold timer.
 
 Remove the ACL.
 
 ### 7. Graceful restart capability
 
 ```
-show ip bgp neighbors 192.168.12.2 | include capability
+show ip bgp neighbors 192.168.12.2 | include Restart|restart
 ```
 
-Should mention `graceful restart`. Capability is negotiated at OPEN time.
+The neighbor detail should report that the Graceful Restart capability was advertised and received (it's negotiated in the OPEN message, so both sides must have `neighbor X graceful-restart` configured for it to be mutually negotiated). If the filter prints nothing, read the full `show ip bgp neighbors 192.168.12.2` and look for the "Graceful Restart" capability line.
 
-To actually test GR, restart the BGP process on sw1 (some platforms allow `clear ip bgp process`). The FIB should keep routes alive while the session re-establishes.
+To actually exercise GR you'd restart the BGP agent and watch the helper hold routes stale; in cEOS the capability negotiation is the part you can reliably observe.
 
 ### 8. Operational reflex — full playbook
 
@@ -285,7 +309,7 @@ Get muscle memory for this sequence. In real outage, this is the first 60 second
 
 - **password** — MD5 (or TCP-AO) on BGP TCP. Always set.
 - **TTL security** — drop BGP packets with unexpected TTL. Defense against off-link injection.
-- **fall-over bfd** — tear down session when BFD declares neighbor dead. Sub-second convergence.
+- **neighbor X bfd** — bind BFD to the session so BGP tears down when BFD declares the neighbor dead. Sub-second convergence. (EOS verb; Cisco calls it `fall-over bfd`.)
 - **maximum-routes** — cap how many prefixes a neighbor can announce. Protects against runaway leaks.
 - **Graceful restart** — keep FIB during BGP process restart. Hitless software upgrades.
 - **Operational reflex** — daily `show ip bgp summary`; first 60s of every incident.
@@ -296,9 +320,9 @@ Every BGP-speaking router should have:
 
 - ✅ Per-neighbor password / TCP-AO
 - ✅ TTL security (`ttl maximum-hops`)
-- ✅ BFD on the underlying link + `fall-over bfd`
+- ✅ BFD on the underlying link + `neighbor X bfd` bound to the session
 - ✅ `maximum-routes` per neighbor, sized appropriately
-- ✅ Graceful restart configured + activated per AF
+- ✅ Graceful restart enabled per neighbor (`neighbor X graceful-restart`, under `router bgp`) + stalepath-time set
 - ✅ Inbound + outbound route-maps (labs 23, 24, 25)
 - ✅ Neighbor `description` filled in
 - ✅ `update-source` to a loopback for iBGP

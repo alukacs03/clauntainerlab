@@ -26,23 +26,24 @@ By the end you should be able to answer:
 graph TB
     h1[h1<br/>10.10.10.1<br/>gw .254] --> sw1
     h2[h2<br/>10.10.10.2<br/>gw .254] --> sw2
-    sw1[sw1<br/>Vlan10: 10.10.10.251<br/>VRRP master @ 10.10.10.254] ---|\1| sw2[sw2<br/>Vlan10: 10.10.10.252<br/>VRRP backup @ 10.10.10.254]
-    server[h-server<br/>10.20.20.50] --> sw1
-    sw1 ---|\1| sw2
+    sw1[sw1<br/>Vlan10: 10.10.10.251 · Vlan20: 10.20.20.251<br/>VRRP master @ 10.10.10.254 & 10.20.20.254] ---|trunk: VLAN 10,20| sw2[sw2<br/>Vlan10: 10.10.10.252 · Vlan20: 10.20.20.253<br/>VRRP backup @ 10.10.10.254 & 10.20.20.254]
+    server[h-server<br/>10.20.20.50<br/>next hop .254] --> sw1
 ```
 
-Two L3 switches with VRRP between them on VLAN 10. h-server represents a backend the users need to reach via the gateway — failover is "boring" if hosts can only ping the gateway itself; demonstrating reachability *through* the gateway is the real test.
+Two L3 switches with VRRP between them on **both** VLAN 10 (the users' gateway) and VLAN 20 (the server's gateway). h-server represents a backend the users need to reach via the gateway — failover is "boring" if hosts can only ping the gateway itself; demonstrating reachability *through* the gateway is the real test.
+
+Why VRRP on VLAN 20 as well? The forward path (users → gateway → server) only works if the **return** path (server → gateway → users) also fails over. The server points its route back to the VLAN 20 virtual IP `10.20.20.254`, so when sw1 dies, *both* virtual IPs move to sw2 together and the full round trip survives. Putting VRRP on only the users' VLAN would black-hole the server's return traffic at the dead switch — the classic asymmetric-L3 trap (see Production notes).
 
 ## Theory primer
 
 ### How VRRP works
 
 Two or more routers form a VRRP group. Each advertises its presence every second (default). They share:
-- A **virtual router ID (VRID)** — `1` here; arbitrary, must match on both ends.
+- A **virtual router ID (VRID)** — `10` here (we match it to the VLAN ID); arbitrary, must match on both ends.
 - A **virtual IP** — `10.10.10.254` here; hosts use this as gateway.
 - A **virtual MAC** — `00:00:5e:00:01:<VRID>` (RFC 5798 format). The master responds to ARP for the virtual IP with this MAC.
 
-At any time, the router with the highest **priority** is master. If priorities tie, highest IP wins. Default priority is 100; the **IP address owner** (a router whose actual interface IP equals the virtual IP) has implicit priority 255 (unbeatable) — but we don't typically use this mode in production, instead giving the virtual IP its own dedicated address.
+At any time, the router with the highest **priority** is master. If priorities tie, highest IP wins. Default priority is 100; the **IP address owner** (a router whose actual interface IP equals the virtual IP) has implicit priority 255 (unbeatable) — but we don't typically use this mode in production, instead giving the virtual IP its own dedicated address. Note you can't *configure* 255 directly — it's reserved for the address owner; the user-settable range in EOS is `1`–`254` (`vrrp <vrid> priority-level`).
 
 ### Failover sequence
 
@@ -51,7 +52,7 @@ At any time, the router with the highest **priority** is master. If priorities t
 - If a backup doesn't hear from master for 3× advert interval (~3s by default), it assumes mastership.
 - The new master sends a **gratuitous ARP** with the virtual MAC, so upstream switches update their MAC tables and start forwarding the virtual MAC's frames to the new master's port.
 
-Total failover: ~3 seconds with default timers, sub-second with tuned timers (advertisement-interval 100ms).
+Total failover: ~3 seconds with default timers. Lowering the advertisement interval (whole seconds on EOS 4.36) tightens that; genuinely sub-second convergence needs BFD-backed tracking, not just a smaller advert interval.
 
 ### Preempt
 
@@ -88,18 +89,28 @@ VRRP is still everywhere in production because it's simple and reliable. But und
 
 ## Your task
 
-Both switches already have SVIs for VLAN 10 and VLAN 20 with their own real IPs. Configure VRRP for the VLAN 10 gateway:
+Both switches already have SVIs for VLAN 10 and VLAN 20 with their own real IPs. Configure VRRP for **both** gateways — the users' VLAN 10 gateway *and* the server's VLAN 20 gateway — so the whole round trip survives a switch failure:
 
 1. On sw1, under `interface Vlan10`:
    - VRRP group 10, virtual IP `10.10.10.254`
    - Priority 110
    - Preempt enabled
-2. On sw2, under `interface Vlan10`:
+2. On sw1, under `interface Vlan20`:
+   - VRRP group 20, virtual IP `10.20.20.254`
+   - Priority 110
+   - Preempt enabled
+3. On sw2, under `interface Vlan10`:
    - VRRP group 10, virtual IP `10.10.10.254`
    - Priority 100
    - Preempt enabled
-3. Verify h1 and h2 (which use 10.10.10.254 as gateway) can reach 10.20.20.50.
-4. Reload or shut down sw1's VRRP-tracked interfaces; confirm sw2 takes over and traffic continues.
+4. On sw2, under `interface Vlan20`:
+   - VRRP group 20, virtual IP `10.20.20.254`
+   - Priority 100
+   - Preempt enabled
+5. Verify h1 and h2 (which use 10.10.10.254 as gateway) can reach 10.20.20.50, and that h-server (which routes back via 10.20.20.254) can return the traffic.
+6. Simulate sw1 failing — shut **both** its VLAN 10 and VLAN 20 SVIs — and confirm sw2 takes over *both* virtual IPs and traffic continues end to end.
+
+> **Why VLAN 20 too?** If you only put VRRP on VLAN 10, the users' default gateway fails over to sw2 but the server still sends return traffic to whichever switch owns its VLAN 20 next hop. If that's the dead switch, the return half of the conversation black-holes — the round trip breaks even though the forward gateway "failed over fine". Making the server's next hop a VRRP virtual IP too keeps forward and return paths on the same master. This is the asymmetric-L3 trap in miniature (see Production notes).
 
 ## Hints
 
@@ -113,6 +124,8 @@ interface Vlan<id>
   vrrp <vrid> preempt
   vrrp <vrid> description <text>
 ```
+
+Apply the same shape twice — once on `Vlan10` (VRID 10) and once on `Vlan20` (VRID 20) — on each switch. Convention: match the VRID to the VLAN ID.
 
 Verification:
 
@@ -150,15 +163,16 @@ docker exec clab-vrrp-h1 ping -c 2 10.10.10.254
 
 ### 3. Configure VRRP, re-test
 
-After applying VRRP on both switches:
+After applying VRRP on both switches (both VLAN 10 *and* VLAN 20 groups):
 
 ```bash
 docker exec clab-vrrp-h1 ping -c 3 10.10.10.254
 docker exec clab-vrrp-h1 ping -c 3 10.20.20.50
 docker exec clab-vrrp-h2 ping -c 3 10.20.20.50
+docker exec clab-vrrp-h-server ping -c 3 10.20.20.254
 ```
 
-All ✅.
+All ✅ — the last one confirms the server can reach its VLAN 20 virtual gateway (the return-path next hop).
 
 ### 4. Inspect VRRP state
 
@@ -170,7 +184,7 @@ docker exec -it clab-vrrp-sw1 Cli
 show vrrp
 ```
 
-sw1 should be **Master** for VRID 10. Then on sw2:
+sw1 should be **Master** for VRID 10 (VLAN 10) *and* VRID 20 (VLAN 20). Then on sw2:
 
 ```bash
 docker exec -it clab-vrrp-sw2 Cli
@@ -180,26 +194,30 @@ docker exec -it clab-vrrp-sw2 Cli
 show vrrp
 ```
 
-sw2 should be **Backup**.
+sw2 should be **Backup** for both groups.
 
 ### 5. Failover demo
 
-Start a sustained ping from h1:
+Start a sustained ping from h1 *through* the gateway to the server:
 
 ```bash
 docker exec clab-vrrp-h1 ping 10.20.20.50
 ```
 
-In another terminal, kill sw1's VRRP-relevant interface — shut down Vlan10:
+In another terminal, simulate sw1 failing. Because we need **both** halves of the path to fail over, shut down *both* of sw1's SVIs — VLAN 10 (forward gateway) and VLAN 20 (server return gateway):
 
 ```bash
 docker exec -it clab-vrrp-sw1 Cli
 configure terminal
   interface Vlan10
     shutdown
+  interface Vlan20
+    shutdown
 ```
 
-The ping pauses for ~3 seconds (default VRRP advert timeout), then resumes via sw2.
+The ping pauses for ~3 seconds (default VRRP advert timeout), then resumes — now both virtual IPs are served by sw2, so the full round trip (h1 → sw2 → server → sw2 → h1) works.
+
+> If you shut **only** Vlan10 here, watch what happens: VLAN 10 master moves to sw2, but sw1 still owns the VLAN 20 virtual IP, so the server keeps sending return packets to sw1 — which no longer has a route into 10.10.10.0/24. The ping stays broken. That's the asymmetric-L3 trap; shutting both SVIs (or, in production, **tracking** so one failure drops both groups) is what keeps the path symmetric.
 
 ```bash
 docker exec -it clab-vrrp-sw2 Cli
@@ -209,7 +227,7 @@ docker exec -it clab-vrrp-sw2 Cli
 show vrrp
 ```
 
-sw2 is now Master.
+sw2 is now Master for both VRID 10 and VRID 20.
 
 Restore sw1:
 
@@ -217,9 +235,11 @@ Restore sw1:
 configure terminal
   interface Vlan10
     no shutdown
+  interface Vlan20
+    no shutdown
 ```
 
-With preempt on, sw1 takes mastership back. Ping pauses briefly again.
+With preempt on, sw1 takes mastership of both groups back. Ping pauses briefly again.
 
 ### 6. Trace the virtual MAC
 
@@ -246,7 +266,7 @@ The MAC should be `00:00:5e:00:01:0a` (`0a` = VRID 10 in hex). After failover, t
 - **Priority** — highest wins. Default 100. Adjust to deterministically pick master.
 - **Preempt** — higher priority retakes mastership on return. Usually on.
 - **Tracking** — decrement priority when a critical interface fails; lets backup take over if master's upstream is broken.
-- **Advert interval** — default 1s; reduce (with `advertisement interval centiseconds 10` = 100ms) for sub-second failover.
+- **Advert interval** — default 1s, set with `vrrp <vrid> advertisement interval <seconds>` (whole seconds, 1–255, on EOS 4.36). Lowering it speeds detection but raises control-plane chatter; true sub-second failover needs BFD-style tracking, not this knob alone.
 - **Active/standby only** — one master at a time. Backup sits idle. Half the capacity wasted in steady state.
 
 ## Production deployment notes
@@ -256,7 +276,7 @@ The MAC should be `00:00:5e:00:01:0a` (`0a` = VRID 10 in hex). After failover, t
 - **Use tracking aggressively** — track uplinks, track upstream reachability via IP SLA, track BGP session state. The gateway is only useful if the *path beyond it* works.
 - **Don't share VRIDs across multiple SVIs** unintentionally — VRID is locally significant per VLAN, but consistent naming matters for sanity.
 - **Authentication** — VRRP supports plaintext password authentication. Not strong, but stops accidental misconfiguration in adjacent VLANs.
-- **Symmetric L3 design** — VRRP master changes path direction. Ensure return traffic via sw2 also works (e.g., upstream router sees both sw1 and sw2 as valid next hops). A common bug: sw1 master, return traffic prefers sw2's path → asymmetric routing → stateful firewalls drop the return.
+- **Symmetric L3 design** — VRRP master changes path direction. Ensure return traffic via sw2 also works (e.g., upstream router sees both sw1 and sw2 as valid next hops). This lab makes the point concrete: the server's return next hop is the VLAN 20 virtual IP, so the return path follows the same master as the forward path. A common bug: gateway fails over but the return next hop is pinned to the dead switch → black hole. In production you'd use **interface/object tracking** so one switch's failure drops *all* its VRRP groups together, rather than relying on shutting each SVI by hand. A related bug: sw1 master, return traffic prefers sw2's path → asymmetric routing → stateful firewalls drop the return.
 
 ## What's missing (deliberately)
 

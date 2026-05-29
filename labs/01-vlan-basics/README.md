@@ -72,7 +72,7 @@ h1 ──(untagged)──► sw1:Et1 (access VLAN 10)
 
 Configure **sw1** and **sw2** so that:
 
-1. Both switches know about **VLAN 10 (name: USERS)** and **VLAN 20 (name: SERVERS)**.
+1. Both switches know about **VLAN 10 (name: USERS)** and **VLAN 20 (name: DEVS)**.
 2. On each switch:
    - `Ethernet1` is an **access port in VLAN 10**.
    - `Ethernet2` is an **access port in VLAN 20**.
@@ -153,7 +153,10 @@ Both ✅ if your trunk allows VLANs 10 and 20.
 docker exec -it clab-vlan-basics-h1 ping -c 3 10.20.20.2
 ```
 
-❌ Should fail. Even if you set up a route on h1, sw1 wouldn't forward — VLANs 10 and 20 are separate broadcast domains.
+❌ Should fail — and for two distinct reasons worth separating:
+
+1. **L3: the packet never even leaves h1.** h1 (10.10.10.1/24) has no route to 10.20.20.0/24 and no default gateway, so the kernel rejects the ping with `Network is unreachable`. No frame is ever put on the wire.
+2. **L2: even if h1 *could* reach it, there's nowhere to cross.** VLANs 10 and 20 are separate broadcast domains, and there is no router or SVI bridging them. Crossing between VLANs requires inter-VLAN routing — deferred to lab 02.
 
 ### 3. Peek at the switch
 

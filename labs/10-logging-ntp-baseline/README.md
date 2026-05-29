@@ -28,12 +28,23 @@ By the end you should be able to answer:
 
 ```mermaid
 graph LR
-    sw1[sw1<br/>10.99.0.1] --> svc
-    sw2[sw2<br/>10.99.0.2] --> svc
-    svc[services<br/>10.99.0.10<br/>chrony NTP + rsyslog]
+    sw1[sw1<br/>10.99.0.1] --> br0
+    sw2[sw2<br/>10.99.0.2] --> br0
+    br0["services br0<br/>10.99.0.10<br/>chrony NTP + rsyslog"]
 ```
 
-The `services` container runs both an NTP server (chrony) and a syslog collector (rsyslog). In a real deployment these would be separate boxes (or part of larger telemetry stacks).
+Both switches are wired to the `services` container, which bridges its two
+switch-facing interfaces (`eth1` + `eth2`) into a single Linux bridge `br0`.
+The server IP `10.99.0.10` lives on that bridge, so it sits on **one shared
+L2 segment** that *both* sw1 (10.99.0.1) and sw2 (10.99.0.2) can reach — they
+all share the `10.99.0.0/24` subnet. The `services` container runs both an NTP
+server (chrony) and a syslog collector (rsyslog). In a real deployment these
+would be separate boxes (or part of larger telemetry stacks).
+
+> **cEOS note:** `network-multitool` is an Alpine image, so the lab installs
+> chrony/rsyslog with `apk` and starts the daemons directly (there is no
+> Debian `service` wrapper or init system in the container). All of that is
+> handled by the topology's `exec:` block — you don't need to touch it.
 
 ## Theory primer
 
@@ -61,7 +72,7 @@ Production rule of thumb: forward severity 6 (informational) and up. Skip debug 
 
 Most platforms have three independent logging "targets":
 
-- **Console** — printed to anyone logged in via serial console. Set to severity 4 (warning) and up; otherwise console floods.
+- **Console** — printed to anyone logged in via serial console. Set to severity 4 (warning) and up; otherwise console floods. (On cEOS there is no real serial console, so `logging console` is accepted but has little observable effect in the lab — the buffered and host targets are the ones you'll actually watch.)
 - **Buffered (in-memory)** — `show logging` ring buffer. A few thousand lines locally for quick inspection. Set to severity 6.
 - **Host (remote syslog)** — shipped to one or more central servers. Set to severity 6 minimum.
 
@@ -83,7 +94,7 @@ The "bare minimum" config items every production switch should have, separate fr
 1. **Login banner** — legal notice ("authorized access only") visible *before* authentication. Required for evidence in many jurisdictions.
 2. **MOTD banner** — short operational message after login (which device, which environment, "managed by team X").
 3. **Idle timeout** — SSH/console sessions that go quiet for N minutes auto-disconnect. 10 minutes is a sane default. Forgotten sessions are a security hole.
-4. **Authentication retry limit** — N attempts then drop the session. Slows brute-force.
+4. **Brute-force lockout** — lock an account after N failed logins for a cooldown window. Slows credential-stuffing. (EOS does this via an AAA *lockout* policy, not a per-SSH-session retry counter.)
 5. **Disable insecure protocols** — Telnet (yes, still defaults to on on some platforms), HTTP, SNMPv1/v2c if SNMPv3 is available.
 6. **TLS for management API** — if you must use HTTP, force HTTPS.
 7. **NTP** — sync from known sources.
@@ -104,7 +115,7 @@ On both sw1 and sw2:
    - Source from the management interface (Ethernet1)
 3. Apply a login banner (legal warning) and an MOTD banner.
 4. Set SSH and console idle timeouts to 10 minutes.
-5. Enforce SSH authentication retry limit of 3.
+5. Enforce a brute-force lockout: lock an account after 3 failed logins.
 6. Disable HTTP management; force HTTPS only.
 7. Set timezone to UTC (or your local TZ).
 
@@ -120,20 +131,24 @@ logging buffered 16384 informational
 logging source-interface Ethernet1
 
 banner login
-^ legal text here
+legal text here
 EOF
+# (EOS reads the body verbatim until a line containing only EOF —
+#  there is NO Cisco-style ^ delimiter; any prefix becomes banner text.)
 
 banner motd
-^ operational text here
+operational text here
 EOF
 
 management ssh
    no shutdown
    idle-timeout 10
-   authentication retries 3
 
 management console
    idle-timeout 10
+
+# Brute-force lockout is an AAA policy, not a management-ssh knob:
+aaa authentication policy lockout failure 3 window 60 duration 300
 
 management api http-commands
    no shutdown
@@ -163,20 +178,31 @@ Wait ~60 seconds — the `services` container needs to install/start chrony and 
 
 ## Verification
 
-### 1. Server-side: confirm NTP and syslog are listening
+> **Verify BOTH switches.** The task is symmetric across sw1 and sw2, and
+> both share the `10.99.0.0/24` segment via the server's `br0` bridge. Where a
+> step below uses `10.99.0.1` (sw1), repeat it against `10.99.0.2` (sw2) too.
+
+### 1. Server-side: confirm the bridge is up and the daemons are listening
 
 ```bash
-docker exec clab-logging-ntp-baseline-services ss -lnp | grep -E '514|123'
+# Both switch links should be enslaved to br0, which carries 10.99.0.10:
+docker exec clab-logging-ntp-baseline-services ip -br addr show br0
+docker exec clab-logging-ntp-baseline-services ss -lnup | grep -E '514|123'
+docker exec clab-logging-ntp-baseline-services ss -lntp | grep 514
 ```
 
-You should see `udp 514` (syslog), `tcp 514` (syslog over TCP), `udp 123` (NTP).
+`br0` should show `10.99.0.10/24`. You should see `udp 514` (syslog),
+`tcp 514` (syslog over TCP), and `udp 123` (NTP / chrony) listening. Both sw1
+and sw2 should be able to `ping 10.99.0.10`.
 
 ### 2. NTP sync
 
-After applying NTP config on sw1, wait ~30 seconds, then:
+After applying NTP config, wait ~30 seconds, then (do this for sw1 *and* sw2):
 
 ```bash
 docker exec -it clab-logging-ntp-baseline-sw1 Cli
+# then, in a second pass:
+docker exec -it clab-logging-ntp-baseline-sw2 Cli
 ```
 
 ```
@@ -185,15 +211,16 @@ show ntp status
 show clock
 ```
 
-The status should eventually show "synchronised to NTP server 10.99.0.10". `show clock` should match the host clock within seconds.
+The status should eventually show "synchronised to NTP server 10.99.0.10". `show clock` should match the host clock within seconds. Because both switches sync to the *same* source, their clocks now agree with each other — which was the whole point of the 03:00-outage story.
 
 ### 3. Remote syslog
 
-Generate a log event by logging in (just SSH and `exit`):
+Generate a log event on each switch by logging in (just SSH and `exit`):
 
 ```bash
-docker exec -it clab-logging-ntp-baseline-services ssh admin@10.99.0.1
-# log in, then exit
+docker exec -it clab-logging-ntp-baseline-services ssh admin@10.99.0.1   # sw1
+docker exec -it clab-logging-ntp-baseline-services ssh admin@10.99.0.2   # sw2
+# log in, then exit, for each
 ```
 
 Then check the syslog server:
@@ -202,30 +229,50 @@ Then check the syslog server:
 docker exec clab-logging-ntp-baseline-services tail /var/log/network.log
 ```
 
-You should see log lines from sw1 showing login/logout events. **This is the audit trail that survives power-cycling the switch.**
+You should see log lines from **both** sw1 and sw2 showing login/logout events. **This is the audit trail that survives power-cycling the switch.**
 
 ### 4. Banner displayed
 
-SSH to the switch and confirm the banner appears *before* the password prompt:
+SSH to a switch and confirm the banner appears *before* the password prompt:
 
 ```bash
-docker exec -it clab-logging-ntp-baseline-services ssh admin@10.99.0.1
+docker exec -it clab-logging-ntp-baseline-services ssh admin@10.99.0.1   # sw1
+docker exec -it clab-logging-ntp-baseline-services ssh admin@10.99.0.2   # sw2
 ```
 
-The legal warning should display. After login, the MOTD appears.
+The legal warning should display. After login, the MOTD appears. Note that
+the banner text shows **verbatim** — there should be no stray `^` characters
+in front of each line (EOS has no caret delimiter; whatever you type between
+`banner login` and the closing `EOF` is shown literally).
 
-### 5. Idle timeout works
+### 5. Idle timeout (SSH)
 
 SSH in, type nothing for 10 minutes. The session should drop. (Or shorten the timeout to 1 minute temporarily to verify in less time: `idle-timeout 1` under `management ssh`, then test, then revert.)
 
-### 6. HTTP is off, HTTPS is on
+> **cEOS note:** There is no serial console on a containerized switch, so
+> `management console idle-timeout` is *config-accepted but not meaningfully
+> exercisable* here — you can't time out a console that doesn't exist. The
+> **SSH** idle-timeout above is the one you can actually observe. On real
+> hardware both apply.
+
+### 6. Brute-force lockout
+
+The AAA lockout is enforced by EOS. Confirm the policy is present:
 
 ```bash
-curl -k -m 3 http://10.99.0.1/
-curl -k -m 3 https://10.99.0.1/
+docker exec -it clab-logging-ntp-baseline-sw1 Cli -c "show running-config section aaa"
 ```
 
-HTTP should be refused (connection refused or rejected). HTTPS should respond with the EOS management API.
+You should see `aaa authentication policy lockout failure 3 window 60 duration 300`. (To see it bite, fail the SSH password 3 times within 60s — the account is then locked for 300s. Use a throwaway login; locking out `admin` will lock you out too.)
+
+### 7. HTTP is off, HTTPS is on
+
+```bash
+docker exec clab-logging-ntp-baseline-services curl -k -m 3 http://10.99.0.1/
+docker exec clab-logging-ntp-baseline-services curl -k -m 3 https://10.99.0.1/
+```
+
+HTTP should be refused (connection refused or rejected). HTTPS should respond with the EOS management API. Repeat for `10.99.0.2` (sw2) — after the fix, sw2 also disables HTTP and forces HTTPS.
 
 ## Peek at solution
 

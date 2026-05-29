@@ -8,7 +8,7 @@
 
 Last quarter's worst outage timeline:
 
-- **14:02** — Routing protocol bug bites. sw1 stops forwarding correctly between two VLANs.
+- **14:02** — Routing protocol bug bites. sw1 black-holes traffic between the data subnets (its routed data interfaces stop forwarding correctly).
 - **14:03** — Monitoring fires alerts.
 - **14:05** — On-call engineer attempts SSH to sw1. **No response.** Their management traffic was crossing sw1's data path.
 - **14:06** — They try sw2. Also unreachable — for the same reason.
@@ -159,6 +159,8 @@ docker exec -it clab-oob-management-h-admin ping -c 2 192.168.99.2
 ```
 
 Both ✅.
+
+> **Note:** Both switch OOB IPs (`.1` and `.2`) sit in h-admin's own `192.168.99.0/24` subnet, so these pings succeed via **direct L2 adjacency** across sw-oob — h-admin ARPs for them and forwards on the OOB segment. They never use h-admin's `default via 192.168.99.1` route. That default route is effectively a no-op here (sw1's Et3 lives in VRF MGMT with no upstream routing), so the OOB realm is an isolated island — exactly the design intent. Off-subnet reachability would come from a real OOB router/VPN uplink (see "How OOB reaches the outside world").
 
 ```bash
 docker exec -it clab-oob-management-h-admin ssh admin@192.168.99.1

@@ -23,11 +23,12 @@ Knowing which attribute does what — and especially which works outbound vs inb
 
 By the end you should be able to answer:
 
-- What's the **BGP best-path selection algorithm** (the 13-step decision process)?
+- What's the **BGP best-path selection algorithm** — the ordered decision process, and why does an attribute only change the winner when it sits *before* the step that's currently deciding?
 - Which attribute affects YOUR outbound? Which affects the PEER's inbound (i.e., your inbound)?
 - What's the difference between **local-preference** and **MED**?
 - Why is **AS-path prepending** a coarse, polite suggestion rather than a hard control?
 - What's **`next-hop-self`** and when do you need it?
+- Why does the **eBGP-over-iBGP** step make local-pref and MED *reinforce* the baseline winner here instead of flipping it?
 
 ## Topology
 
@@ -35,10 +36,10 @@ By the end you should be able to answer:
 graph LR
     h1[h1<br/>10.1.0.10] --> sw1
     h4[h4<br/>10.4.0.10] --> sw4
-    sw1[sw1<br/>AS65001] ===eBGP=== sw3[sw3<br/>AS65002]
-    sw1 -.iBGP.- sw2[sw2<br/>AS65001]
-    sw2 ===eBGP=== sw4[sw4<br/>AS65002]
-    sw3 -.iBGP.- sw4
+    sw1[sw1<br/>AS65001] ===|eBGP| sw3[sw3<br/>AS65002]
+    sw1 -.->|iBGP| sw2[sw2<br/>AS65001]
+    sw2 ===|eBGP| sw4[sw4<br/>AS65002]
+    sw3 -.->|iBGP| sw4
 ```
 
 Two ASes, two inter-AS links, iBGP inside each AS. sw1 has TWO paths to reach `10.4.0.0/24` (h4):
@@ -46,6 +47,13 @@ Two ASes, two inter-AS links, iBGP inside each AS. sw1 has TWO paths to reach `1
 - **Path B**: sw1 → sw2 (iBGP) → sw4 (eBGP) → h4
 
 Tweak attributes to flip between them.
+
+> **Read this before you start — the two paths are NOT symmetric.** At sw1, Path A is learned over **eBGP** (directly from sw3) while Path B arrives over **iBGP** (relayed by sw2). Both have the same AS-path `[65002]`, same origin, and the same (default) MED at baseline — so every step up to and including MED is a *tie*, and the decision falls through to the **"eBGP over iBGP"** step. There the eBGP path (via sw3) **deterministically wins**, well before any router-id / oldest-route tiebreaker is consulted. This asymmetry is intentional and it shapes what each phase can show you:
+> - **Phase 1 (local-pref)** and **Phase 3 (MED)** set attributes on the path that *already wins*, so the traceroute does **not** flip — they **reinforce** the existing winner. You'll see the attribute land in `show ip bgp`, and you'll reason about *why* the winner doesn't change.
+> - **Phase 2 (AS-path prepend)** is evaluated at step 4 — **before** "eBGP over iBGP" — so it **does** flip the path to via sw2. This is the one phase with a visible traceroute change.
+> - **Phase 4** stacks local-pref on top of the prepend to prove local-pref (step 2) outranks AS-path (step 4).
+>
+> The teaching point is the *decision order itself*: an attribute only changes the outcome if it is evaluated **before** the step that is currently deciding the winner. Watch the `Not best:` reason in `show ip bgp 10.4.0.0/24 detail` at each step.
 
 ## Theory primer
 
@@ -66,6 +74,8 @@ When multiple BGP routes exist for the same prefix, BGP picks one **best path** 
 11. **Lowest cluster-list length** (for RR-reflected routes)
 12. **Lowest neighbor address**
 13. **ECMP if multipath enabled**
+
+> **This is the generic, vendor-neutral mnemonic — not the verbatim EOS list.** Step 1 (Weight) is a Cisco concept and step 9 (oldest route) is platform-variant; EOS's own ordered reason list reads roughly: weight → local-pref → AS-path length → origin → MED → **eBGP-over-iBGP** → IGP cost to next-hop → ECMP-fast → router-id → originator-id → cluster-list length → peer IP → path-id. The relative ordering of the knobs you'll touch in this lab (local-pref before AS-path before MED before eBGP-over-iBGP) is the same in both lists, which is all that matters here. To see EOS's *actual* decision for a prefix — including the exact reason a candidate lost — run `show ip bgp 10.4.0.0/24 detail` and read the `Not best:` line.
 
 In practice, steps 1–4 are the ones operators routinely manipulate. The rest are tiebreakers.
 
@@ -126,6 +136,8 @@ route-map LOW-MED permit 10
 
 By default, MED is compared **only between routes from the same neighboring AS** — if you're worried about that constraint, `bgp always-compare-med` removes it.
 
+> **Why MED won't visibly steer in *this* lab's topology.** Both sw1 paths come from the same neighbor AS (65002), so MED *is* comparable between them. At baseline both carry the default MED (0), so step 6 is a tie and the decision falls through to **eBGP-over-iBGP**, which picks the sw3 (eBGP) path. When you then set sw3's MED to 50 and sw2's to 100, step 6 stops being a tie and now decides the winner *itself* — but it picks **sw3**, the very same path eBGP-over-iBGP was already installing. The winning attribute changes (MED instead of eBGP-over-iBGP), the winning *path* does not. So the installed route and the h1 traceroute don't move. Phase 3 therefore teaches you to *read* MED, not to *steer* with it. To make MED actually flip a path you need two candidates that are still tied right up to step 6 **and** where the lower-MED path wasn't already winning — e.g. two eBGP paths from one neighbor AS; lab 24 builds exactly that.
+
 ### `next-hop-self` on iBGP
 
 When sw3 sends a route to its iBGP peer sw4, the BGP next-hop is by default the **original eBGP peer** (sw1's IP `10.13.0.1`). sw4 may have no route to `10.13.0.1` in its IGP. If so, the iBGP route is unreachable on sw4 and gets dropped.
@@ -157,7 +169,7 @@ Note which path is taken.
 
 ### Phase 1 — local-preference (outbound from AS 65001)
 
-On sw1, make routes learned from sw3 carry **local-pref 200**. Verify sw1 (and sw2 via iBGP) now prefer the sw3 path regardless of AS-path.
+On sw1, make routes learned from sw3 carry **local-pref 200**. Because the sw3 path is already the baseline winner (it's eBGP, the sw2 path is iBGP), the traceroute from h1 will **not** change here. What changes is the *reason* sw3 wins: confirm the sw3 route now shows `local-preference 200`, and confirm that **sw2** — which only had an iBGP path before — now also prefers the sw1→sw3 exit, because local-pref is carried over iBGP. The visible flip comes in Phase 2; the lesson here is that local-pref is the highest substantive knob and propagates inside the AS.
 
 ### Phase 2 — AS-path prepend (inbound to AS 65001)
 
@@ -165,7 +177,9 @@ Remove the local-pref change. On sw3, **prepend AS-path twice** when advertising
 
 ### Phase 3 — MED (inbound hint, more granular)
 
-Remove the AS-path prepend. On sw4, **set higher MED** outbound to sw2; on sw3, set **lower MED** outbound to sw1. Verify sw1 prefers sw3.
+Remove the AS-path prepend. On sw4, **set higher MED** outbound to sw2; on sw3, set **lower MED** outbound to sw1. Confirm the MED values land in `show ip bgp 10.4.0.0/24` on sw1 (sw3 path = 50, sw2 path = 100).
+
+> **Heads-up — no traceroute flip here either.** At baseline both sw3 and sw2 paths carry the default MED (0), so the MED step is a tie and the **eBGP-over-iBGP** step picks the sw3 (eBGP) path. Setting sw3's MED to 50 and sw2's to 100 makes the MED step decide the winner — but it still picks **sw3**, the path that was already installed. The winner doesn't move, so neither does the h1 traceroute. Treat Phase 3 as "prove the MED attribute is carried and read correctly," not "prove MED steers." See the Theory primer's MED note for the full reasoning; lab 24 builds a topology where MED genuinely flips the path.
 
 ### Phase 4 — combine and observe priority
 
@@ -220,13 +234,19 @@ docker exec -it clab-bgp-path-selection-sw1 Cli
 show ip bgp 10.4.0.0/24
 ```
 
-You should see two paths. Best (marked `>`) is whichever wins by default tiebreakers.
+You should see two paths to `10.4.0.0/24`, both with AS-path `[65002]` and default MED. The best path (marked `>`) is the one via **sw3** — it's learned over eBGP while the sw2 path is iBGP, so it wins at the **eBGP-over-iBGP** step. Confirm this with the reason line:
+
+```
+show ip bgp 10.4.0.0/24 detail
+```
+
+The losing (sw2) path will show something like `Not best: eBGP path is preferred` — i.e. the decision is *not* coming down to router-id or any tiebreaker; the eBGP-over-iBGP step decides it deterministically.
 
 ```bash
 docker exec clab-bgp-path-selection-h1 traceroute -n 10.4.0.10
 ```
 
-Note the route taken.
+Baseline route: **h1 → sw1 → sw3 → sw4 → h4** (the eBGP path).
 
 ### 2. Local-pref to prefer sw3 path
 
@@ -237,13 +257,22 @@ clear ip bgp 10.13.0.2 soft in
 show ip bgp 10.4.0.0/24
 ```
 
-The sw3-learned route now shows local-preference 200. Best path is via sw3.
+The sw3-learned route now shows `local-preference 200`, and that is now the *reason* it's best (local-pref is step 2, far ahead of eBGP-over-iBGP). The best path is still via sw3 — so the **h1 traceroute does not change** from baseline:
 
 ```bash
 docker exec clab-bgp-path-selection-h1 traceroute -n 10.4.0.10
 ```
 
-Path: h1 → sw1 → sw3 → sw4 → h4.
+Path is still: h1 → sw1 → sw3 → sw4 → h4 (unchanged — sw3 already won at baseline).
+
+To see local-pref's real effect, log into **sw2** and confirm it now prefers the sw1→sw3 exit too:
+
+```bash
+docker exec -it clab-bgp-path-selection-sw2 Cli
+show ip bgp 10.4.0.0/24
+```
+
+sw2's iBGP-learned route from sw1 now carries `local-preference 200` (propagated over iBGP), so all of AS 65001 agrees on the sw3 exit. That AS-wide agreement — not a traceroute flip at h1 — is the local-pref lesson.
 
 ### 3. Remove local-pref, apply AS-path prepend on sw3
 
@@ -324,7 +353,7 @@ On sw1:
 show ip bgp 10.4.0.0/24
 ```
 
-The sw3-path now has MED 50, sw2-path has MED 100. Best = sw3 (lower MED).
+The sw3-path now shows `med 50`, the sw2-path shows `med 100`. Best is still via sw3 — but read the reason carefully with `show ip bgp 10.4.0.0/24 detail`: the sw2 path loses at **eBGP-over-iBGP**, not at MED (the MED comparison here just happens to agree with the existing winner). The traceroute from h1 is **unchanged**. The takeaway: MED only *steers* when the two paths are otherwise tied right up to the MED step — which is not the case in this topology, because the eBGP-vs-iBGP asymmetry has already decided it. You'll see MED actually flip a path in lab 24, where both candidates arrive over eBGP from the same neighbor AS.
 
 ### 5. Local-pref + AS-path: which wins?
 
@@ -334,9 +363,11 @@ Re-apply local-pref 200 on sw1's inbound from sw3 AND leave the AS-path prepend 
 
 - [`solutions/sw1.cfg`](solutions/sw1.cfg), [`solutions/sw2.cfg`](solutions/sw2.cfg), [`solutions/sw3.cfg`](solutions/sw3.cfg), [`solutions/sw4.cfg`](solutions/sw4.cfg)
 
+> The phases are sequential and mostly mutually exclusive, so the solution files can't show all four at once. They capture **one coherent end state — Phase 4** (local-pref on sw1 **and** AS-path prepend on sw3, both active, proving local-pref outranks AS-path). The Phase-3 MED route-maps (`LOW-MED` on sw3, `HIGH-MED` on sw4) are included as **reference syntax with their neighbor application commented out** — uncomment them (and remove the Phase-1/2 route-maps) to reproduce Phase 3. Every route-map is tagged with its phase in a header comment.
+
 ## Concepts cheat-sheet
 
-- **Best-path decision** — strict 13-step order. Weight → local-pref → AS-path → origin → MED → eBGP-over-iBGP → IGP metric → tiebreakers.
+- **Best-path decision** — strictly ordered. Generic mnemonic: Weight → local-pref → AS-path → origin → MED → eBGP-over-iBGP → IGP metric → tiebreakers (Weight is Cisco-only). An attribute only changes the winner if it sits *before* the step currently deciding it — check `show ip bgp <prefix> detail` for the EOS `Not best:` reason.
 - **Local-preference** — controls YOUR outbound; iBGP-carried; doesn't cross eBGP.
 - **AS-path prepend** — coarse inbound hint; "make my path look longer" so others avoid me.
 - **MED** — fine inbound hint between same neighbor AS; lower is preferred.

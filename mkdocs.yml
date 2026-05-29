@@ -27,7 +27,14 @@ theme:
     - search.highlight
     - content.code.copy
     - content.code.annotate
-    - content.action.edit
+    # content.action.edit is intentionally OFF: the docs/ tree is built from
+    # committed symlinks (docs/index.md -> ../README.md, docs/labs -> ../labs,
+    # etc.), so MkDocs derives each page's edit URL from the symlink path
+    # (e.g. edit/main/docs/index.md). GitHub's web editor cannot edit through a
+    # committed symlink — it opens the symlink blob (the target-path text), not
+    # the real file — so the pencil button would be non-functional for the
+    # symlinked majority of pages. Re-enable once docs/ is a build-time copy of
+    # the real sources rather than symlinks (see scripts/setup-docs-symlinks.sh).
     - toc.follow
   palette:
     - media: "(prefers-color-scheme: light)"
@@ -84,8 +91,12 @@ markdown_extensions:
 plugins:
   - search
   - awesome-pages       # Auto-discovers pages where nav isn't explicit
-  # git-revision-date-localized disabled — clashes with symlinks. Re-enable
-  # once docs/ is the real source (or once we switch to a build-time copy).
+  # git-revision-date-localized disabled — clashes with the symlinked docs/
+  # layout (it reads the commit history of each page's source path, which is a
+  # symlink, not the real file). CI no longer forces fetch-depth: 0 for it
+  # (that fetch was only needed by this plugin). Re-enable both together — and
+  # restore fetch-depth: 0 in .github/workflows/docs.yml — once docs/ is the
+  # real source (or once we switch to a build-time copy).
 
 extra:
   social:
@@ -206,7 +217,6 @@ nav:
 # of the site (they'll still be browsable in the GitHub source view).
 exclude_docs: |
   EOS-User-Manual.pdf
-  TODO.md
   scripts/
   images/
   labs/*/configs/

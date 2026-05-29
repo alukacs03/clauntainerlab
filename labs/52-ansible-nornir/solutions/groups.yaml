@@ -1,0 +1,4 @@
+---
+# Nornir SimpleInventory groups file.
+leaf:
+  platform: eos

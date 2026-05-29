@@ -21,7 +21,10 @@ topology:
       binds:
         - solutions:/lab/solutions:ro
       exec:
-        - ip addr add 10.0.0.100/24 dev eth1
+        # eth1 faces staging-sw (10.0.0.0/30), eth2 faces prod-sw (10.0.1.0/30).
+        # Two separate /30s so the runner has a distinct connected route per device.
+        - ip addr add 10.0.0.2/30 dev eth1
+        - ip addr add 10.0.1.2/30 dev eth2
 
   links:
     - endpoints: ["ci-runner:eth1", "staging-sw:eth1"]

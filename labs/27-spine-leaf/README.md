@@ -94,7 +94,7 @@ Spines just transit; they don't usually originate prefixes other than their own 
 2. On each leaf: BGP AS, neighbor each spine with the spine's AS, `maximum-paths 64 ecmp 64`, advertise loopback + host LAN.
 3. Verify all BGP sessions Established.
 4. Verify ECMP installed in FIB on leaves.
-5. h1 ↔ h2 ping works; traceroute shows alternating spine paths over multiple runs (due to flow hashing).
+5. h1 ↔ h2 ping works; the leaf's FIB shows two equal-cost next-hops (one per spine). A single src/dst host pair will hash to one spine for its traffic — both spines being *used* requires many distinct flows, not one ping.
 
 ## Hints
 
@@ -158,7 +158,16 @@ docker exec clab-spine-leaf-h1 ping -c 3 10.2.0.10
 
 ### 4. ECMP hashing demo
 
-Run multiple traceroutes. Each may pick a different spine:
+The leaf installs **two** next-hops for the route to h2's subnet — one via each spine. ECMP picks a spine per *flow* by hashing the 5-tuple (src/dst IP, src/dst port, protocol). The clean way to *see* both paths is the FIB itself:
+
+```bash
+docker exec -it clab-spine-leaf-leaf1 Cli
+show ip route 10.2.0.0/24
+```
+
+You should see two equal-cost entries: one via spine1 (`10.0.1.0`, leaf1:eth1) and one via spine2 (`10.0.3.0`, leaf1:eth2).
+
+You can also traceroute, but note the caveat below:
 
 ```bash
 for i in 1 2 3 4 5; do
@@ -167,7 +176,9 @@ for i in 1 2 3 4 5; do
 done
 ```
 
-You'll see the second hop alternating between spine1's interface (`10.0.1.0`) and spine2's interface (`10.0.3.1`). The flow hashes pick different spines for different flows.
+When a flow does cross spine1, the second hop is **`10.0.1.0`** (spine1's ingress interface facing leaf1); when it crosses spine2, the second hop is **`10.0.3.0`** (spine2's ingress interface facing leaf1).
+
+> **Caveat — don't expect the traceroute to visibly alternate.** Hashing keys on the 5-tuple, and here the src/dst IPs are fixed (10.1.0.10 → 10.2.0.10). Linux `traceroute` varies only the per-probe UDP destination port, so *which* spine the hash selects can stay constant across every run — seeing the same spine five times in a row is normal, not a bug. The authoritative proof that ECMP is installed is the two-next-hop FIB entry from `show ip route` above, not the traceroute output.
 
 ### 5. Failover demo
 

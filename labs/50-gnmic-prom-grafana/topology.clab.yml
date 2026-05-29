@@ -27,7 +27,11 @@ topology:
         - solutions/gnmic.yaml:/app/gnmic.yaml:ro
       cmd: "--config /app/gnmic.yaml subscribe"
       exec:
-        - ip addr add 10.0.0.10/24 dev eth1
+        # eth1 faces leaf1 (10.0.1.0/30), eth2 faces leaf2 (10.0.2.0/30).
+        # Each point-to-point link is its own subnet, so the collector has a
+        # directly-connected route to BOTH leaves.
+        - ip addr add 10.0.1.2/30 dev eth1
+        - ip addr add 10.0.2.2/30 dev eth2
 
     prometheus:
       kind: linux
@@ -36,8 +40,6 @@ topology:
         - solutions/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       ports:
         - 9090:9090
-      exec:
-        - ip addr add 10.0.0.20/24 dev eth1
 
     grafana:
       kind: linux
@@ -48,11 +50,13 @@ topology:
         - 3000:3000
       env:
         GF_SECURITY_ADMIN_PASSWORD: admin
-      exec:
-        - ip addr add 10.0.0.30/24 dev eth1
 
   links:
+    # Collector reaches each leaf over its own /30 point-to-point link.
     - endpoints: ["leaf1:eth1", "gnmic:eth1"]
     - endpoints: ["leaf2:eth1", "gnmic:eth2"]
-    - endpoints: ["gnmic:eth3", "prometheus:eth1"]
-    - endpoints: ["prometheus:eth2", "grafana:eth1"]
+    # iBGP peering link between the leaves, so the BGP telemetry path has data.
+    - endpoints: ["leaf1:eth2", "leaf2:eth2"]
+    # Prometheus -> gnmic (scrape) and Grafana -> Prometheus (query) both ride
+    # the containerlab management network via Docker DNS (gnmic:9804,
+    # http://prometheus:9090), so no data links are needed between them.

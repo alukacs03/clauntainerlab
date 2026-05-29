@@ -19,9 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Full history so the git-revision-date plugin can read commit dates
-          fetch-depth: 0
+        # NOTE: fetch-depth: 0 (full history) used to be required so the
+        # git-revision-date-localized plugin could read per-page commit dates.
+        # That plugin is currently disabled (see mkdocs.yml — it clashes with
+        # the symlinked docs/ layout), so the shallow default checkout is fine.
+        # Restore `with: fetch-depth: 0` here when that plugin is re-enabled.
 
       - uses: actions/setup-python@v5
         with:
@@ -33,10 +35,40 @@ jobs:
         run: pip install -r requirements-docs.txt
 
       - name: Build site
-        # `--strict` would fail on benign warnings (links into excluded
-        # solution dirs, cross-refs to concept docs that don't exist yet).
-        # Re-enable once those are cleaned up.
-        run: mkdocs build
+        # `--strict` is NOT used yet: some remaining warnings are intentional
+        # (e.g. links into deliberately-excluded labs/*/solutions/ and
+        # labs/*/configs/ dirs — see exclude_docs in mkdocs.yml). Turning on
+        # blanket --strict would fail CI on those benign cases. The two
+        # genuinely-broken README links (docs/vm-setup.md and TODO.md) are now
+        # fixed via symlinks (scripts/setup-docs-symlinks.sh), so the next step
+        # surfaces any remaining WARNING lines instead of letting them ship
+        # silently. Goal: drive the count to the known-intentional set, then
+        # re-enable --strict here.
+        # pipefail so a genuine build failure still fails CI (tee would
+        # otherwise mask mkdocs's non-zero exit).
+        run: |
+          set -o pipefail
+          mkdocs build 2>&1 | tee mkdocs-build.log
+
+      - name: Surface MkDocs warnings
+        # Make broken-link / missing-page warnings visible in the job summary
+        # and logs even though the build is non-strict, so regressions don't
+        # hide behind a green check. Does not fail the build (intentional
+        # excluded-dir links would otherwise cause false failures); flip
+        # `mkdocs build` above to `mkdocs build --strict` once the count is
+        # purely the known-intentional set.
+        if: always()
+        run: |
+          count=$(grep -c 'WARNING' mkdocs-build.log || true)
+          echo "MkDocs emitted ${count} WARNING line(s):"
+          grep 'WARNING' mkdocs-build.log || echo "  (none)"
+          {
+            echo "### MkDocs build warnings: ${count}"
+            echo ""
+            echo '```'
+            grep 'WARNING' mkdocs-build.log || echo "(none)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

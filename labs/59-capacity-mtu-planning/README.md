@@ -20,6 +20,35 @@ Both situations are solved by *doing the math first*.
 - Compute end-to-end MTU budget including overheads (VXLAN, IPsec, etc.)
 - Apply the planning workflow to extension decisions
 
+## Topology
+
+A small 2-spine / 2-leaf Clos with one host hung off each leaf. Every link is
+*assumed* to be 1 Gbps for the capacity math (see the note under "Your task" — the
+container links are not actually rate-limited).
+
+```mermaid
+graph TD
+  spine1[spine1]
+  spine2[spine2]
+  leaf1[leaf1<br/>gw 10.10.10.1]
+  leaf2[leaf2<br/>gw 10.10.20.1]
+  host1[host1<br/>10.10.10.10/24]
+  host2[host2<br/>10.10.20.10/24]
+
+  leaf1 ---|eth1↔eth1 · 1G| spine1
+  leaf1 ---|eth2↔eth1 · 1G| spine2
+  leaf2 ---|eth1↔eth2 · 1G| spine1
+  leaf2 ---|eth2↔eth2 · 1G| spine2
+  host1 ---|eth1↔eth3 · 1G| leaf1
+  host2 ---|eth1↔eth3 · 1G| leaf2
+```
+
+Underlay addressing (in the reference solution): leaf↔spine point-to-point /31s out
+of `10.0.0.0/24`, OSPF area 0 everywhere; host1 in `10.10.10.0/24` (gateway
+`10.10.10.1` on leaf1 `eth3`), host2 in `10.10.20.0/24` (gateway `10.10.20.1` on
+leaf2 `eth3`). The shipped `configs/` are minimal starters (hostname only) — the
+working path lives in `solutions/`.
+
 ## Theory primer
 
 ### Oversubscription
@@ -76,7 +105,7 @@ Stack overheads (add to your payload):
 | IP header (v4) | 20 |
 | TCP header | 20 |
 | UDP header | 8 |
-| VXLAN | 50 (8 VXLAN + 14 outer eth + 20 outer IP + 8 UDP — minus inner) |
+| VXLAN | 50 (8 VXLAN + 8 UDP + 20 outer IPv4 + 14 outer Ethernet = 50 bytes added on top of the inner frame) |
 | GRE | 24 (4 GRE + 20 outer IP) |
 | IPsec ESP tunnel mode | ~50-90 (varies with crypto) |
 | WireGuard | 60 |
@@ -129,7 +158,14 @@ If any of those fail, plan expansion first.
 
 The "task" here is computational, not configurational:
 
-1. Given the lab topology (2 spines, 4 leaves, 1G links throughout), compute:
+> **Lab limitation — the "1G links" are a paper assumption.** containerlab veth
+> links are **not** rate-limited; they run at host speed. So "1G links throughout"
+> is purely an assumption for the math — the container fabric cannot enforce a 1G
+> ceiling and you will **not** be able to observe congestion or saturation here.
+> The exercise is the *calculation*, not a load test. (The MTU portion below
+> *is* directly observable, because the default interface MTU really is 1500.)
+
+1. Given the lab topology (2 spines, 2 leaves, 1G links throughout), compute:
    - Oversubscription ratio per leaf
    - Maximum tenant-to-tenant bisection bandwidth (single direction)
    - Same with one spine failed
@@ -138,13 +174,74 @@ The "task" here is computational, not configurational:
    - Where's the first bottleneck?
 3. MTU exercise: a customer wants jumbo on their stretched VLAN (VXLAN-extended across DCs). Their VMs use MTU 1500. What's the *underlay* MTU you need (and on the inter-DC link too)?
 
+## Hints
+
+This is a math/reference lab — the formulas you need are already in the Theory
+primer. Pointers:
+
+- **Oversubscription** = south (server-facing) bandwidth ÷ north (spine-facing)
+  bandwidth per leaf. Count the lab's actual ports: 1 server port, 2 uplinks.
+- **Bisection** between two leaves = number of usable spine paths × per-link speed.
+  Cross out one spine for the failure case.
+- **Bottleneck** = the *smallest* pipe on the path (access port → leaf-north →
+  bisection). Walk the planned 1.2 Gbps (800 Mbps × 1.5) through each.
+- **MTU** = inner frame + encapsulation overhead. Use the VXLAN row of the overhead
+  table; remember the underlay *minimum* and the *convention* value (9214) are
+  different numbers.
+
 ## Verification
 
-Verify MTU on the lab:
+The shipped `configs/` are hostname-only starters, so **out of the box there is no
+forwarding path** between host1 and host2 — both pings below would fail for lack of
+a route, not because of MTU. To make the MTU behaviour observable you first need a
+working L3 path. The easiest way is to load the reference underlay (routed host
+gateways `10.10.10.1`/`10.10.20.1` on each leaf `eth3`, /31s leaf↔spine, OSPF
+area 0) — point the topology at `solutions/` and redeploy:
+
 ```bash
-docker exec clab-capacity-mtu-planning-host1 ping -M do -s 1472 10.10.20.10  # 1500-28 → should work
-docker exec clab-capacity-mtu-planning-host1 ping -M do -s 8972 10.10.20.10  # 9000-28 → fails (default MTU is 1500)
+# temporarily build the fabric with the reference configs, then redeploy
+sed 's#configs/#solutions/#' topology.clab.yml > topology.solution.yml
+sudo containerlab deploy -t topology.solution.yml --reconfigure
 ```
+
+Or paste each `solutions/<node>.cfg` into the device by hand
+(`docker exec -it clab-capacity-mtu-planning-leaf1 Cli`, then `configure`).
+Once OSPF has converged (`show ip route` on a leaf lists the far host subnet),
+test MTU end-to-end:
+
+```bash
+# small ping fits inside the default 1500 MTU → succeeds
+docker exec clab-capacity-mtu-planning-host1 ping -c2 -M do -s 1472 10.10.20.10
+#   1472 payload + 8 ICMP + 20 IP = 1500 → goes through
+
+# jumbo ping exceeds the host NIC's 1500 MTU → fails before it even leaves host1
+docker exec clab-capacity-mtu-planning-host1 ping -c2 -M do -s 8972 10.10.20.10
+#   8972 + 28 = 9000 > 1500 → with -M do (don't-fragment) the kernel refuses to send
+#   and reports "Message too long" locally, because host1's own eth1 is MTU 1500
+```
+
+The first ping succeeds (path is up, frame fits). The second fails immediately on the
+sender: with `-M do` (don't-fragment) set and host1's NIC at the default 1500, the
+kernel won't build the oversized frame and returns a local *"Message too long"* — the
+packet never reaches the wire. (On a path where only an *intermediate* link is smaller,
+you'd instead get an ICMP *fragmentation-needed* from that router; here the bottleneck
+is the sender's own NIC.) Either way it's the same MTU lesson: a full-size jumbo frame
+needs every hop — **and both end hosts' NICs** — raised. To make this ping succeed you
+would set `mtu 9214` on every leaf↔spine and leaf↔host interface *and* raise both host
+NIC MTUs to 9000 — the jumbo-frame deployment checklist in action.
+
+## Peek at solution
+
+The whole deliverable of this lab is the *math*, so the reference answers live with
+the worked numbers, not in device config alone:
+
+- **Worked answers** for all three task items (oversubscription, bisection,
+  one-spine-failed, the 800 Mbps × 1.5 customer scaling + first bottleneck, and the
+  VXLAN underlay MTU): [`solutions/answers.md`](solutions/answers.md)
+- **Reference underlay** that makes the Verification path real (OSPF, /31s, host
+  gateways): [`solutions/leaf1.cfg`](solutions/leaf1.cfg),
+  [`leaf2.cfg`](solutions/leaf2.cfg), [`spine1.cfg`](solutions/spine1.cfg),
+  [`spine2.cfg`](solutions/spine2.cfg)
 
 ## What's missing (deliberately)
 

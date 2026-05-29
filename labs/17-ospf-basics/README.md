@@ -138,10 +138,9 @@ Per interface:
 interface <name>
   ip ospf area 0.0.0.0
   ip ospf network point-to-point     ! on transit links only
-  ip ospf passive                    ! on host/loopback interfaces
 ```
 
-OSPF process:
+OSPF process — note that passivity is configured **here**, at the process level, not on the interface (there is no `ip ospf passive` interface command in EOS). `passive-interface default` makes every interface passive, then you re-enable Hellos only on the transit ports:
 
 ```
 router ospf 1
@@ -150,6 +149,8 @@ router ospf 1
    no passive-interface <transit-1>
    no passive-interface <transit-2>
 ```
+
+This leaves the host LAN and Loopback0 passive (subnet still advertised, no Hellos) while the two transit links speak OSPF.
 
 Verification:
 
@@ -276,7 +277,9 @@ configure terminal
 show ip ospf neighbor
 ```
 
-The sw2↔sw3 adjacency is now **stuck in `Init` or down**. Mismatched area = no adjacency. This is a very common production bug — every switch on a link must agree on the area.
+The sw2↔sw3 neighbor **disappears from `show ip ospf neighbor`** entirely. An OSPF area-ID mismatch fails the area check on the received Hello, so the Hello is silently discarded *before* the neighbor state machine even runs — the adjacency never forms and the existing one times out after the dead-interval (~40s). Mismatched area = no adjacency. This is a very common production bug — every switch on a link must agree on the area.
+
+(Aside: a neighbor genuinely **stuck in `Init`** is a *different* failure mode — it means Hellos are arriving one-way, i.e. the router hears the neighbor but doesn't see itself listed in the neighbor's Hello. That usually points to a unidirectional link, an authentication mismatch, or an ACL filtering Hellos in one direction — not an area mismatch.)
 
 Restore: `ip ospf area 0`.
 

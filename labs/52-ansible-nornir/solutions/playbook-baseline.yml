@@ -1,9 +1,14 @@
 ---
 # Apply baseline hardening to every switch:
-# - banner
-# - syslog
+# - login banner
+# - remote syslog
 # - NTP
-# - SNMP RO community (read-only, ACL-restricted)
+# - idle exec timeout on the VTY lines
+#
+# Note on modules: the legacy arista.eos.eos_ntp / eos_logging modules have
+# been removed from current arista.eos releases. Use the resource modules
+# eos_ntp_global / eos_logging_global instead — these are state-aware and
+# therefore idempotent (rerun => changed=0).
 - name: Baseline hardening
   hosts: leaf
   gather_facts: no
@@ -16,16 +21,18 @@
         state: present
 
     - name: Configure remote syslog
-      arista.eos.eos_logging:
-        dest: host
-        name: 10.0.0.100
-        level: informational
-        state: present
+      arista.eos.eos_logging_global:
+        config:
+          hosts:
+            - name: "{{ mgmt_server }}"
+        state: merged
 
     - name: Configure NTP
-      arista.eos.eos_ntp:
-        server: 10.0.0.100
-        state: present
+      arista.eos.eos_ntp_global:
+        config:
+          servers:
+            - server: "{{ mgmt_server }}"
+        state: merged
 
     - name: Configure idle exec timeout
       arista.eos.eos_config:

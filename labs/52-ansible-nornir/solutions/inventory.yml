@@ -1,4 +1,9 @@
-# Ansible inventory for all 3 switches
+# Ansible inventory for all 3 switches.
+#
+# Each switch is on its own point-to-point link to the automation host, so
+# each one lives in a distinct /24 (see topology.clab.yml). ansible_host is
+# the switch's interface address; mgmt_server is the automation host's address
+# on that same link (used as the syslog/NTP target in the baseline playbook).
 all:
   vars:
     ansible_user: admin
@@ -13,7 +18,10 @@ all:
       hosts:
         sw1:
           ansible_host: 10.0.0.1
+          mgmt_server: 10.0.0.100
         sw2:
-          ansible_host: 10.0.0.2
+          ansible_host: 10.0.1.2
+          mgmt_server: 10.0.1.100
         sw3:
-          ansible_host: 10.0.0.3
+          ansible_host: 10.0.2.3
+          mgmt_server: 10.0.2.100

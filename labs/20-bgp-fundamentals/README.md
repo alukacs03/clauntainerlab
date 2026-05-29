@@ -29,7 +29,7 @@ By the end you should be able to answer:
 ```mermaid
 graph LR
     h1[h1<br/>10.10.0.10] --> sw1
-    sw1[sw1<br/>AS 65001<br/>1.1.1.1] ---|\1| sw2[sw2<br/>AS 65002<br/>2.2.2.2]
+    sw1[sw1<br/>AS 65001<br/>1.1.1.1] ---|eBGP<br/>192.168.12.0/30| sw2[sw2<br/>AS 65002<br/>2.2.2.2]
     sw2 --> h2[h2<br/>10.20.0.10]
 ```
 
@@ -166,11 +166,11 @@ show ip bgp summary
 
 Expected:
 ```
-Neighbor V AS    MsgRcvd MsgSent  InQ OutQ  Up/Down State  PfxRcd
-192.168.12.2 4 65002  ...      ...     0    0   00:00:30 1
+Neighbor       V AS    MsgRcvd MsgSent InQ OutQ Up/Down  State Pfx
+192.168.12.2   4 65002  12      14      0   0    00:00:30 Estab 1
 ```
 
-The `State` should be a duration (meaning Established) and `PfxRcd` should be 1 (you received sw2's prefix).
+The `State` column should read `Estab` (Established) and `Up/Down` should show a growing duration; `PfxRcd` should be 1 (you received sw2's prefix). Watch out: the duration lives under `Up/Down`, not under `State` — the literal word `Estab` is what tells you the session is up.
 
 If state shows `Idle`, `Active`, `OpenSent` etc., something's wrong. Common causes:
 
@@ -196,9 +196,9 @@ The IP routing table picks up the BGP route:
 show ip route bgp
 ```
 
-`B    10.20.0.0/24 [20/0] via 192.168.12.2`
+`B E    10.20.0.0/24 [20/0] via 192.168.12.2`
 
-AD 20 = eBGP. (iBGP would be AD 200.)
+AD 20 = eBGP. (iBGP would be AD 200.) Arista splits the BGP route code in two: `B E` = learned over **eBGP**, `B I` = learned over **iBGP** — a quick visual confirmation of which kind of session a route came from.
 
 ### 4. Connectivity test
 
@@ -218,7 +218,7 @@ Detail of the route as received:
 - AS-path: `65002` (just one AS hop because it's directly from sw2)
 - Next-hop: `192.168.12.2`
 - Origin: `IGP` (because sw2 sourced it from `network`)
-- Local pref: not set (only meaningful inside iBGP)
+- Local pref: shown as `100` (the local default). LOCAL_PREF is not advertised over eBGP, so the receiving router stamps its own default; it only influences path selection within your own AS.
 - MED: 0 (default)
 
 ### 6. What happens if I don't `activate`?
@@ -236,7 +236,7 @@ configure terminal
 show ip bgp summary
 ```
 
-The session might stay up (TCP is fine), but `PfxRcd` drops to 0. Without activation, no IPv4 prefixes are exchanged. Re-add activation.
+`PfxRcd` drops to 0 — without activation, no IPv4 prefixes are exchanged. Note that because this lab uses `no bgp default ipv4-unicast` and IPv4-unicast is the *only* negotiated address-family for this neighbor, de-activating it changes the agreed capability set, so EOS will typically **reset/flap the session** rather than leave it cleanly up at PfxRcd 0. Either way the takeaway is the same: no IPv4 prefixes flow without an explicit `activate`. Re-add activation.
 
 ### 7. What happens with bad ASN?
 
@@ -248,10 +248,7 @@ router bgp 65002
    neighbor 192.168.12.1 remote-as 65999
 ```
 
-Session drops, stuck in Idle/Active. Log:
-```
-BGP-4-AS_MISMATCH: ... Notification received from neighbor ...
-```
+Session drops and stays stuck in Idle/Active. You'll see a NOTIFICATION about an OPEN message error / bad peer AS (BGP error code 2, subcode 2), logged via a `%BGP-3-NOTIFICATION`-style message — the two routers can't agree on who the peer is, so the session never reaches Established.
 
 Restore correct ASN.
 

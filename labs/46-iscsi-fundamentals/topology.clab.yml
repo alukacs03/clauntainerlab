@@ -14,18 +14,28 @@ topology:
       startup-config: configs/sw-storage.cfg
 
     # iSCSI target (the "SAN")
+    # Two NICs on two separate path subnets — real MPIO uses one subnet per path
+    # so the OS can bind each session to a deterministic interface (no ARP-flux).
     target:
       kind: linux
       exec:
+        # Path A
         - ip addr add 10.50.0.10/24 dev eth1
-        - ip addr add 10.50.0.11/24 dev eth2
+        - ip link set eth1 mtu 9000
+        # Path B
+        - ip addr add 10.50.1.10/24 dev eth2
+        - ip link set eth2 mtu 9000
 
     # iSCSI initiator A (multipath: 2 NICs to 2 separate storage paths)
     init-a:
       kind: linux
       exec:
+        # Path A
         - ip addr add 10.50.0.20/24 dev eth1
-        - ip addr add 10.50.0.21/24 dev eth2
+        - ip link set eth1 mtu 9000
+        # Path B
+        - ip addr add 10.50.1.20/24 dev eth2
+        - ip link set eth2 mtu 9000
 
   links:
     # Two separate paths from target to switch
