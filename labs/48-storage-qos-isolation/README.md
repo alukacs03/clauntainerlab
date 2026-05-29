@@ -114,6 +114,8 @@ CLI verbs you'll need (not the full answer — work out the structure yourself):
 - `tx-queue <n>` / `no priority` / `bandwidth percent <pct>` — weighted egress scheduling (Arad/Jericho); pick the queue that AF31/CS1 actually land in (see the DSCP→TC→queue table above)
 - `show policy-map interface ethernet <n> input`, `show qos interface ethernet <n>`, `show qos maps` — verify
 
+## Verification
+
 > **Read the cEOS-limitation callout at the top first.** The config commits and the *show* commands below reflect it, but cEOS does **not** enforce the policer or the egress 80/20 split. The iperf3 results below are what production hardware produces; on cEOS you will not see the cap or the contention isolation. Verify the *config and counters*, not the throughput.
 
 ### Check the policies are applied (this is the real cEOS verification)

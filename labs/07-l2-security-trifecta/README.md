@@ -106,6 +106,10 @@ Do NOT enable IPSG on Et1 (server) or Et2 (rogue) — the lab is structured so w
 
 > Syntax here is per the **EOS 4.36.0F** User Manual; this lab pins **cEOS 4.35.4M** (the DHCP-snooping / DAI / IPSG command set is stable across these minor versions), per the repo convention of noting versions for version-sensitive security features.
 
+## Hints
+
+CLI verbs and config skeletons — work out the exact ports, VLAN IDs and addresses yourself:
+
 Global + VLAN:
 
 ```
