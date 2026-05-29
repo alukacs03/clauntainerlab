@@ -34,7 +34,7 @@ graph LR
     sw1[sw1<br/>1.1.1.1<br/>ASBR<br/>redistributes static] ---|area 0| sw2[sw2<br/>2.2.2.2<br/>ABR]
     sw2 ---|area 1| sw3[sw3<br/>3.3.3.3]
     sw3 --> h3[h3<br/>10.30.30.10]
-    ext[external<br/>198.51.100.0/24] -.injected by sw1.- sw1
+    ext[external<br/>198.51.100.0/24] -. injected by sw1 .- sw1
 ```
 
 | Switch | Role | Area(s) |
@@ -139,6 +139,13 @@ Totally stubby (only on the ABR — sw2):
 ```
 router ospf 1
    area 1 stub no-summary
+```
+
+LSDB safety valve (optional, ties to the story): this lab is about taming LSDB growth, so the reference configs make the LSDB ceiling explicit with `max-lsa` under `router ospf`. `12000` is the EOS default, so setting it changes nothing operationally — it's a deliberate, documented marker that says "we care about how big this database gets." If the area floods past the limit, OSPF logs a warning (and, past a grace count, can shut the process to protect the control plane). Add it if you want to mirror the solution; skip it and nothing breaks.
+
+```
+router ospf 1
+   max-lsa 12000
 ```
 
 Verification:
@@ -260,11 +267,14 @@ Changes you'll see:
 
 sw3 lost specific knowledge of externals but still reaches them via the default route through sw2. Smaller LSDB, simpler local view.
 
-```bash
-docker exec clab-ospf-design-h3 ping -c 2 198.51.100.1
-```
-
-Still works — sw3 follows the default to sw2, sw2 knows the specific route.
+> **Note — verify this in the control plane, not with a ping.** `198.51.100.0/24` is a *synthetic* external prefix: on sw1 it is just `ip route 198.51.100.0/24 Null0` (a discard route, so we have a static to redistribute as a Type 5 LSA without wiring up an extra host). There is no live host on that subnet, and Null0 silently drops anything routed into it — so `ping 198.51.100.1` would fail even though forwarding is working correctly. The point of this prefix is purely to watch the Type 5 LSA appear, then disappear when area 1 becomes stub. Verify the *forwarding logic* by reading the route table instead:
+>
+> ```bash
+> docker exec -it clab-ospf-design-sw3 Cli
+> show ip route 198.51.100.0/24
+> ```
+>
+> Before the stub change you'd see an explicit `O E2` entry for `198.51.100.0/24`; after it, that entry is gone and the same destination now resolves via the `0.0.0.0/0` default toward `192.168.23.2` (sw2). That default-route hand-off is exactly what a stub area buys you — confirmed by the route table, no dataplane host required.
 
 ### 6. Totally stubby (bonus)
 

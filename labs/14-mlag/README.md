@@ -27,11 +27,16 @@ By the end you should be able to answer:
 ```mermaid
 graph TB
     h1[h1<br/>10.10.10.1] -->|Et1| swleaf[sw-leaf<br/>regular LACP Po1<br/>Et2+Et3]
-    swleaf -->|Et2| sw1
-    swleaf -->|Et3| sw2
-    sw1[sw1<br/>MLAG peer A] ===|peer-link Po10<br/>Et5+Et6| sw2[sw2<br/>MLAG peer B]
-    sw1 -.Po20 MLAG 20.- sw2
+    swleaf -->|Et2 → MLAG 20 member| sw1
+    swleaf -->|Et3 → MLAG 20 member| sw2
+    subgraph mlag[MLAG peer pair — one logical switch downstream]
+        sw1[sw1<br/>MLAG peer A<br/>Vlan10 .251]
+        sw2[sw2<br/>MLAG peer B<br/>Vlan10 .252]
+        sw1 ===|peer-link Po10<br/>Et5+Et6| sw2
+    end
 ```
+
+The two `Et2`/`Et3` links from sw-leaf are members of the **same logical bundle** — Po20 / `mlag 20` — even though they land on two different physical switches. That shared bundle is the dashed grouping (the `subgraph`), *not* a separate cable between sw1 and sw2. The only physical link directly between the peers is the peer-link (Po10).
 
 | Cable group | Purpose |
 |---|---|
@@ -101,8 +106,9 @@ This is the magic. No special config on sw-leaf — it thinks it's plugged into 
 3. On **sw1 and sw2**: configure the `mlag configuration` block with the domain-id, peer-address, peer-link.
 4. On **sw1 and sw2**: wrap Et1 into Port-Channel20 with `mlag 20` (note: both peers use the same mlag ID for the same bundle).
 5. On **sw-leaf**: bundle Et2+Et3 into Port-Channel1 (regular LACP — no MLAG awareness needed).
-6. Verify the MLAG bundle is up, both peers active, and the downstream sees one LACP partner.
-7. Failover test: shut sw1, confirm h1 keeps connectivity via sw2.
+6. On **sw1 and sw2**: add a plain SVI `interface Vlan10` so h1 has a real L3 target to ping across the MLAG (sw1: `10.10.10.251/24`, sw2: `10.10.10.252/24`). These are *different* IPs on purpose — making both peers active L3 with one shared virtual IP is VARP, which is lab 15. Here we just need a reachable address that survives sw1 dying, so we point the failover test at sw2's `.252`.
+7. Verify the MLAG bundle is up, both peers active, and the downstream sees one LACP partner.
+8. Failover test: from h1, run a sustained ping to sw2's SVI (`10.10.10.252`), then kill sw1 (member port, then whole switch) and confirm the ping recovers via sw2.
 
 ## Hints
 
@@ -153,6 +159,13 @@ interface Port-Channel20
 
 interface Ethernet1
    channel-group 20 mode active
+```
+
+Data-VLAN SVI (a reachable target for h1 — plain per-peer SVI, different IPs, no VARP):
+
+```
+interface Vlan10
+   ip address 10.10.10.<251|252>/24
 ```
 
 Verification:
@@ -214,29 +227,30 @@ sw-leaf sees Po1 up with Et2 + Et3 as members. **`show lacp neighbor` shows a si
 
 ### 3. End-to-end traffic
 
+h1 (`10.10.10.1`) lives behind sw-leaf. Its traffic into VLAN 10 goes up sw-leaf's Po1, hashes onto either Et2 (→sw1) or Et3 (→sw2), and crosses the MLAG. Ping both peers' SVIs to prove the data path through each side of the bundle:
+
 ```bash
-docker exec clab-mlag-h1 ping -c 3 10.10.10.1
+docker exec clab-mlag-h1 ping -c 3 10.10.10.251   # sw1's SVI
+docker exec clab-mlag-h1 ping -c 3 10.10.10.252   # sw2's SVI
 ```
 
-(Replace target as needed — h1 is the only host. To test, you can add another host attached to sw1's or sw2's other port. For this lab we'll demonstrate failover via h1's connectivity to the MLAG plane.)
+Both should reply — h1 reaches each peer across the MLAG, regardless of which member sw-leaf hashed onto.
 
-Add a quick reachability test:
+Add a quick peer-link reachability test:
 
 ```bash
 docker exec clab-mlag-sw1 Cli -c "ping 192.168.255.2"
 ```
 
-Should reply through the peer-link.
+Should reply through the peer-link (control VLAN 4094 SVI).
 
 ### 4. Switch failover
 
-While a sustained ping runs from h1 to sw2 (replace IP):
+Start a sustained ping from h1 to **sw2's** SVI — sw2 stays up throughout this test, so the target stays reachable, and the only variable is whether the MLAG re-paths h1's traffic when sw1 drops:
 
 ```bash
-docker exec clab-mlag-h1 ping 10.10.10.1
+docker exec clab-mlag-h1 ping 10.10.10.252
 ```
-
-(Or to a host attached to either MLAG peer if you add one.)
 
 In another terminal, kill sw1's MLAG member port:
 
@@ -259,13 +273,13 @@ Restore: `no shutdown` on sw1 Et1.
 
 ### 5. Full-switch failover
 
-The big test: kill sw1 entirely.
+The big test: with the `ping 10.10.10.252` from step 4 still running, kill sw1 entirely.
 
 ```bash
 sudo docker stop clab-mlag-sw1
 ```
 
-sw-leaf's Po1 loses one member but stays up. Traffic continues via sw2. Restart:
+sw-leaf's Po1 loses one member but stays up. The ping to sw2's `.252` keeps replying — traffic continues via sw2. Restart:
 
 ```bash
 sudo docker start clab-mlag-sw1
@@ -273,7 +287,7 @@ sudo docker start clab-mlag-sw1
 
 Wait ~60s for MLAG to renegotiate. Should return to dual-active.
 
-### 6. Peer-link failure (simulating split-brain risk)
+### 6. Peer-link failure (and why it causes split-brain here)
 
 While both peers up, kill one peer-link member:
 
@@ -293,16 +307,25 @@ interface Ethernet6
   shutdown
 ```
 
-Now peer-link is down. Peer-keepalive (via VLAN 4094 — but that rides the peer-link in our setup, so also dead). One of the peers (the lower-priority one) goes into a "dual-active hold-down" state and shuts its MLAG bundle ports to avoid split-brain. Watch:
+Now the peer-link is down. **Here's the catch in this lab's topology:** the peer-keepalive runs over the VLAN 4094 SVI, and VLAN 4094 only rides the peer-link (Po10). So when you kill both peer-link members, you kill the keepalive *at the same time* — there is no surviving liveness path. This is exactly the **split-brain** failure mode from the Theory primer.
+
+What actually happens (and what you'll see in `show mlag`):
 
 ```
 show mlag
 show mlag interfaces detail
 ```
 
-In production, you'd want a separate physical keepalive path so this scenario doesn't break MLAG. (Beyond scope of this lab.)
+- `peer-link status : down`
+- `state : disabled` (MLAG is torn down — there's no peer to coordinate with)
 
-Restore: `no shutdown` on Et5 and Et6.
+With MLAG disabled and **no** independent keepalive, each peer reverts to its **independent** state and keeps forwarding its own MLAG-bundle ports on its own. Both switches now drive the downstream bundle independently with no synchronization — sw-leaf hears two un-coordinated partners on Po1, MAC entries flap between Et2 and Et3, and traffic black-holes. That is the live split-brain the design is supposed to avoid, **not** an automatic protective shutdown.
+
+> The protective behavior — one peer (the secondary) shutting its MLAG ports to stay out of the way — only happens when the **keepalive survives** the peer-link loss (e.g. a dedicated out-of-band keepalive interface). The secondary can then tell "peer is still alive, just the data link died" and safely stand down. This lab has no such path, which is the whole point: it shows *why* you want one.
+
+This is the lab's real lesson: a keepalive that shares fate with the peer-link gives you no protection against split-brain. In production you'd run the peer-keepalive over a **separate** physical path (dedicated management/keepalive link) so losing the peer-link doesn't also blind the keepalive. Tuning that — plus dual-primary detection, which arms the secondary to shut its ports automatically — is a production topic beyond this lab.
+
+Restore: `no shutdown` on Et5 and Et6, then give MLAG a few seconds to renegotiate (`show mlag` returns to `state : active`).
 
 ## Peek at solution
 
@@ -323,7 +346,7 @@ Restore: `no shutdown` on Et5 and Et6.
 - **Two cards minimum** — split peer-link across two line cards on chassis switches, so a card failure doesn't drop the whole peer-link.
 - **MLAG version compatibility** — both peers should run the same EOS version. Mixed-version MLAG can cause subtle bugs; upgrade together.
 - **VLAN allowed-list consistency** — peer-link must allow every VLAN that traverses any MLAG bundle, otherwise `peer-config inconsistent` and traffic drops.
-- **No L3 on MLAG-paired SVIs without VARP** — see lab 15. Plain SVI on each peer with different IPs creates active/standby (one wins ARP), which is wasteful. VARP makes both peers active L3.
+- **No shared L3 gateway on MLAG peers without VARP** — see lab 15. The plain per-peer SVIs we added here (`.251`/`.252`) are fine as *distinct* reachable addresses, but if you tried to give hosts a single default gateway by putting the *same* IP on both, you'd get active/standby behaviour (one peer wins ARP), which wastes the second peer's L3 capacity. VARP fixes that by making both peers active L3 behind one shared virtual IP.
 - **MLAG with EVPN** — modern DC fabric uses EVPN multi-homing instead of MLAG. MLAG is the pre-EVPN standard and still very common; EVPN is the future. Labs 30-33 cover that.
 - **Connecting servers to MLAG**: use bonding mode 4 (802.3ad / LACP) on the server side. Servers with mode 1 (active-backup) work too but waste a NIC.
 

@@ -22,6 +22,22 @@ The combination: storage class is guaranteed 50% bandwidth, is lossless via PFC,
 - Understand the role of each piece (PFC, ETS, DCBX) and how they combine
 - Recognize the configuration on production gear when you encounter it
 
+## Topology
+
+A single switch with one storage initiator and one target, both on the storage
+VLAN (50). The lossless config lives on the two switch-facing ports; on real
+hardware PFC/ETS would also be negotiated down to the host NICs via DCBX.
+
+```mermaid
+graph LR
+    initiator["initiator<br/>10.50.0.10/24<br/>MTU 9214"]
+    target["target<br/>10.50.0.20/24<br/>MTU 9214"]
+    sw1["sw1 (cEOS)<br/>VLAN 50 STORAGE<br/>PFC tc3 / ETS 50%"]
+
+    initiator -- "eth1 — Eth1" --> sw1
+    sw1 -- "Eth2 — eth1" --> target
+```
+
 ## Theory primer
 
 ### Why classical ethernet drops packets
@@ -86,6 +102,20 @@ On production hardware, you'd also:
 - Observe TX queue depth on the receiver
 - Observe PAUSE frame counters (`show interfaces ethernet 1 priority-flow-control counters`)
 - Compare with/without PFC: drops vs PAUSE counts
+
+## Hints
+
+You don't need new topology — everything is on `sw1`. The pieces, with the
+verbs (not the full lines):
+
+- **Classify by DSCP → traffic-class** at global config: `qos map dscp <value> to traffic-class <N>`. Storage rides DSCP 26 (AF31), with 24 (CS3) often used for storage control traffic.
+- **Trust the host's DSCP marking** on each storage port: `qos trust dscp` (interface mode). Without trust, EOS rewrites/ignores the incoming DSCP.
+- **Turn PFC on** per interface: `priority-flow-control on`, then mark the storage class lossless with `priority-flow-control priority <N> no-drop`. No-drop is set per priority on the interface — there is no global `qos tx-queue ... no-drop` form.
+- **ETS bandwidth guarantee** is per egress queue, inside the interface: `tx-queue <N>` then `bandwidth percent <pct>`.
+- **DCBX** is an interface-level command (`dcbx mode ieee`) and relies on LLDP, which is on by default.
+
+Watch the config *context*: `dcbx mode`, PFC, trust and `tx-queue` are all
+**interface** commands; only the `qos map dscp` lines are global.
 
 ## Verification
 

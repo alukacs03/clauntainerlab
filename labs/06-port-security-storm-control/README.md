@@ -81,7 +81,7 @@ When something fires (BPDU guard, port-security violation, storm control on some
 Tunable per cause:
 
 ```
-errdisable recovery cause portsecurity
+errdisable recovery cause portsec
 errdisable recovery cause bpduguard
 errdisable recovery interval 300
 ```
@@ -122,7 +122,7 @@ interface Ethernet<n>
 Global err-disable recovery:
 
 ```
-errdisable recovery cause portsecurity
+errdisable recovery cause portsec
 errdisable recovery cause bpduguard
 errdisable recovery interval <seconds>
 ```
@@ -159,15 +159,28 @@ You should see h1's MAC listed as a learned secure MAC.
 
 ### 2. Port security — trigger the violation
 
-We need to inject a **second source MAC** on Et2 **without cycling the physical link** — because on cEOS, the per-port `Shutdown Mode Persistence` flag is disabled by default, meaning a link-down event clears the secure-MAC table. So `ip link set eth1 down; change MAC; up` would just learn the new MAC fresh, no violation.
+**First, make h2's legitimate MAC the single allowed secure MAC.** A violation only fires when a *second, different* source MAC appears on Et2 after the one secure slot is already filled. If the spoofed MAC is the very first frame Et2 ever sees, it just claims the lone slot and nothing trips. So we deterministically learn h2's native `eth1` MAC first, exactly the way step 1 did for h1:
 
-The trick: create a **macvlan sub-interface** with a spoofed MAC over h2's `eth1`. The physical link stays up, but frames from the sub-interface carry a different source MAC.
+```bash
+docker exec clab-port-security-storm-control-h2 ping -c 1 10.10.10.3
+```
+
+On sw1, confirm h2's `eth1` MAC now occupies Et2's single secure slot:
+
+```
+show port-security
+show port-security interface Ethernet2
+```
+
+Now inject a **second source MAC** on Et2 **without cycling the physical link** — because on cEOS, the per-port `Shutdown Mode Persistence` flag is disabled by default, meaning a link-down event clears the secure-MAC table. So `ip link set eth1 down; change MAC; up` would just learn the new MAC fresh, no violation.
+
+The trick: create a **macvlan sub-interface** with a spoofed MAC over h2's `eth1`. The physical link stays up, but frames from the sub-interface carry a different source MAC — so Et2 now sees a *second* MAC and exceeds its `maximum 1`.
 
 ```bash
 docker exec clab-port-security-storm-control-h2 sh -c "
   ip link add link eth1 macv1 type macvlan
   ip link set dev macv1 address de:ad:be:ef:00:01 up
-  ip addr add 10.10.10.99/24 dev macv1
+  ip addr add 10.10.10.98/24 dev macv1
   ping -c 2 -I macv1 10.10.10.3
 "
 ```
@@ -179,7 +192,7 @@ show interfaces Ethernet2 status
 show port-security
 ```
 
-Expect Et2 in **errdisabled** (or `notconnect`), `Security Violation Count: 1`, and a log line `SECURITY-2-PORT_SECURITY_VIOLATION`.
+Expect Et2 in **errdisabled** (or `notconnect`) and the `SecurityViolation` count for Et2 incremented to 1, plus a port-security violation syslog message (facility `SECURITY`).
 
 > If you preferred to cycle MACs via `ip link set down / address / up`, that would **not** trigger here — by design — because the link-cycle clears the secure-MAC slot. To make that approach work you'd need to flip the per-port shutdown-mode persistence; it's not worth it for this lab.
 
@@ -218,13 +231,13 @@ configure terminal
 If err-disable auto-recovery is configured with a 300s interval, you don't even need to do this manually — the port will come back automatically after 5 minutes. But for the spoofing scenario, you probably *want* manual recovery so a human reviews the incident. Toggle behavior:
 
 ```
-no errdisable recovery cause portsecurity
+no errdisable recovery cause portsec
 ```
 
 → port-security violations are now manual-only.
 
 ```
-errdisable recovery cause portsecurity
+errdisable recovery cause portsec
 ```
 
 → back to auto-recover after the interval.

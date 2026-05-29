@@ -80,7 +80,7 @@ ntp server 10.99.0.1 vrf MGMT
 logging vrf MGMT host 10.99.0.50
 ```
 
-If you forget to specify the VRF, the service tries the default VRF and silently fails to send anywhere useful.
+If you forget to specify the VRF, the service uses the default VRF. Whether that works depends entirely on the design: if the target is reachable in the default VRF the traffic succeeds, but in an OOB design where your servers are only reachable via the MGMT VRF, the traffic has no path and is dropped. Always specify the VRF so the outcome isn't accidental.
 
 ### Management VRF vs OOB network — the difference
 
@@ -100,7 +100,7 @@ This lab is the VRF half. Lab 11 is the OOB half.
 3. Enable IP routing in VRF MGMT.
 4. Reconfigure the SSH management daemon to also listen in VRF MGMT.
 5. Test that h-admin can still SSH to 192.168.99.1.
-6. **Demonstrate isolation**: break a default-VRF route or interface and confirm mgmt connectivity survives.
+6. **Demonstrate isolation**: plant a bad default route in the default VRF and confirm it does *not* appear in the MGMT VRF's routing table (and that mgmt connectivity survives a data-plane break).
 
 ## Hints
 
@@ -170,37 +170,61 @@ show ip route                   ! still shows the default VRF — Et1 only
 
 You'll see Et2 listed in VRF MGMT, Et1 in default. Two separate route tables.
 
-### 4. Demonstrate isolation — break the data plane
+### 4. Demonstrate isolation — the RIBs are genuinely separate
 
-While an SSH session from h-admin is open, shut Et1 (the data interface):
+> **Note on this lab's topology.** h-admin (192.168.99.10/24) sits on the *same directly-connected subnet* as Et2 (192.168.99.1/24). The SSH reply from sw1 to h-admin therefore always uses the connected `192.168.99.0/24` route, which beats any `0.0.0.0/0` by longest-prefix match. That means a bad default route can't black-hole this particular session — which is exactly why, in this minimal one-switch lab, we demonstrate isolation by **proving the two routing tables don't see each other**, rather than by staging a lockout. The Friday-night lockout in the scenario above happens on a real switch where the mgmt host is several hops away and the reply *does* follow a route the bad default can override; reproducing that faithfully needs the multi-hop OOB topology of lab 11.
+
+Plant the "fat-fingered route" in the **default** VRF, exactly like the Friday-night typo:
+
+```
+configure terminal
+  ip route 0.0.0.0/0 Null0
+end
+```
+
+Now look at both RIBs:
+
+```
+show ip route                    ! default VRF — the 0.0.0.0/0 -> Null0 black-hole is here
+show ip route vrf MGMT           ! MGMT VRF — the black-hole is NOT here
+```
+
+The bad default route appears **only** in the default VRF. The MGMT VRF's RIB is untouched: it still has just the connected `192.168.99.0/24` route. A mistake in the data-plane routing table is structurally incapable of reaching the management path — that's the isolation the VRF buys you.
+
+For the same reason, breaking the data interface leaves management alone. With an SSH session from h-admin open, shut Et1:
 
 ```
 configure terminal
   interface Ethernet1
     shutdown
+end
 ```
 
-The SSH session **stays connected**. h-data is now unreachable; data-plane traffic is dead; mgmt is unaffected. That's the win.
+The SSH session **stays connected** (h-data is now unreachable, the data plane is dead, mgmt is unaffected). Note that here the session survives because Et2 is a different interface — not because of the VRF per se; the RIB-separation test above is the part that specifically demonstrates the VRF.
 
-Restore: `no shutdown` on Et1.
+Restore both: `no shutdown` on Et1, and remove the bad route:
 
-Now do the opposite (the "without VRF" disaster) to drive the point home. Move Et2 back to default VRF:
+```
+configure terminal
+  interface Ethernet1
+    no shutdown
+  no ip route 0.0.0.0/0 Null0
+end
+```
+
+**Counter-experiment (optional) — see the flat-config failure mode in the RIB.** To convince yourself the separation is what matters, temporarily move Et2 back to the default VRF and re-add the black-hole:
 
 ```
 interface Ethernet2
   no vrf
   ip address 192.168.99.1/24
-```
-
-(SSH might reconnect.) Now add a black-hole default route in default VRF:
-
-```
+!
 ip route 0.0.0.0/0 Null0
 ```
 
-If your SSH used a route that's now overridden, you lose the session. Recovery requires console access. **This is what a management VRF prevents.**
+Now `show ip route` shows the mgmt subnet and the black-hole *in the same table*. The session still survives (the connected /24 still wins for this directly-connected host), but you've recreated the exact condition that bit you on Friday: on a real switch where the admin is multiple hops away, the reply would fall back to that `0.0.0.0/0 -> Null0` and the session would drop. The MGMT VRF prevents that by keeping the bad route out of the management RIB entirely.
 
-Restore: put Et2 back in MGMT, remove the bad route.
+Restore: put Et2 back in MGMT (`vrf MGMT`, re-add the IP), remove the bad route.
 
 ### 5. Bonus — what about NTP, syslog, SNMP?
 

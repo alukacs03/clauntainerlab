@@ -8,7 +8,7 @@ topology:
       image: ghcr.io/srl-labs/network-multitool
 
   nodes:
-    # 2-spine 4-leaf — for ECMP/oversubscription math
+    # 2-spine 2-leaf — for ECMP/oversubscription math
     spine1:
       kind: arista_ceos
       startup-config: configs/spine1.cfg

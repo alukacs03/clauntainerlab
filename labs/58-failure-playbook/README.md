@@ -21,18 +21,58 @@ This lab is a fabric where you can inject failures and run through the response.
 - Follow the suggested response steps
 - Calibrate: "how bad is this?" "what's the right action?"
 
+## Topology
+
+A small leaf-spine fabric: two spines, two leaves, one host hanging off each leaf. Every leaf has a /30 point-to-point link to *each* spine, so each leaf has two equal-cost uplinks (this is what makes the S1 "one spine dies, traffic survives via the other" story work). eBGP underlay: spines are AS 65000, leaf1 is AS 65001, leaf2 is AS 65002.
+
+```mermaid
+graph TD
+    spine1["spine1<br/>AS 65000<br/>rid 1.1.1.1"]
+    spine2["spine2<br/>AS 65000<br/>rid 2.2.2.2"]
+    leaf1["leaf1<br/>AS 65001<br/>SVI 10.10.10.1/24"]
+    leaf2["leaf2<br/>AS 65002<br/>SVI 10.10.20.1/24"]
+    h1["h1<br/>10.10.10.10/24"]
+    h2["h2<br/>10.10.20.10/24"]
+
+    leaf1 ---|".1.2/30 ─ .1.1/30"| spine1
+    leaf1 ---|".2.2/30 ─ .2.1/30"| spine2
+    leaf2 ---|".3.2/30 ─ .3.1/30"| spine1
+    leaf2 ---|".4.2/30 ─ .4.1/30"| spine2
+    h1 --- leaf1
+    h2 --- leaf2
+```
+
+| Link | Leaf side | Spine side |
+|------|-----------|------------|
+| leaf1 Eth1 ↔ spine1 Eth1 | 10.99.1.2/30 | 10.99.1.1/30 |
+| leaf1 Eth2 ↔ spine2 Eth1 | 10.99.2.2/30 | 10.99.2.1/30 |
+| leaf2 Eth1 ↔ spine1 Eth2 | 10.99.3.2/30 | 10.99.3.1/30 |
+| leaf2 Eth2 ↔ spine2 Eth2 | 10.99.4.2/30 | 10.99.4.1/30 |
+
+h1 (10.10.10.10) sits in tenant VLAN 10 behind leaf1; h2 (10.10.20.10) sits in VLAN 20 behind leaf2. Each leaf advertises its tenant prefix (`network 10.10.10.0/24` / `10.10.20.0/24`) into BGP, and both leaves run `maximum-paths 4` so they install both spine paths as ECMP.
+
+## Theory primer
+
+This isn't a build-a-feature lab — the fabric is already converged. The skill you're practising is **blast-radius reading**: given a failure, how much of the network is actually affected, and how urgent is it?
+
+- **Redundant vs. single-homed.** A spine or a single leaf uplink failing is survivable because of the dual-uplink + ECMP design — the fabric routes around it. A *leaf* failing (or its host link) is not survivable for that leaf's tenants, because the host is single-homed to one leaf. Same fabric, very different severity.
+- **Control-plane vs. data-plane symptoms.** A BGP session dropping (control plane) and a host losing reachability (data plane) look different in monitoring and demand different first checks. Part of calibration is mapping a symptom back to its layer.
+- **Severity tiers.** Each scenario below is tagged sev1–sev3. The point is to internalise the difference between "page a human now" and "file a ticket for business hours". Over-escalating burns the on-call's trust; under-escalating risks an outage.
+
 ## Failure scenarios in this lab
 
 ### S1: Spine fails
 
 **Trigger:**
 ```bash
-docker exec clab-failure-playbook-spine1 shutdown -h now
-# Or: sudo containerlab tools kill --node spine1
+docker stop clab-failure-playbook-spine1
+# Hard kill (no graceful stop): docker kill clab-failure-playbook-spine1
 ```
 
+> **Why not `shutdown -h now` inside the container?** cEOS isn't a hardware switch with a real init — PID 1 is the EOS supervisor shim, not systemd, so `docker exec ... shutdown -h now` either errors or doesn't cleanly halt the node. To take a node offline under containerlab you stop the *container* (`docker stop`/`docker kill`), which is exactly what S5 does. (There is no `containerlab tools kill` subcommand — `containerlab tools` covers `cert`, `netem`, `veth`, `vxlan`, `mtu`, `disable-tx-offload`, etc.)
+
 **Observed in monitoring:**
-- BGP sessions from leaf1 (10.99.1.1) and leaf2 (10.99.3.1) drop to Idle
+- BGP sessions from leaf1 (to spine1 10.99.1.1) and leaf2 (to spine1 10.99.3.1) drop out of Established — you'll see `Active`/`Connect` briefly as the FSM retries, then the neighbor row stays stuck (not `Idle`; Idle is the initial/admin-down state)
 - Interface counters on leaf1 Eth1, leaf2 Eth1 → no traffic
 - Ping h1 → h2: works via spine2 (ECMP failover); some flows reset
 - Alerting: "spine1 unreachable"
@@ -61,7 +101,7 @@ docker exec clab-failure-playbook-leaf1 Cli -c "configure" -c "interface Etherne
 - ECMP reduces from 2-way to 1-way; latency unchanged
 
 **Response:**
-1. Confirm: `show interface eth1` on leaf1 → admin/operational state
+1. Confirm: `show interfaces Ethernet1` on leaf1 → admin/operational state
 2. Was this intentional (someone shutting down for maintenance)? Check change calendar
 3. If unintentional: physical inspection (DC remote hands), check cable/SFP
 4. Run optical diagnostics if available
@@ -73,16 +113,21 @@ docker exec clab-failure-playbook-leaf1 Cli -c "configure" -c "interface Etherne
 
 ### S3: BGP session flapping
 
-**Trigger:** simulate via repeated soft-reset
+**Trigger:** simulate a real flap by repeatedly bouncing the neighbor
 ```bash
 for i in 1 2 3 4 5; do
-  docker exec clab-failure-playbook-leaf1 Cli -c "clear bgp ipv4 unicast 10.99.1.1 soft"
+  docker exec clab-failure-playbook-leaf1 Cli -c "configure" -c "router bgp 65001" -c "neighbor 10.99.1.1 shutdown"
+  sleep 5
+  docker exec clab-failure-playbook-leaf1 Cli -c "configure" -c "router bgp 65001" -c "no neighbor 10.99.1.1 shutdown"
   sleep 20
 done
 ```
 
+> **Why not a `soft` clear?** A *soft* clear (`clear bgp ipv4 unicast 10.99.1.1 soft`) only re-applies inbound/outbound policy on an already-Established session — it does **not** drop TCP, reset the session uptime, or generate up/down events (see labs 22 and 23). So it would not produce the flap symptoms below. Toggling `neighbor ... shutdown`/`no ... shutdown` actually tears the session down and brings it back, which is what generates the up/down churn you're calibrating against. (A bare hard clear, `clear bgp ipv4 unicast 10.99.1.1` without `soft`, also drops the session but only once per call.)
+
 **Observed:**
 - BGP up/down alerts firing repeatedly
+- Session uptime keeps resetting to a few seconds (the down/up cycle)
 - Routes installing/withdrawing → potential RIB churn
 - Customer pings show intermittent loss
 
@@ -113,9 +158,9 @@ docker exec clab-failure-playbook-leaf1 Cli -c "configure" -c "no router bgp 650
 - h1 itself still has local network; only outside reachability broken
 
 **Response:**
-1. From a surviving leaf: `show ip route 10.10.10.0` → no route
+1. From a surviving leaf: `show ip route 10.10.10.0/24` → no route
 2. From source leaf: `show ip bgp` → check what we're announcing
-3. Determine intent: was BGP supposed to be running? (NetBox)
+3. Determine intent: was BGP supposed to be running? Check your source of truth / CMDB — the intended config in git, or NetBox (or equivalent — deferred to a future dedicated chapter; see [`TODO.md`](../../TODO.md))
 4. If unintentional config change: rollback (git revert + redeploy via lab 53 pipeline)
 
 **Escalate if:** unclear how config got changed (unauthorized?); compare with git, look at AAA accounting (lab 09).
@@ -155,9 +200,26 @@ docker stop clab-failure-playbook-leaf1
 
 Write up your observations. Compare to the response steps above. Refine the playbook based on what was actually useful.
 
+## Hints
+
+You don't need new config commands here — the verbs are all *observation* commands you've met before. Reach for:
+
+- `show bgp summary` (or `show ip bgp summary`) — neighbor state and uptime; the uptime column is your flap detector.
+- `show ip route <prefix>/<mask>` and `show ip bgp` — is the prefix in the RIB? what are we advertising/receiving?
+- `show interfaces Ethernet<n>` — admin vs. operational (`line protocol`) state, counters, error counts.
+- `show logging | include BGP` — neighbor up/down and reset reasons.
+- From the host containers: `docker exec clab-failure-playbook-h1 ping 10.10.20.10` for end-to-end data-plane checks.
+- To recover after each scenario: `docker start` a stopped container, or `no shutdown` / re-add the config you removed, then re-confirm with the same show commands.
+
+Inject failures with the `docker stop`/`docker kill` and `Cli -c` patterns shown in each scenario — that's the whole toolkit.
+
 ## Verification
 
 There's no "verify" step per scenario — the *observation* IS the verification. You're calibrating your sense of "how bad is this" against actual fabric behavior.
+
+## Peek at solution
+
+There is **no `solutions/` directory** for this lab, and that's deliberate. This is an observational chaos lab, not a configure-to-goal exercise: the `configs/` directory already ships the complete, converged fabric (full BGP, SVIs, addressing) so you can inject failures immediately rather than building the fabric first. That's the inverse of the usual `configs/`-are-minimal-starters convention — there's nothing to "solve" beyond reading the fabric's reaction. The response steps in each scenario above *are* the reference answer.
 
 ## What's missing (deliberately)
 

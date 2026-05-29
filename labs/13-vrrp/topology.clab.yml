@@ -26,7 +26,10 @@ topology:
         - ip addr add 10.10.10.2/24 dev eth1
         - ip route add default via 10.10.10.254
 
-    # Server on the "other side" — reachable only via the gateway
+    # Server on the "other side" — reachable only via the gateway.
+    # Its return route points at the VLAN 20 VRRP virtual IP (10.20.20.254),
+    # NOT at either switch's real SVI, so the return path follows whichever
+    # switch is VRRP master — exactly like the users' forward path on VLAN 10.
     h-server:
       kind: linux
       exec:
@@ -36,10 +39,12 @@ topology:
   links:
     - endpoints: ["h1:eth1", "sw1:eth1"]
     - endpoints: ["h2:eth1", "sw2:eth1"]
-    - endpoints: ["sw1:eth2", "sw2:eth2"]     # trunk between switches
-    # Server reachable from both L3 switches via VLAN 20 (each switch
-    # has Et3 in VLAN 20 — but h-server only physically attaches to one).
-    # For simplicity we attach to sw1 here; in a real design the server
-    # would have its own redundancy.
+    # Single trunk between the switches carries BOTH VLAN 10 and VLAN 20.
+    # When sw2 becomes VRRP master, the server's return traffic crosses
+    # this trunk on VLAN 20 to reach sw2. (A second VLAN-20-only trunk
+    # would just be an STP-blocked redundant path, so we keep one.)
+    - endpoints: ["sw1:eth2", "sw2:eth2"]
+    # h-server physically attaches to sw1 only; in a real design the server
+    # would have its own NIC redundancy. Both switches have an SVI in VLAN 20
+    # and share the VLAN 20 VRRP virtual IP, so either can route for it.
     - endpoints: ["h-server:eth1", "sw1:eth3"]
-    - endpoints: ["sw1:eth4", "sw2:eth3"]     # cross-link in VLAN 20 so sw2 can reach the server

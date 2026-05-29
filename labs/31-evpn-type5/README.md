@@ -97,6 +97,8 @@ In this lab each leaf has the SVI with a unique IP (`.1` on each, but they're in
    - `redistribute connected`
 6. Verify Type 5 routes propagate, h1 ↔ h2 works.
 
+> **Note on the L2-VNI BGP instance.** The reference solution also carries a per-VLAN BGP-EVPN instance (`vlan 100`/`vlan 200` with RD/RT + `redistribute learned`) brought over from lab 30. It produces the Type 2/3 routes for the L2 VNI and is *not* exercised by the h1 ↔ h2 inter-subnet ping in this lab (that path is pure Type 5). It is kept so the leaves remain valid L2-overlay nodes too; you don't need to add it to make this lab's Type 5 demo work.
+
 ## Hints
 
 ```
@@ -138,6 +140,8 @@ sudo containerlab deploy
 
 ## Verification
 
+> **cEOS note.** VXLAN routing (symmetric IRB / Type 5) is performed in **software forwarding** inside the cEOS container, so the h1 ↔ h2 ping and the VNI-50001 capture below do work here. On real Arista ASIC platforms (e.g. 7050X / 7280R / 7500R) VXLAN routing requires packet recirculation and you typically must enable `system profile vxlan-routing` (then reload) before the data plane forwards — see the EOS User Guide. That step is a hardware concern only and is intentionally omitted from the cEOS configs.
+
 ### 1. VRF up
 
 ```bash
@@ -168,9 +172,9 @@ Each route is tagged with RT 50001:50001 → imported into both leaves' VRF TENA
 show ip route vrf TENANT-A
 ```
 
-Now shows:
+Now shows (rendering varies slightly by EOS version — the distance `[200/0]` is the EVPN-imported value, and the next-hop is leaf2's VTEP via the L3 VNI):
 - `C 10.10.10.0/24 is directly connected, Vlan100`
-- `B 10.20.20.0/24 [200/0] via 22.22.22.22 (VTEP)`
+- something like `B I 10.20.20.0/24 [200/0] via VTEP 22.22.22.22 VNI 50001 router-mac <leaf2-mac>`
 
 ### 4. h1 ↔ h2 ping works (inter-subnet via L3 overlay)
 
