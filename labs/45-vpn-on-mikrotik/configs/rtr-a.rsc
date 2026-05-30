@@ -1,10 +1,10 @@
-# Starter: site A MikroTik. WAN on ether1, LAN on ether2.
+# Starter: site A MikroTik. WAN on ether3, LAN on ether2.
 # Your task: build a WireGuard tunnel to rtr-b and route 10.20.20.0/24 over it.
 
 /system identity set name=rtr-a
 
 /ip address
-add address=198.51.100.1/30 interface=ether1 comment="WAN"
+add address=198.51.100.1/30 interface=ether3 comment="WAN"
 add address=10.10.10.1/24   interface=ether2 comment="LAN"
 
 /ip route

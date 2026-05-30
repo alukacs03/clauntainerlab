@@ -6,7 +6,7 @@
 /system identity set name=rtr-a
 
 /ip address
-add address=198.51.100.1/30 interface=ether1 comment="WAN"
+add address=198.51.100.1/30 interface=ether3 comment="WAN"
 add address=10.10.10.1/24   interface=ether2 comment="LAN"
 
 /ip route
@@ -44,7 +44,7 @@ add dst-address=10.20.20.0/24 gateway=172.16.0.2 comment="to site B LAN"
 
 # Firewall: allow WG UDP/51820 inbound
 /ip firewall filter
-add chain=input action=accept protocol=udp dst-port=51820 in-interface=ether1 comment="WireGuard"
+add chain=input action=accept protocol=udp dst-port=51820 in-interface=ether3 comment="WireGuard"
 
 # ════════════════════════════════════════════════════════════════
 # Option 2 — IPsec site-to-site (IKEv2, PSK)
@@ -75,5 +75,5 @@ add chain=input action=accept protocol=udp dst-port=51820 in-interface=ether1 co
 #     tunnel=yes proposal=site-to-b
 #
 # /ip firewall filter
-# add chain=input action=accept protocol=udp dst-port=500,4500 in-interface=ether1
-# add chain=input action=accept protocol=ipsec-esp in-interface=ether1
+# add chain=input action=accept protocol=udp dst-port=500,4500 in-interface=ether3
+# add chain=input action=accept protocol=ipsec-esp in-interface=ether3

@@ -3,7 +3,7 @@
 /system identity set name=rtr-b
 
 /ip address
-add address=198.51.100.2/30 interface=ether1
+add address=198.51.100.2/30 interface=ether3
 add address=10.20.20.1/24   interface=ether2
 
 /ip route
@@ -28,4 +28,4 @@ add interface=wg-to-a \
 add dst-address=10.10.10.0/24 gateway=172.16.0.1
 
 /ip firewall filter
-add chain=input action=accept protocol=udp dst-port=51820 in-interface=ether1
+add chain=input action=accept protocol=udp dst-port=51820 in-interface=ether3

@@ -19,7 +19,7 @@ If you can't get CHR running, you can substitute with VyOS or a Linux box runnin
 
 ### Confirm the clab → RouterOS interface mapping first
 
-This lab's topology and configs assume `ether1` = WAN and `ether2` = LAN. How containerlab's `mikrotik_ros` kind maps each clab link to a RouterOS `etherN` is **version-dependent** — depending on the containerlab/RouterOS build, the management network can consume `ether1` and shift your data links by one. If the mapping differs, every `/ip address ... interface=etherN`, the WireGuard endpoint reachability, and the `interface=ether1` sniffer in Verification will silently land on the wrong port and the tunnel will never converge.
+This lab's topology and configs use `ether2` = LAN and `ether3` = WAN. **`ether1` is reserved for management** by containerlab's `mikrotik_ros` kind — a *data* link on `ether1` fails the deploy outright (`interface index out of bounds: 0 ! >= 1`, confirmed live on containerlab 0.75). The exact `etherN`↔clab-link mapping is otherwise **version-dependent** (the build can shift data links by one), so if the tunnel never converges, every `/ip address ... interface=etherN`, the WireGuard endpoint reachability, and the `interface=ether3` sniffer in Verification may be on the wrong port.
 
 Before configuring anything, deploy once and confirm the names from inside the CHR:
 
@@ -28,7 +28,7 @@ sudo containerlab deploy
 docker exec -it clab-vpn-on-mikrotik-rtr-a /interface print   # or console in
 ```
 
-Match each `ether*` to the clab endpoint (WAN link vs LAN link) and, if it differs from `ether1`/`ether2`, adjust the `interface=` values in `configs/*.rsc` (and the `interface=ether1` in the Verification sniffer) to suit. Once verified for your containerlab + RouterOS versions, the mapping is stable — note it here for next time.
+Match each `ether*` to the clab endpoint (WAN link vs LAN link) and, if it differs from `ether2`/`ether3`, adjust the `interface=` values in `configs/*.rsc` (and the `interface=ether3` in the Verification sniffer) to suit. Once verified for your containerlab + RouterOS versions, the mapping is stable — note it here for next time. (Requires a MikroTik **CHR** image built into containerlab via vrnetlab; this lab can't run on a cEOS-only VM.)
 
 ## Real-world scenario
 
@@ -60,7 +60,7 @@ For new builds, default to **WireGuard**. For partner integrations where they sa
 ```mermaid
 graph LR
     hostA["host-a<br/>10.10.10.10/24"] ---|"eth1 — ether2"| rtrA["rtr-a (MikroTik)<br/>LAN 10.10.10.1/24<br/>WAN 198.51.100.1/30<br/>wg-to-b 172.16.0.1/30"]
-    rtrA ===|"ether1 — ether1<br/>WAN · WireGuard UDP 51820"| rtrB["rtr-b (MikroTik)<br/>LAN 10.20.20.1/24<br/>WAN 198.51.100.2/30<br/>wg-to-a 172.16.0.2/30"]
+    rtrA ===|"ether3 — ether3<br/>WAN · WireGuard UDP 51820"| rtrB["rtr-b (MikroTik)<br/>LAN 10.20.20.1/24<br/>WAN 198.51.100.2/30<br/>wg-to-a 172.16.0.2/30"]
     rtrB ---|"ether2 — eth1"| hostB["host-b<br/>10.20.20.10/24"]
 ```
 
@@ -112,7 +112,7 @@ In this lab both sides have direct WAN IPs — easy case.
 - **Wrong public key**: silent failure. The receiver decrypts, MAC fails, packet dropped. No log by default.
 - **Wrong AllowedIPs**: tunnel "up" but traffic doesn't return — return packet doesn't match AllowedIPs on the way back.
 - **MTU**: WireGuard adds 60 bytes of overhead. If your underlying MTU is 1500, set tunnel MTU to 1420. Otherwise large packets fragment or get dropped.
-- **Firewall blocks UDP/51820**: `tcpdump -i ether1 udp port 51820`. If nothing's arriving, it's the firewall (or NAT/routing).
+- **Firewall blocks UDP/51820**: `tcpdump -i ether3 udp port 51820`. If nothing's arriving, it's the firewall (or NAT/routing).
 
 ## Your task
 
@@ -157,7 +157,7 @@ docker exec clab-vpn-on-mikrotik-host-a ping -c 3 10.20.20.10
 ### Verify it's encrypted
 ```bash
 # Tap the WAN link from the host side
-docker exec clab-vpn-on-mikrotik-rtr-a /tool sniffer quick interface=ether1 ip-protocol=udp
+docker exec clab-vpn-on-mikrotik-rtr-a /tool sniffer quick interface=ether3 ip-protocol=udp
 ```
 
 You see UDP/51820 — payload is encrypted; no clear ICMP visible.

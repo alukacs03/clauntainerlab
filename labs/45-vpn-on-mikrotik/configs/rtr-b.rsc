@@ -3,7 +3,7 @@
 /system identity set name=rtr-b
 
 /ip address
-add address=198.51.100.2/30 interface=ether1 comment="WAN"
+add address=198.51.100.2/30 interface=ether3 comment="WAN"
 add address=10.20.20.1/24   interface=ether2 comment="LAN"
 
 /ip route

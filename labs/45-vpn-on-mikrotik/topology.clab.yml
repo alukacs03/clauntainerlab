@@ -43,4 +43,4 @@ topology:
     # Site B internal
     - endpoints: ["host-b:eth1", "rtr-b:ether2"]
     # WAN between sites (simulated public internet)
-    - endpoints: ["rtr-a:ether1", "rtr-b:ether1"]
+    - endpoints: ["rtr-a:ether3", "rtr-b:ether3"]
