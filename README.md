@@ -18,72 +18,77 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 
 ## Lab Index
 
-| # | Lab | Topic | Status | Reviewed |
-|---|-----|-------|--------|----------|
-| 01 | [vlan-basics](labs/01-vlan-basics) | Access ports, trunks, 802.1Q tagging | Ready | ✅ |
-| 02 | [inter-vlan-svi](labs/02-inter-vlan-svi) | Inter-VLAN routing with SVIs | Ready | ✅ |
-| 03 | [trunk-deep-dive](labs/03-trunk-deep-dive) | Native VLAN, allowed-list hygiene, VLAN hopping | Ready | ✅ |
-| 03b | [lldp-and-discovery](labs/03b-lldp-and-discovery) | LLDP — "what's on the other end of this cable?" daily reflex | Ready | ✅ |
-| 04 | [stp-rstp](labs/04-stp-rstp) | Root election, port roles, RSTP convergence | Ready | ✅ |
-| 05 | [stp-protections](labs/05-stp-protections) | PortFast, BPDU Guard, Root Guard | Ready | — |
-| 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, broadcast/multicast storm control (storm-control config-only on cEOS) | Ready | ✅ |
-| 07 | [l2-security-trifecta](labs/07-l2-security-trifecta) | DHCP snooping + DAI + IP Source Guard | Ready | — |
-| 07b | [qinq-tunneling](labs/07b-qinq-tunneling) | QinQ / 802.1ad — customer VLAN structure tunneled inside provider S-VLAN | Ready | — |
-| 08 | [management-vrf](labs/08-management-vrf) | Logical separation of mgmt from data via VRF | Ready | — |
-| 09 | [aaa-tacacs](labs/09-aaa-tacacs) | Per-user login, command authz, accounting via TACACS+ | Ready | — |
-| 10 | [logging-ntp-baseline](labs/10-logging-ntp-baseline) | Remote syslog, NTP, banner, idle timeouts, baseline hardening | Ready | — |
-| 11 | [oob-management](labs/11-oob-management) | Physically separate OOB management network | Ready | — |
-| 12 | [lacp](labs/12-lacp) | Bundling parallel links into one logical via LACP | Ready | — |
-| 13 | [vrrp](labs/13-vrrp) | Active/standby gateway redundancy | Ready | — |
-| 14 | [mlag](labs/14-mlag) | Active/active L2 across two switches, no SPOF | Ready | — |
-| 15 | [anycast-gateway](labs/15-anycast-gateway) | Active/active L3 with VARP on top of MLAG | Ready | — |
-| 16 | [static-routing](labs/16-static-routing) | Static routes, AD, floating statics, ECMP | Ready | — |
-| 17 | [ospf-basics](labs/17-ospf-basics) | Single-area OSPF, neighbor formation, LSDB | Ready | — |
-| 18 | [ospf-design](labs/18-ospf-design) | Multi-area OSPF, ABR/ASBR, LSA types, stub areas | Ready | — |
-| 19 | [bfd](labs/19-bfd) | Sub-second failure detection for routing protocols | Ready | — |
-| 19b | [isis-underlay](labs/19b-isis-underlay) | IS-IS as alternative IGP — what hyperscalers run instead of OSPF | Ready | — |
-| 20 | [bgp-fundamentals](labs/20-bgp-fundamentals) | eBGP between two ASes, "hello world" of BGP | Ready | — |
-| 21 | [ibgp-route-reflectors](labs/21-ibgp-route-reflectors) | iBGP scaling via route reflectors, RR clients, IGP underneath | Ready | — |
-| 22 | [bgp-path-selection](labs/22-bgp-path-selection) | local-pref, AS-path prepend, MED, the 13-step decision process | Ready | — |
-| 23 | [bgp-route-policy](labs/23-bgp-route-policy) | prefix-lists, route-maps, communities, bogon filtering | Ready | — |
-| 24 | [bgp-internet-edge](labs/24-bgp-internet-edge) | Multi-homing pattern, default-only inbound, floating static | Ready | — |
-| 25 | [bgp-business](labs/25-bgp-business) | Customer/Peer/Transit, Gao-Rexford policy, BGP leak prevention | Ready | — |
-| 26 | [bgp-operations](labs/26-bgp-operations) | Auth, TTL security, BFD fall-over, max-routes, graceful restart | Ready | — |
-| 27 | [spine-leaf](labs/27-spine-leaf) | Clos topology with eBGP underlay, ECMP across spines | Ready | — |
-| 28 | [bgp-unnumbered](labs/28-bgp-unnumbered) | Link-local BGP peering, RFC 5549, no IP plumbing | Ready | — |
-| 29 | [vxlan-data-plane](labs/29-vxlan-data-plane) | Static VXLAN tunnels, VTEP, VNI, head-end replication | Ready | — |
-| 30 | [evpn-intro](labs/30-evpn-intro) | EVPN control plane, Type 2/3 routes, auto-discovery | Ready | — |
-| 31 | [evpn-type5](labs/31-evpn-type5) | EVPN Type 5, tenant VRF, symmetric IRB, L3 overlay | Ready | — |
-| 32 | [evpn-anycast-gateway](labs/32-evpn-anycast-gateway) | Anycast gateway across every leaf in the fabric | Ready | — |
-| 33 | [evpn-multisite](labs/33-evpn-multisite) | Stretched subnet across two DCs via DCI EVPN | Ready | — |
-| 33b | [evpn-multihoming](labs/33b-evpn-multihoming) | EVPN-MH via Ethernet Segment (ESI) — the modern MLAG replacement | Ready | — |
-| 34 | [ebgp-upstream-at-scale](labs/34-ebgp-upstream-at-scale) | IXP route server peering, bogon + max-prefix protection, community tagging | Ready | — |
-| 35 | [nat-in-dc](labs/35-nat-in-dc) | PAT (overload) + 1:1 static NAT at the edge | Ready | — |
-| 36 | [cgnat](labs/36-cgnat) | Carrier-grade NAT (NAT444) over RFC 6598 shared space | Ready | — |
-| 37 | [ipv6-dual-stack](labs/37-ipv6-dual-stack) | Dual-stack with OSPFv3 + SLAAC | Ready | — |
-| 38 | [ipv6-only-nat64](labs/38-ipv6-only-nat64) | IPv6-only customer access with NAT64/DNS64 (conceptual) | Ready | — |
-| 39 | [service-anycast](labs/39-service-anycast) | Multi-site service via BGP anycast — the 1.1.1.1 / 8.8.8.8 pattern | Ready | — |
-| 40 | [ddos-mitigation](labs/40-ddos-mitigation) | RTBH via BGP community signaling to upstream | Ready | — |
-| 41 | [control-plane-protection](labs/41-control-plane-protection) | Mgmt-plane ACLs + CoPP to harden the device itself | Ready | — |
-| 42 | [qos-fundamentals](labs/42-qos-fundamentals) | DSCP marking, priority queueing, voice vs bulk | Ready | — |
-| 43 | [voip-networking](labs/43-voip-networking) | Voice access port, RTP/SIP marking, common pitfalls | Ready | — |
-| 44 | [load-balancing-patterns](labs/44-load-balancing-patterns) | BGP + ECMP across backends (FRR on Linux servers) | Ready | — |
-| 45 | [vpn-on-mikrotik](labs/45-vpn-on-mikrotik) | WireGuard + IPsec site-to-site (MikroTik) | Ready | — |
-| 46 | [iscsi-fundamentals](labs/46-iscsi-fundamentals) | Storage VLAN, jumbo MTU, multipath topology | Ready | — |
-| 47 | [lossless-ethernet-dcb](labs/47-lossless-ethernet-dcb) | DCB / PFC / ETS pattern (cEOS limited; production config) | Ready | — |
-| 48 | [storage-qos-isolation](labs/48-storage-qos-isolation) | Per-tenant policer + DSCP + queue allocation | Ready | — |
-| 49 | [streaming-telemetry](labs/49-streaming-telemetry) | gNMI subscriptions; push vs poll | Ready | — |
-| 50 | [gnmic-prom-grafana](labs/50-gnmic-prom-grafana) | Full observability stack in containerlab | Ready | — |
-| 51 | [netconf-restconf](labs/51-netconf-restconf) | NETCONF/SSH + eAPI for programmatic config | Ready | — |
-| 52 | [ansible-nornir](labs/52-ansible-nornir) | Idempotent baseline playbook across N devices | Ready | — |
-| 53 | [network-cicd](labs/53-network-cicd) | Lint→validate→stage→prod pipeline + smoke tests | Ready | — |
-| 55 | [backup-and-dr](labs/55-backup-and-dr) | Automated config backup + recovery procedure | Ready | — |
-| 56 | [hitless-upgrade](labs/56-hitless-upgrade) | Rolling EOS upgrade — drain/undrain a redundant leaf pair (VARP + ECMP) | Ready | — |
-| 57 | [span-capture](labs/57-span-capture) | Port mirroring + scapy/iperf3 traffic generation | Ready | — |
-| 58 | [failure-playbook](labs/58-failure-playbook) | Chaos-experiments + scripted response | Ready | — |
-| 59 | [capacity-mtu-planning](labs/59-capacity-mtu-planning) | Oversubscription math + end-to-end MTU budget | Ready | — |
+| # | Lab | Topic | Status | Reviewed | AI live-reviewed |
+|---|-----|-------|--------|----------|--------|
+| 01 | [vlan-basics](labs/01-vlan-basics) | Access ports, trunks, 802.1Q tagging | Ready | ✅ | — |
+| 02 | [inter-vlan-svi](labs/02-inter-vlan-svi) | Inter-VLAN routing with SVIs | Ready | ✅ | — |
+| 03 | [trunk-deep-dive](labs/03-trunk-deep-dive) | Native VLAN, allowed-list hygiene, VLAN hopping | Ready | ✅ | — |
+| 03b | [lldp-and-discovery](labs/03b-lldp-and-discovery) | LLDP — "what's on the other end of this cable?" daily reflex | Ready | ✅ | — |
+| 04 | [stp-rstp](labs/04-stp-rstp) | Root election, port roles, RSTP convergence | Ready | ✅ | — |
+| 05 | [stp-protections](labs/05-stp-protections) | PortFast, BPDU Guard, Root Guard | Ready | — | — |
+| 06 | [port-security-storm-control](labs/06-port-security-storm-control) | MAC limits, broadcast/multicast storm control (storm-control config-only on cEOS) | Ready | ✅ | ⚠️ HW |
+| 07 | [l2-security-trifecta](labs/07-l2-security-trifecta) | DHCP snooping + DAI + IP Source Guard | Ready | — | ⚠️ HW |
+| 07b | [qinq-tunneling](labs/07b-qinq-tunneling) | QinQ / 802.1ad — customer VLAN structure tunneled inside provider S-VLAN | Ready | — | — |
+| 08 | [management-vrf](labs/08-management-vrf) | Logical separation of mgmt from data via VRF | Ready | — | — |
+| 09 | [aaa-tacacs](labs/09-aaa-tacacs) | Per-user login, command authz, accounting via TACACS+ | Ready | — | ✅ |
+| 10 | [logging-ntp-baseline](labs/10-logging-ntp-baseline) | Remote syslog, NTP, banner, idle timeouts, baseline hardening | Ready | — | ✅ |
+| 11 | [oob-management](labs/11-oob-management) | Physically separate OOB management network | Ready | — | — |
+| 12 | [lacp](labs/12-lacp) | Bundling parallel links into one logical via LACP | Ready | — | — |
+| 13 | [vrrp](labs/13-vrrp) | Active/standby gateway redundancy | Ready | — | ✅ |
+| 14 | [mlag](labs/14-mlag) | Active/active L2 across two switches, no SPOF | Ready | — | ✅ |
+| 15 | [anycast-gateway](labs/15-anycast-gateway) | Active/active L3 with VARP on top of MLAG | Ready | — | ✅ |
+| 16 | [static-routing](labs/16-static-routing) | Static routes, AD, floating statics, ECMP | Ready | — | — |
+| 17 | [ospf-basics](labs/17-ospf-basics) | Single-area OSPF, neighbor formation, LSDB | Ready | — | — |
+| 18 | [ospf-design](labs/18-ospf-design) | Multi-area OSPF, ABR/ASBR, LSA types, stub areas | Ready | — | — |
+| 19 | [bfd](labs/19-bfd) | Sub-second failure detection for routing protocols | Ready | — | ✅ |
+| 19b | [isis-underlay](labs/19b-isis-underlay) | IS-IS as alternative IGP — what hyperscalers run instead of OSPF | Ready | — | — |
+| 20 | [bgp-fundamentals](labs/20-bgp-fundamentals) | eBGP between two ASes, "hello world" of BGP | Ready | — | — |
+| 21 | [ibgp-route-reflectors](labs/21-ibgp-route-reflectors) | iBGP scaling via route reflectors, RR clients, IGP underneath | Ready | — | ✅ |
+| 22 | [bgp-path-selection](labs/22-bgp-path-selection) | local-pref, AS-path prepend, MED, the 13-step decision process | Ready | — | ✅ |
+| 23 | [bgp-route-policy](labs/23-bgp-route-policy) | prefix-lists, route-maps, communities, bogon filtering | Ready | — | ✅ |
+| 24 | [bgp-internet-edge](labs/24-bgp-internet-edge) | Multi-homing pattern, default-only inbound, floating static | Ready | — | ✅ |
+| 25 | [bgp-business](labs/25-bgp-business) | Customer/Peer/Transit, Gao-Rexford policy, BGP leak prevention | Ready | — | ✅ |
+| 26 | [bgp-operations](labs/26-bgp-operations) | Auth, TTL security, BFD fall-over, max-routes, graceful restart | Ready | — | ✅ |
+| 27 | [spine-leaf](labs/27-spine-leaf) | Clos topology with eBGP underlay, ECMP across spines | Ready | — | — |
+| 28 | [bgp-unnumbered](labs/28-bgp-unnumbered) | Link-local BGP peering, RFC 5549, no IP plumbing | Ready | — | ✅ |
+| 29 | [vxlan-data-plane](labs/29-vxlan-data-plane) | Static VXLAN tunnels, VTEP, VNI, head-end replication | Ready | — | — |
+| 30 | [evpn-intro](labs/30-evpn-intro) | EVPN control plane, Type 2/3 routes, auto-discovery | Ready | — | — |
+| 31 | [evpn-type5](labs/31-evpn-type5) | EVPN Type 5, tenant VRF, symmetric IRB, L3 overlay | Ready | — | ✅ |
+| 32 | [evpn-anycast-gateway](labs/32-evpn-anycast-gateway) | Anycast gateway across every leaf in the fabric | Ready | — | — |
+| 33 | [evpn-multisite](labs/33-evpn-multisite) | Stretched subnet across two DCs via DCI EVPN | Ready | — | — |
+| 33b | [evpn-multihoming](labs/33b-evpn-multihoming) | EVPN-MH via Ethernet Segment (ESI) — the modern MLAG replacement | Ready | — | ✅ |
+| 34 | [ebgp-upstream-at-scale](labs/34-ebgp-upstream-at-scale) | IXP route server peering, bogon + max-prefix protection, community tagging | Ready | — | ✅ |
+| 35 | [nat-in-dc](labs/35-nat-in-dc) | PAT (overload) + 1:1 static NAT at the edge | Ready | — | ✅ |
+| 36 | [cgnat](labs/36-cgnat) | Carrier-grade NAT (NAT444) over RFC 6598 shared space | Ready | — | ✅ |
+| 37 | [ipv6-dual-stack](labs/37-ipv6-dual-stack) | Dual-stack with OSPFv3 + SLAAC | Ready | — | — |
+| 38 | [ipv6-only-nat64](labs/38-ipv6-only-nat64) | IPv6-only customer access with NAT64/DNS64 (conceptual) | Ready | — | — |
+| 39 | [service-anycast](labs/39-service-anycast) | Multi-site service via BGP anycast — the 1.1.1.1 / 8.8.8.8 pattern | Ready | — | — |
+| 40 | [ddos-mitigation](labs/40-ddos-mitigation) | RTBH via BGP community signaling to upstream | Ready | — | ✅ |
+| 41 | [control-plane-protection](labs/41-control-plane-protection) | Mgmt-plane ACLs + CoPP to harden the device itself | Ready | — | ⚠️ HW |
+| 42 | [qos-fundamentals](labs/42-qos-fundamentals) | DSCP marking, priority queueing, voice vs bulk | Ready | — | ⚠️ HW |
+| 43 | [voip-networking](labs/43-voip-networking) | Voice access port, RTP/SIP marking, common pitfalls | Ready | — | ⚠️ HW |
+| 44 | [load-balancing-patterns](labs/44-load-balancing-patterns) | BGP + ECMP across backends (FRR on Linux servers) | Ready | — | — |
+| 45 | [vpn-on-mikrotik](labs/45-vpn-on-mikrotik) | WireGuard + IPsec site-to-site (MikroTik) | Ready | — | — |
+| 46 | [iscsi-fundamentals](labs/46-iscsi-fundamentals) | Storage VLAN, jumbo MTU, multipath topology | Ready | — | ✅ |
+| 47 | [lossless-ethernet-dcb](labs/47-lossless-ethernet-dcb) | DCB / PFC / ETS pattern (cEOS limited; production config) | Ready | — | ⚠️ HW |
+| 48 | [storage-qos-isolation](labs/48-storage-qos-isolation) | Per-tenant policer + DSCP + queue allocation | Ready | — | ⚠️ HW |
+| 49 | [streaming-telemetry](labs/49-streaming-telemetry) | gNMI subscriptions; push vs poll | Ready | — | ✅ |
+| 50 | [gnmic-prom-grafana](labs/50-gnmic-prom-grafana) | Full observability stack in containerlab | Ready | — | ✅ |
+| 51 | [netconf-restconf](labs/51-netconf-restconf) | NETCONF/SSH + eAPI for programmatic config | Ready | — | ✅ |
+| 52 | [ansible-nornir](labs/52-ansible-nornir) | Idempotent baseline playbook across N devices | Ready | — | ✅ |
+| 53 | [network-cicd](labs/53-network-cicd) | Lint→validate→stage→prod pipeline + smoke tests | Ready | — | ✅ |
+| 55 | [backup-and-dr](labs/55-backup-and-dr) | Automated config backup + recovery procedure | Ready | — | — |
+| 56 | [hitless-upgrade](labs/56-hitless-upgrade) | Rolling EOS upgrade — drain/undrain a redundant leaf pair (VARP + ECMP) | Ready | — | ✅ |
+| 57 | [span-capture](labs/57-span-capture) | Port mirroring + scapy/iperf3 traffic generation | Ready | — | — |
+| 58 | [failure-playbook](labs/58-failure-playbook) | Chaos-experiments + scripted response | Ready | — | — |
+| 59 | [capacity-mtu-planning](labs/59-capacity-mtu-planning) | Oversubscription math + end-to-end MTU budget | Ready | — | ✅ |
 
 **Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
+
+**AI live-reviewed** = deployed and applied on a live **Arista cEOS 4.35.4M** container (containerlab) by Claude during the 2026-05 live-validation pass, where every solution config was actually loaded onto real cEOS nodes and protocol convergence checked.
+- **✅** — deploys clean and the solution applies; protocols converge (OSPF Full / BGP+EVPN Established) where applicable.
+- **⚠️ HW** — deploys, but the solution intentionally uses **hardware-only** features cEOS can't run (`policy-map type qos` / `tx-queue` / `storm-control` / DAI-IPSG / CoPP …). The cEOS limitation was *confirmed live*; the lab is a study-the-config / read-the-model exercise on cEOS, fully functional only on real hardware.
+- **—** — not deployed in that pass (no live evidence yet; the config may still be fine).
 
 ## Running a Lab
 
