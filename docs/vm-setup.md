@@ -9,9 +9,26 @@ Checklist to provision the VM that will host containerlab.
 | OS | Debian 12 or Ubuntu 24.04 LTS | Both work; Ubuntu has slightly newer Docker repo |
 | vCPU | 4 | Bump to 6–8 for larger topologies |
 | RAM | 8 GB | cEOS ~1 GB/node, SR Linux ~600 MB/node |
-| Disk | 40 GB | NOS images are 500 MB–2 GB each |
+| Disk | 40 GB+ | NOS images are 500 MB–2 GB each |
 | Network | Bridged to LAN (`vmbr0`) | So you can SSH and reach mgmt IPs |
 | Nested virt | Not required | Containerlab uses containers, not VMs |
+
+> **Watch where `/var` lives.** Docker's data-root is `/var/lib/docker`, so the
+> images (cEOS ~2.6 GB + multitool/FRR/tacacs/prometheus/grafana for the later
+> labs ≈ 5 GB total) land on whatever volume holds `/var`. A default Debian LVM
+> install often puts `/var` on a **small separate logical volume** that fills up
+> and gives `failed to register layer: no space left on device` on `docker pull`
+> — even when `df -h /` shows plenty free. Check with `df -h /var`. If it's small
+> and the volume group has free extents (or the disk has unpartitioned space you
+> can `growpart`/`sfdisk -N` the PV partition into), extend it online:
+>
+> ```bash
+> # if the disk has unpartitioned space after the PV partition, grow it first:
+> #   sfdisk -N <n> --no-reread --force /dev/sda   (start unchanged, size to end)
+> #   partx -u /dev/sda && pvresize /dev/sdaN
+> sudo lvextend -L +40G /dev/vg0/var      # or -l +100%FREE
+> sudo resize2fs /dev/mapper/vg0-var
+> ```
 
 ## 2. Proxmox VM Creation
 
