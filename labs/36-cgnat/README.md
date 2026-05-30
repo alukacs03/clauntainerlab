@@ -77,18 +77,17 @@ Rule of thumb in CGN: 1 public IP per ~64-128 subscribers (assuming ~500 concurr
 ## Your task
 
 1. Give the subscriber segment its gateway: put `100.64.0.1/22` on the `Vlan100` SVI (Et2/Et3/Et4 are already access ports in VLAN 100). All three subscribers share this one gateway.
-2. Add a public secondary to the outside interface (Et1) wide enough that the pool addresses are valid usable hosts — `203.0.113.10/29 secondary` (so `203.0.113.8/29` gives usable `.9-.14`, broadcast `.15`).
-3. Configure a NAT pool `CGN-POOL` spanning `203.0.113.10` to `203.0.113.11` with `prefix-length 29`.
-4. Write an ACL matching `100.64.0.0/10`.
-5. Apply dynamic PAT **under the outside interface** (Et1) with `ip nat source dynamic access-list ... pool ... overload`. (EOS has no global `ip nat source list` and no `ip nat enable` — those are Cisco IOS.)
-6. Verify the config is accepted. (See the cEOS limitation callout: translations are not enforced in the container, so the pings below will not actually be NATed — the goal is correct config, not a live datapath.)
+2. Write an ACL matching the shared CGN range `100.64.0.0/10`.
+3. Apply dynamic **PAT (overload)** **under the outside interface** (Et1): `ip nat source dynamic access-list ... overload`. (EOS has no global `ip nat source list` / `ip nat enable` — those are Cisco IOS.) On EOS, `overload` PATs every subscriber onto Et1's own public IP (`203.0.113.2`), keyed by port.
+4. Verify the config is accepted. (See the cEOS limitation callout: translations are not enforced in the container, so the pings below will not actually be NATed — the goal is correct config, not a live datapath.)
+
+> **Why one IP here, not a pool?** Real carrier CGN spreads subscribers across a *pool* of many public IPs for scale and reputation isolation (NAT444). EOS's `overload` PATs onto a single interface address, and `ip nat source dynamic … pool … overload` (PAT *across* a pool) is **not accepted by EOS/cEOS** — multi-IP CGN PAT is a dedicated-CGN-platform / Linux-Jool feature. This lab demonstrates the PAT *mechanism* on one IP; the pool-sizing math above is the production design you'd implement on that dedicated platform.
 
 ## Hints
 
 - Gateway lives on the SVI: `interface Vlan100` → `ip address`.
-- Extra outside IPs: `ip address <ip>/<mask> secondary`.
-- Pool: `ip nat pool <name> <first> <last> prefix-length <len>`.
 - Match traffic: `ip access-list <name>` with a `permit ip <prefix> any` rule.
+- PAT under the outside interface: `ip nat source dynamic access-list <name> overload` (no pool — `overload` PATs onto the interface's own IP).
 - Apply PAT under the outside interface: `ip nat source dynamic access-list <acl> pool <pool> overload`.
 - Inspect: `show ip nat translation`, `show ip nat translation dynamic`, `show ip access-lists`.
 

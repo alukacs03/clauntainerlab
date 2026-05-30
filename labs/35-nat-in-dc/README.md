@@ -61,22 +61,21 @@ Used for: any service that must be reachable from outside (web servers, mail ser
 Reach the **goal state** below. Unlike Cisco IOS, EOS has no per-interface `ip nat inside`/`ip nat outside`/`ip nat enable` toggle — an interface participates in NAT simply by carrying an `ip nat source ...` rule, and **those apply commands live under the outside (egress) interface**, not at global config.
 
 1. Add a **secondary** IP on the outside interface for the 1:1 NAT (`203.0.113.5`, same `/29` as the primary so it is routable back).
-2. Configure a **NAT pool** referencing the primary outside IP (`203.0.113.2`).
-3. Configure a **NAT ACL** matching both inside subnets (10.10.10.0/24 and 10.10.20.0/24).
-4. Apply **PAT** on the outside interface so all inside traffic SNATs to the pool, overloaded by port.
-5. Configure **1:1 NAT** on the outside interface mapping h-inside1's private IP to its dedicated public IP.
+2. Configure a **NAT ACL** matching both inside subnets (10.10.10.0/24 and 10.10.20.0/24).
+3. Apply **PAT (overload)** on the outside interface so all inside traffic SNATs onto the interface's own outside IP (`203.0.113.2`). In EOS, interface PAT takes **no pool** — `overload` without a pool uses the interface address.
+4. Configure **1:1 NAT** on the outside interface mapping h-inside1's private IP to its dedicated public IP.
 
 Goal state to confirm: both inside hosts can reach the internet peer, and h-inside1's translations show its dedicated `203.0.113.5` while h-inside2's show the shared `203.0.113.2`.
 
 ## Hints
 
-- Global config (these contexts are correct in EOS): `ip nat pool <name> <start> <end> prefix-length <len>` and `ip access-list <name>` with `permit ip <subnet> any`.
+- Global config: `ip access-list <name>` with `permit ip <subnet> any`.
 - Apply context is the **outside interface** (`interface Ethernet1`, then `config-if`):
-  - PAT (overload): `ip nat source dynamic access-list <acl> pool <pool> overload`
+  - PAT (overload onto the interface IP, **no pool**): `ip nat source dynamic access-list <acl> overload`
   - 1:1 / static: `ip nat source static <inside-ip> <outside-ip>`
-- There is **no** `ip nat enable`, `ip nat inside`, or `ip nat outside` in EOS — don't go looking for one.
+- There is **no** `ip nat enable`, `ip nat inside`, or `ip nat outside` in EOS — don't go looking for one. (EOS `overload` PATs onto the interface address; a `pool` *without* `overload` is dynamic 1:1, not PAT — and `pool ... overload` is rejected.)
 - Secondary outside address: `ip address 203.0.113.5/29 secondary` under the outside interface.
-- Inspect with `show ip nat translations` and `show ip nat pool`.
+- Inspect with `show ip nat translations`.
 
 ## cEOS caveat — read before you trust the pings
 
