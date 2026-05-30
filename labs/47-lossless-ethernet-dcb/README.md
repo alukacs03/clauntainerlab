@@ -1,6 +1,6 @@
 # Lab 47 — Lossless Ethernet (DCB / PFC / ETS)
 
-> **Format:** Hands-on configuration pattern + concept-heavy. cEOS limitation: PFC/ETS are implemented in ASIC on production hardware (DCS-7060X / 7280R / 7500R / 7800R); on cEOS the syntax is accepted but enforcement is partial. The point of this lab is the *pattern* — production hardware enforces, but you learn the config and the model. Reference answer in [`solutions/`](solutions/).
+> **Format:** Study-the-config pattern + concept-heavy. cEOS limitation (verified live on 4.35.4M): PFC/ETS are ASIC features (DCS-7060X / 7280R / 7500R / 7800R). On cEOS the ETS egress-scheduling commands (`tx-queue …` / `bandwidth percent …`) are **rejected** — `% Unavailable command (not supported on this hardware platform)` — so that part **does not load** in the container; it is hardware-only. The point of this lab is the *pattern* and the model; production hardware applies and enforces it. The solution keeps the full production config for reference. Reference answer in [`solutions/`](solutions/).
 >
 > **Story chapter:** Phase 8 · Senior+ · Year 5. After lab 46, storage works — but at 60% of expected throughput, and one customer keeps complaining about "weird IOPS spikes." You learn the unfortunate truth: classical ethernet drops packets when congested, and TCP retransmits — but for storage, retransmits look like latency, and latency looks like a broken disk. You need *lossless* ethernet. See [`STORY.md`](../../STORY.md).
 

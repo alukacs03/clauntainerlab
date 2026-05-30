@@ -89,7 +89,7 @@ When attack traffic hits, only its specific class is rate-limited. Critical prot
 
 ### CoPP on cEOS
 
-cEOS's CoPP capabilities are limited compared to dedicated hardware. This lab uses a simplified ACL-based approach. On production Arista hardware (DCS-7280/7500/7800), CoPP is **not** a free-form policy you attach — EOS ships a single fixed control-plane policy map, `copp-system-policy`, that is *always* applied to the control plane (there is no command to add or remove that assignment). You tune it by editing its built-in dynamic classes, adjusting `bandwidth`/`shape` in **pps** (packets/sec) or **kbps** — there is no IOS-style `police … burst` knob:
+cEOS's CoPP capabilities are limited compared to dedicated hardware. This lab uses a simplified ACL-based approach — and even that is partly hardware-only: **live on cEOS 4.35.4M the `control-plane` config-mode command itself is rejected with `% Invalid input`**, so the to-CPU `COPP-INBOUND` ACL attached under `control-plane` does not load in the container. The protection that *does* load and work on cEOS is the interface-level `EDGE-IN` ACL on the untrusted port plus the management Service-ACLs; the `control-plane` block is reference config for real hardware. On production Arista hardware (DCS-7280/7500/7800), CoPP is **not** a free-form policy you attach — EOS ships a single fixed control-plane policy map, `copp-system-policy`, that is *always* applied to the control plane (there is no command to add or remove that assignment). You tune it by editing its built-in dynamic classes, adjusting `bandwidth`/`shape` in **pps** (packets/sec) or **kbps** — there is no IOS-style `police … burst` knob:
 
 ```
 ! EOS form — edit the always-applied copp-system-policy.

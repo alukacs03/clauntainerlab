@@ -7,7 +7,7 @@
 > **cEOS limitations (read before you start):** Three features in this lab are config-accepted as a learning exercise but are **not enforced** by cEOS — they only work on production hardware (DCS-7280/7500/7800 etc.):
 > - **LLDP-MED policy advertisement** — cEOS support is limited; production EOS advertises the voice-VLAN/DSCP network-policy TLV so the phone auto-provisions. This lab uses static voice-VLAN config and describes LLDP-MED conceptually.
 > - **`storm-control`** — cEOS rejects `storm-control <type> level <n>` with `storm-control not supported on this hardware platform` (same as lab 06). The syntax is shown for production-hardware reference; expect rejection on cEOS.
-> - **QoS DSCP remarking** (`set dscp`) — the marking policy is config-accepted but cEOS does **not** rewrite the ToS byte in its software data plane, so a packet capture will show the *original* DSCP, not the marked value. You learn the pattern; production hardware enforces it. See the Verification section for what you'll actually observe.
+> - **QoS DSCP marking** (`policy-map type qos` / `class` / `set dscp`, plus `match ip access-group` in a class-map) — **rejected by cEOS** (`% Unavailable command (not supported on this hardware platform)` / `% Invalid input`): the marking policy **does not even load** in the container, so there is nothing to capture. You learn the EOS config pattern here; production hardware applies and enforces it. See the Verification section for what you can do on cEOS.
 
 ## Real-world scenario
 
