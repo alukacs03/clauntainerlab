@@ -77,15 +77,21 @@ Result: you carry IPv4 prefixes over the unnumbered fabric without needing IPv4 
 Rather than configuring each neighbor individually (you'd have to know the link-local address, which would defeat the purpose), use a **peer-group** with **interface-based neighbor binding**:
 
 ```
-neighbor SPINES peer group
-neighbor SPINES remote-as external
-neighbor SPINES send-community
-neighbor interface Ethernet1 peer-group SPINES
-neighbor interface Ethernet2 peer-group SPINES
+! `remote-as external` (accept any AS) is the elegant unnumbered form, but
+! EOS/cEOS does NOT accept it — and here the two spines have different ASNs —
+! so use ONE peer-group per spine with an explicit numeric remote-as:
+neighbor SPINE1 peer group
+neighbor SPINE1 remote-as 65100
+neighbor SPINE1 send-community
+neighbor SPINE2 peer group
+neighbor SPINE2 remote-as 65200
+neighbor SPINE2 send-community
+neighbor interface Ethernet1 peer-group SPINE1
+neighbor interface Ethernet2 peer-group SPINE2
 ```
 
-- `remote-as external` means "whatever AS the peer advertises during OPEN" — useful because the peer's AS isn't pre-configured in unnumbered mode.
-- `neighbor interface ETHx peer-group NAME` binds a peer-group's settings to whichever neighbor BGP discovers on that interface.
+- `neighbor interface ETHx peer-group NAME` binds a peer-group's settings to whichever neighbor BGP discovers (over IPv6 link-local) on that interface — that's the unnumbered magic: no IPv4 plumbing.
+- `remote-as external` would mean "accept whatever AS the peer advertises in OPEN" — elegant when peer ASNs aren't known ahead of time — but it is **not supported on EOS/cEOS** (verified live), so we pin each peer's ASN explicitly. Because the two spines (and the two leaves) have different ASNs, that means one peer-group per peer.
 
 Adding a new spine/leaf = one more `neighbor interface EthernetN peer-group ...` line. No IPs to manage.
 
@@ -104,9 +110,9 @@ The L1/L2 plumbing is pre-staged for you in the starter (this is a sequel to lab
 
 1. Confirm the starter already enables `ipv6 unicast-routing` globally on every device.
 2. Confirm every transit interface (Ethernet1/Ethernet2) already has `ipv6 enable` and **no** `ip address`. If you diff the starter against lab 27 you'll see these are the only L1/L2 changes — the real work below is the `router bgp` block.
-3. Configure BGP with a peer-group (`SPINES` on leaves, `LEAVES` on spines).
-4. Use `neighbor interface <eth> peer-group <name>` to bind peers.
-5. `remote-as external` on the peer-group (for eBGP between leaves and spines).
+3. Configure BGP with **one peer-group per remote peer** (`SPINE1`/`SPINE2` on leaves, `LEAF1`/`LEAF2` on spines) — needed because each peer has a distinct ASN and cEOS rejects `remote-as external`.
+4. Use `neighbor interface <eth> peer-group <name>` to bind each peer-group to its interface.
+5. Set an explicit numeric `remote-as <peer-asn>` on each peer-group (eBGP leaf↔spine).
 6. Activate the peer-group under `address-family ipv4`.
 7. Verify ECMP and end-to-end traffic.
 
@@ -118,7 +124,7 @@ router bgp <asn>
    no bgp default ipv4-unicast
    maximum-paths 64 ecmp 64
    neighbor NAME peer group
-   neighbor NAME remote-as external
+   neighbor NAME remote-as <peer-asn>   ! cEOS rejects 'remote-as external'
    neighbor NAME send-community
    neighbor interface Ethernet1 peer-group NAME
    neighbor interface Ethernet2 peer-group NAME
@@ -192,7 +198,7 @@ docker exec clab-bgp-unnumbered-h1 ping -c 3 10.2.0.10
 - **BGP unnumbered** — peering over link-local, no /31 transit addresses.
 - **RFC 5549** — IPv4 routes with IPv6 next-hop; allows IPv4 over unnumbered.
 - **Peer-group** — share config across many neighbors; `interface ... peer-group` binds dynamically.
-- **`remote-as external`** — match whatever AS the peer announces (any external AS).
+- **`remote-as external`** — *(other platforms)* match whatever AS the peer announces. Convenient for unnumbered, but **EOS/cEOS does not support it** — pin a numeric `remote-as <asn>` per peer-group instead (one peer-group per peer when ASNs differ).
 
 ## Production notes
 
