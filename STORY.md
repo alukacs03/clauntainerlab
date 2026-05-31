@@ -230,6 +230,20 @@ It's everything the previous chapters of your story taught you, distilled into o
 
 ---
 
+## Bonus track — Advanced Routing (CCIE-depth)
+
+> Year 5+. The arc is done — this is the specialist depth you pick up *because you want to*, not because a phase forces it.
+
+You're a tech lead now, mostly reviewing and mentoring. But the gnarliest routing problems still find you — and the ones that separate a senior from a specialist are the deep routing-protocol mechanics: redistribution without loops, OSPF area engineering, BGP policy at scale, MPLS L3VPN. These map to CCIE-level knowledge, but you learn them **vendor-neutral, on the same Arista platform** (no Cisco cert chase — just the understanding).
+
+| Lab | Story beat |
+|---|---|
+| **60 — Route redistribution & loop prevention** | The Company **acquires a competitor**. Their edge runs BGP; your core runs OSPF. You stitch the two together through two border routers — and immediately meet the redistribution feedback loop that every M&A integration discovers the hard way. You fix it with origin tags and communities. |
+
+More labs in this track (advanced OSPF, advanced BGP, MPLS L3VPN, VRF leaking) are planned — see the Roadmap in `README.md`.
+
+---
+
 ## How to read this story
 
 - **Sequentially** — labs were ordered to build on each other and on the narrative.

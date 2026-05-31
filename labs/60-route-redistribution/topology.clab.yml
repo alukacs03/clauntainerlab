@@ -1,0 +1,32 @@
+name: route-redistribution
+
+topology:
+  kinds:
+    arista_ceos:
+      image: ceos:4.35.4M
+  nodes:
+    # OSPF domain (the "internal" network, area 0)
+    ospf-a:
+      kind: arista_ceos
+      startup-config: configs/ospf-a.cfg
+    # BGP domain (the "WAN/edge" side, AS 65002)
+    bgp-b:
+      kind: arista_ceos
+      startup-config: configs/bgp-b.cfg
+    # Border routers — in BOTH OSPF and BGP, the mutual-redistribution points.
+    # Deliberately in DIFFERENT external ASes (65001 / 65003) so BGP's own
+    # AS-path loop check does NOT mask the redistribution feedback loop.
+    br1:
+      kind: arista_ceos
+      startup-config: configs/br1.cfg
+    br2:
+      kind: arista_ceos
+      startup-config: configs/br2.cfg
+
+  links:
+    # OSPF side
+    - endpoints: ["ospf-a:eth1", "br1:eth1"]
+    - endpoints: ["ospf-a:eth2", "br2:eth1"]
+    # BGP side
+    - endpoints: ["bgp-b:eth1", "br1:eth2"]
+    - endpoints: ["bgp-b:eth2", "br2:eth2"]
