@@ -239,6 +239,7 @@ You're a tech lead now, mostly reviewing and mentoring. But the gnarliest routin
 | Lab | Story beat |
 |---|---|
 | **60 — Route redistribution & loop prevention** | The Company **acquires a competitor**. Their edge runs BGP; your core runs OSPF. You stitch the two together through two border routers — and immediately meet the redistribution feedback loop that every M&A integration discovers the hard way. You fix it with origin tags and communities. |
+| **61 — Advanced OSPF** | The estate grew and now you *engineer* areas, not just configure them: a low-memory branch router keeps flapping under LSA pressure (→ totally-stubby, default route only), and the acquired company's edge has to inject externals without polluting the core (→ NSSA, summarize, filter). |
 
 More labs in this track (advanced OSPF, advanced BGP, MPLS L3VPN, VRF leaking) are planned — see the Roadmap in `README.md`.
 

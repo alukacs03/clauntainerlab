@@ -83,6 +83,7 @@ Labs run on a dedicated VM on a Proxmox server. See [`docs/vm-setup.md`](docs/vm
 | 58 | [failure-playbook](labs/58-failure-playbook) | Chaos-experiments + scripted response | Ready | — | ✅ |
 | 59 | [capacity-mtu-planning](labs/59-capacity-mtu-planning) | Oversubscription math + end-to-end MTU budget | Ready | — | ✅ |
 | 60 | [route-redistribution](labs/60-route-redistribution) | Mutual OSPF↔BGP redistribution + loop prevention (tags + communities) | Ready | — | ✅ |
+| 61 | [advanced-ospf](labs/61-advanced-ospf) | NSSA (Type-7→5) + totally-stubby + summarization + LSA filtering | Ready | — | ✅ |
 
 **Reviewed** = lab has been deployed end-to-end and the README/configs were verified to behave as described. A `Ready` lab is content-complete but unvalidated until reviewed.
 
@@ -235,7 +236,7 @@ A bonus/specialist track that adds vendor-neutral CCIE-level routing depth on th
 | # | Lab | What it adds |
 |---|-----|--------------|
 | ~~60~~ | ~~Route redistribution & loop prevention~~ | Mutual OSPF↔BGP redistribution at two border routers; the feedback-loop trap and the tag-(IGP)/community-(BGP) fix |
-| 61 | _Advanced OSPF_ — planned | NSSA, (totally-)stub areas, virtual links, LSA/route filtering, summarization |
+| ~~61~~ | ~~Advanced OSPF~~ | NSSA (Type-7→5), totally-stubby areas, area-range summarization, LSA filtering (virtual links are cEOS-unsupported — concept only) |
 | 62 | _Advanced BGP_ — planned | Confederations, large/extended communities, conditional advertisement, aggregation + AS-set |
 | 63 | _MPLS L3VPN_ — planned | LDP + MP-BGP VPNv4, VRF/RD/RT, PE-CE (cEOS: control-plane verified; data-plane TBD) |
 | 64 | _VRF route-leaking & GRE_ — planned | Inter-VRF shared services + GRE tunnels |
